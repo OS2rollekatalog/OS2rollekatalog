@@ -21,13 +21,18 @@ import org.springframework.transaction.TransactionStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,7 +76,7 @@ class UserAssignmentsUpdaterJdbcTest {
 	private AttestationUserRoleAssignment runAndCapture(HistoricAssignment assignment) {
 		given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 		given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-		given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(assignment));
+		given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(assignment));
 		given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.empty());
 
 		updater.updateUserRoleAssignments(WHEN);
@@ -594,7 +599,7 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(base().build()));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(base().build()));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.of(existing));
 			given(temporalDao.updateAttestationUserRoleAssignment(any())).willReturn(1);
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
@@ -629,7 +634,7 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(assignment));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(assignment));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.of(existing));
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
 
@@ -666,7 +671,7 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(assignment));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(assignment));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.of(existing));
 			given(temporalDao.updateAttestationUserRoleAssignment(any())).willReturn(1);
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
@@ -703,7 +708,7 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(assignment));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(assignment));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.of(existing));
 			given(temporalDao.updateAttestationUserRoleAssignment(any())).willReturn(1);
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
@@ -739,7 +744,7 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(assignment));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(assignment));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.of(existing));
 			given(temporalDao.updateAttestationUserRoleAssignment(any())).willReturn(1);
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
@@ -776,7 +781,7 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(assignment));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(assignment));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.of(existing));
 			given(temporalDao.updateAttestationUserRoleAssignment(any())).willReturn(1);
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
@@ -800,7 +805,7 @@ class UserAssignmentsUpdaterJdbcTest {
 			// ---- Given ---- //
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(base().build()));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(base().build()));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.empty());
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of(101L, 102L));
 
@@ -817,7 +822,7 @@ class UserAssignmentsUpdaterJdbcTest {
 			// ---- Given ---- //
 			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of(base().build()));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of(base().build()));
 			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.empty());
 			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
 
@@ -826,6 +831,35 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			// ---- Then ---- //
 			verify(temporalDao, never()).invalidateUserRoleAssignmentsWithIdsIn(any(), any());
+		}
+	}
+
+	@Nested
+	@DisplayName("paging")
+	class Paging {
+
+		@Test
+		@DisplayName("continues after the last id of a full page and stops after a partial one")
+		void fetchesNextPageAfterLastIdOfFullPage() {
+			// ---- Given ---- //
+			final int pageSize = UserAssignmentsUpdaterJdbc.PAGE_SIZE;
+			List<HistoricAssignment> fullPage = LongStream.rangeClosed(1, pageSize)
+					.mapToObj(id -> base().id(id).build())
+					.toList();
+			given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
+			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, pageSize)).willReturn(fullPage);
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, (long) pageSize, pageSize))
+					.willReturn(List.of(base().id(pageSize + 1L).build()));
+			given(temporalDao.findValidUserRoleAssignmentWithHash(any(), any())).willReturn(java.util.Optional.empty());
+			given(temporalDao.findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(WHEN)).willReturn(List.of());
+
+			// ---- When ---- //
+			updater.updateUserRoleAssignments(WHEN);
+
+			// ---- Then ---- //
+			verify(temporalDao, times(pageSize + 1)).saveAttestationUserRoleAssignment(any());
+			verify(temporalDao, times(2)).findHistoricAssignmentsByItSystemAndDate(any(), anyLong(), anyLong(), anyInt());
 		}
 	}
 
@@ -851,7 +885,7 @@ class UserAssignmentsUpdaterJdbcTest {
 		void throwsExceptionWhenItSystemsReturnNoRecords() {
 			// ---- Given ---- //
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of());
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of());
 
 			// ---- When / Then ---- //
 			org.junit.jupiter.api.Assertions.assertThrows(
@@ -865,7 +899,7 @@ class UserAssignmentsUpdaterJdbcTest {
 		void doesNotSaveWhenListIsEmpty() {
 			// ---- Given ---- //
 			given(temporalDao.getDistinctAssignedItSystems(WHEN)).willReturn(List.of(10L));
-			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L)).willReturn(List.of());
+			given(temporalDao.findHistoricAssignmentsByItSystemAndDate(WHEN, 10L, 0L, UserAssignmentsUpdaterJdbc.PAGE_SIZE)).willReturn(List.of());
 
 			// ---- When ---- //
 			org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
@@ -873,6 +907,34 @@ class UserAssignmentsUpdaterJdbcTest {
 
 			// ---- Then ---- //
 			verify(temporalDao, never()).saveAttestationUserRoleAssignment(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("live role metadata")
+	class LiveRoleMetadata {
+
+		@Test
+		@DisplayName("uses the current name and description of the role and the role group, not the copy frozen on the historic row")
+		void usesCurrentNameAndDescription() {
+			// ---- Given ---- //
+			given(temporalDao.currentUserRoleMetadata())
+					.willReturn(Map.of(20L, new RoleMetadata("Renamed User Role", "Rewritten user role description")));
+			given(temporalDao.currentRoleGroupMetadata())
+					.willReturn(Map.of(30L, new RoleMetadata("Renamed Role Group", "Rewritten role group description")));
+
+			// ---- When ---- //
+			AttestationUserRoleAssignment result = runAndCapture(base()
+					.roleGroupId(30L)
+					.roleGroupName("Test Role Group")
+					.roleGroupDescription("Role group description")
+					.build());
+
+			// ---- Then ---- //
+			assertThat(result.getUserRoleName()).isEqualTo("Renamed User Role");
+			assertThat(result.getUserRoleDescription()).isEqualTo("Rewritten user role description");
+			assertThat(result.getRoleGroupName()).isEqualTo("Renamed Role Group");
+			assertThat(result.getRoleGroupDescription()).isEqualTo("Rewritten role group description");
 		}
 	}
 }

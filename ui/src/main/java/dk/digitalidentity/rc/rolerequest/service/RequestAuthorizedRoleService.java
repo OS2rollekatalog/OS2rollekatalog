@@ -1,349 +1,61 @@
 package dk.digitalidentity.rc.rolerequest.service;
 
-import static dk.digitalidentity.rc.config.Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID;
-import static dk.digitalidentity.rc.config.Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID;
 import static dk.digitalidentity.rc.config.Constants.ROLE_REQUESTAUTHORIZED;
 import static dk.digitalidentity.rc.rolerequest.RequestConstants.CACHE_PREFIX;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.PostponedConstraint;
-import dk.digitalidentity.rc.dao.model.UserOUFunction;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
-import dk.digitalidentity.rc.util.ConstraintValueUtil;
-import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
-import dk.digitalidentity.rc.util.UuidUtil;
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
+import dk.digitalidentity.rc.rolerequest.service.scope.LimitedToItSystems;
+import dk.digitalidentity.rc.rolerequest.service.scope.LimitedToOrgUnits;
+import dk.digitalidentity.rc.rolerequest.service.scope.LimitedToType;
+import dk.digitalidentity.rc.rolerequest.service.scope.SystemRoleScope;
+import dk.digitalidentity.rc.rolerequest.service.scope.SystemRoleScopeResolver;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service that is responsible for operations in relation to the request authorized role
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RequestAuthorizedRoleService {
-	private final UserRoleService userRoleService;
-	private final SettingsService settingsService;
-	private final ItSystemService itSystemService;
-	private final OrganisationConstraintUtil organisationConstraintUtil;
-	private final AssignmentService assignmentService;
-
-	public enum LimitedToType { NONE, ALL, CONSTRAINED }
-	public record LimitedToOrgUnits(LimitedToType type, Set<String> orgUnits) {}
-	public record LimitedToItSystems(LimitedToType type, Set<Long> itSystems) {}
+	private final ResolvedPermissionService resolvedPermissionService;
+	private final SystemRoleScopeResolver scopeResolver;
 
 	/**
 	 * Will look through all roles and check if any is setup to can be requested by authorized role
 	 */
 	@Cacheable(value = CACHE_PREFIX + "AuthorizedRoleCanRequest")
 	public boolean requestAuthorizedRoleCanRequest() {
-		final List<RequestableBy> globalPermission = settingsService.getRolerequestRequester();
-		log.debug("Checking global permission");
-		if (containsAuthorized(globalPermission)) {
-			return true;
-		}
-		log.debug("Checking it-systems");
-		if (itSystemService.getAll().stream()
-			.filter(its -> its.getRequesterPermission() != null)
-			.anyMatch(its -> containsAuthorized(its.getRequesterPermission()))) {
-			return true;
-		}
-		log.debug("Checking user-roles");
-		return userRoleService.getAll().stream()
-			.filter(its -> its.getRequesterPermission() != null)
-			.anyMatch(role -> containsAuthorized(role.getRequesterPermission()));
-	}
-
-	private static boolean containsAuthorized(final List<RequestableBy> option) {
-		return option.stream().anyMatch(r -> r.equals(RequestableBy.AUTHORIZED));
+		return resolvedPermissionService.anyRequestableByAuthorized();
 	}
 
 	/**
-	 * Returns all it-system id's that are accessible by the users request authorized role.
-	 * If the user does not have the roles, no it-systems are returned.
-	 * If the user has the authorized role, the method will check which it-systems are accessible based on constraints.
-	 */
-	public LimitedToItSystems accessibleItsSystems(final User user) {
-		final List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-		final List<UserRole> allRoleCatalogueRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
-		if (findAssignedSystemRole(allRoleCatalogueRoles, ROLE_REQUESTAUTHORIZED).isEmpty()) {
-			return new LimitedToItSystems(LimitedToType.NONE, Collections.emptySet());
-		}
-
-		// Resolve the it-system constraint for each authorized role. An empty constraint means
-		// "all it-systems" (resolved inside the helper); NONE means the role is not relevant here.
-		final List<LimitedToItSystems> constraints = allRoleCatalogueRoles.stream()
-			.map(ur -> getItSystemConstraintsForUserRole(user, ur))
-			.filter(c -> c.type != LimitedToType.NONE)
-			.toList();
-
-		// The it-systems chosen per user-assignment via postponed constraints.
-		final LimitedToItSystems postponedConstraints = getPostponedItSystemConstraints(user.getUserRoleAssignments());
-
-		// If any authorized role is unconstrained on it-systems, the user may approve for all of them.
-		// (The postponed channel is always CONSTRAINED, so it can never by itself grant ALL.)
-		if (constraints.stream().anyMatch(c -> c.type == LimitedToType.ALL)) {
-			return new LimitedToItSystems(LimitedToType.ALL, Collections.emptySet());
-		}
-
-		// Otherwise the user is limited to the union of all VALUE and postponed it-system id's.
-		// Both channels are merged so a postponed constraint can never shadow a concrete VALUE one.
-		final Set<Long> constrainedTo = Stream.concat(constraints.stream(), Stream.of(postponedConstraints))
-			.flatMap(c -> c.itSystems().stream())
-			.collect(Collectors.toSet());
-		return new LimitedToItSystems(constrainedTo.isEmpty() ? LimitedToType.ALL : LimitedToType.CONSTRAINED, constrainedTo);
-	}
-
-	/**
-	 * Returns all org units uuids that are accessible by the users request authorized role.
+	 * Returns all org units uuids that are accessible by the users request authorized role, regardless of it-system.
 	 * If the user does not have the roles, no OUs are returned.
 	 * If the user has the authorized role, the method will check which OUs are accessible based on constraints.
 	 */
 	public LimitedToOrgUnits accessibleOrgUnits(final User user) {
-		final List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-		final List<UserRole> allRoleCatalogueRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
-		if (findAssignedSystemRole(allRoleCatalogueRoles, ROLE_REQUESTAUTHORIZED).isEmpty()) {
-			return new LimitedToOrgUnits(LimitedToType.NONE, Collections.emptySet());
-		}
-		// Resolve the OU constraint for each authorized role. An empty constraint means "all OUs"
-		// (resolved inside the helper); NONE means the role is not relevant here.
-		final List<LimitedToOrgUnits> constraints = allRoleCatalogueRoles.stream()
-			.map(ur -> getOuConstraintsForUserRole(user, ur))
-			.filter(c -> c.type != LimitedToType.NONE)
-			.toList();
-
-		// The OUs chosen per user-assignment via postponed constraints.
-		final LimitedToOrgUnits postponedConstraints = getPostponedOuConstraints(user.getUserRoleAssignments());
-
-		// If any authorized role is unconstrained on OUs, the user may approve for all of them.
-		// (The postponed channel is always CONSTRAINED, so it can never by itself grant ALL.)
-		if (constraints.stream().anyMatch(c -> c.type == LimitedToType.ALL)) {
-			return new LimitedToOrgUnits(LimitedToType.ALL, Collections.emptySet());
-		}
-
-		// Otherwise the user is limited to the union of all VALUE and postponed OU uuid's.
-		// Both channels are merged so a postponed constraint can never shadow a concrete VALUE one.
-		final Set<String> constrainedTo = Stream.concat(constraints.stream(), Stream.of(postponedConstraints))
-			.flatMap(c -> c.orgUnits().stream())
-			.collect(Collectors.toSet());
-		return new LimitedToOrgUnits(constrainedTo.isEmpty() ? LimitedToType.ALL : LimitedToType.CONSTRAINED, constrainedTo);
+		return scopeResolver.orgUnitScope(user, ROLE_REQUESTAUTHORIZED);
 	}
 
-	private LimitedToItSystems getPostponedItSystemConstraints(final List<UserUserRoleAssignment> userUserRoleAssignment) {
-		final List<LimitedToItSystems> postponedConstraints = userUserRoleAssignment.stream()
-			.map(this::getPostponedItSystemConstraints)
-			.toList();
-		// If any of the returned results have no constraints, we can return immediately
-		final Optional<LimitedToItSystems> noConstraints = postponedConstraints.stream().filter(c -> c.type == LimitedToType.ALL).findFirst();
-		if (noConstraints.isPresent()) {
-			return noConstraints.get();
-		}
-		final Set<Long> constrainedTo = postponedConstraints.stream()
-			.filter(c -> c.type == LimitedToType.CONSTRAINED)
-			.flatMap(c -> c.itSystems.stream())
-			.collect(Collectors.toSet());
-		return new LimitedToItSystems(LimitedToType.CONSTRAINED, constrainedTo);
+	/**
+	 * The it-systems the user may request or approve for within the given OU.
+	 * @param orgUnit {@code null} only matches the scope for all OUs
+	 */
+	public LimitedToItSystems accessibleItSystemsForOrgUnit(final User user, final OrgUnit orgUnit) {
+		final List<SystemRoleScope> scopes = scopeResolver.scopesByOrgUnit(user, ROLE_REQUESTAUTHORIZED);
+		return scopes.stream()
+			.filter(scope -> orgUnit != null && scope.orgUnits().orgUnits().contains(orgUnit.getUuid()))
+			.findFirst()
+			.or(() -> scopes.stream().filter(scope -> scope.orgUnits().type() == LimitedToType.ALL).findFirst())
+			.map(SystemRoleScope::itSystems)
+			.orElseGet(() -> new LimitedToItSystems(LimitedToType.NONE, Collections.emptySet()));
 	}
-
-	private LimitedToItSystems getPostponedItSystemConstraints(final UserUserRoleAssignment userUserRoleAssignment) {
-		final Set<Long> itSystemIds = userUserRoleAssignment.getPostponedConstraints().stream()
-			.filter(pc -> pc.getSystemRole().getIdentifier().equals(ROLE_REQUESTAUTHORIZED))
-			.filter(pc -> INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID.equals(pc.getConstraintType().getEntityId()))
-			.map(PostponedConstraint::getValue)
-			.flatMap(c -> Arrays.stream(StringUtils.split(c, ",")))
-			.map(Long::parseLong)
-			.collect(Collectors.toSet());
-		return new LimitedToItSystems(LimitedToType.CONSTRAINED, itSystemIds);
-	}
-
-	private LimitedToItSystems getItSystemConstraintsForUserRole(final User user, final UserRole userRole) {
-		// We do not need to consider user-roles which does not have a system-role with the constraint in question
-		boolean relevant = userRole.getSystemRoleAssignments().stream()
-			.anyMatch(sra -> ROLE_REQUESTAUTHORIZED.equals(sra.getSystemRole().getIdentifier()));
-		if (!relevant) {
-			return new LimitedToItSystems(LimitedToType.NONE, Collections.emptySet());
-		}
-		final Set<Long> accessibleItSystemId = getItSystemConstraintsForSystemRoleAssignment(user, userRole.getSystemRoleAssignments());
-		return new LimitedToItSystems(accessibleItSystemId.isEmpty() ? LimitedToType.ALL : LimitedToType.CONSTRAINED, accessibleItSystemId);
-	}
-
-	private Set<Long> getItSystemConstraintsForSystemRoleAssignment(final User user, final List<SystemRoleAssignment> systemRoleAssignment) {
-		return systemRoleAssignment.stream()
-			.filter(sra -> sra.getSystemRole().getIdentifier().equals(ROLE_REQUESTAUTHORIZED))
-			.flatMap(sra -> sra.getConstraintValues().stream())
-			.filter(cv -> INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID.equals(cv.getConstraintType().getEntityId()))
-			.filter(cv -> cv.getConstraintValueType() != ConstraintValueType.POSTPONED)
-			.map(cv -> valueForSystemRoleConstraintValue(user, cv))
-			.flatMap(c -> Arrays.stream(Objects.requireNonNull(StringUtils.split(c, ","))))
-			.map(Long::parseLong)
-			.collect(Collectors.toSet());
-	}
-
-	private LimitedToOrgUnits getPostponedOuConstraints(final List<UserUserRoleAssignment> userUserRoleAssignment) {
-		final List<LimitedToOrgUnits> postponedConstraints = userUserRoleAssignment.stream()
-			.map(this::getPostponedOuConstraints)
-			.toList();
-		// If any of the returned results have no constraints, we can return immediately
-		final Optional<LimitedToOrgUnits> noConstraints = postponedConstraints.stream().filter(c -> c.type == LimitedToType.ALL).findFirst();
-		if (noConstraints.isPresent()) {
-			return noConstraints.get();
-		}
-		final Set<String> constrainedTo = postponedConstraints.stream()
-			.filter(c -> c.type == LimitedToType.CONSTRAINED)
-			.flatMap(c -> c.orgUnits.stream())
-			.collect(Collectors.toSet());
-		return new LimitedToOrgUnits(LimitedToType.CONSTRAINED, constrainedTo);
-	}
-
-	private LimitedToOrgUnits getPostponedOuConstraints(final UserUserRoleAssignment userUserRoleAssignment) {
-		final Set<String> ouUuid = userUserRoleAssignment.getPostponedConstraints().stream()
-			.filter(pc -> pc.getSystemRole().getIdentifier().equals(ROLE_REQUESTAUTHORIZED))
-			.filter(pc -> INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID.equals(pc.getConstraintType().getEntityId()))
-			.map(PostponedConstraint::getValue)
-			.flatMap(c -> Arrays.stream(StringUtils.split(c, ",")))
-			.filter(UuidUtil::isUuid)
-			.collect(Collectors.toSet());
-		return new LimitedToOrgUnits(LimitedToType.CONSTRAINED, ouUuid);
-	}
-
-	private LimitedToOrgUnits getOuConstraintsForUserRole(final User user, final UserRole userRole) {
-		// We do not need to consider user-roles which does not have a system-role with the constraint in question
-		boolean relevant = userRole.getSystemRoleAssignments().stream()
-			.anyMatch(sra -> ROLE_REQUESTAUTHORIZED.equals(sra.getSystemRole().getIdentifier()));
-		if (!relevant) {
-			return new LimitedToOrgUnits(LimitedToType.NONE, Collections.emptySet());
-		}
-		final Set<String> accessibleOrgUnitUuids = getOuConstraintsForSystemRoleAssignment(user, userRole.getSystemRoleAssignments());
-		return new LimitedToOrgUnits(accessibleOrgUnitUuids.isEmpty() ? LimitedToType.ALL : LimitedToType.CONSTRAINED, accessibleOrgUnitUuids);
-	}
-
-	private Set<String> getOuConstraintsForSystemRoleAssignment(final User user, final List<SystemRoleAssignment> systemRoleAssignment) {
-		return systemRoleAssignment.stream()
-			.filter(sra -> sra.getSystemRole().getIdentifier().equals(ROLE_REQUESTAUTHORIZED))
-			.flatMap(sra -> sra.getConstraintValues().stream())
-			.filter(cv -> INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID.equals(cv.getConstraintType().getEntityId()))
-			.filter(cv -> cv.getConstraintValueType() != ConstraintValueType.POSTPONED)
-			.map(cv -> valueForSystemRoleConstraintValue(user, cv))
-			.flatMap(c -> Arrays.stream(Objects.requireNonNull(StringUtils.split(c, ","))))
-			.filter(UuidUtil::isUuid)
-			.collect(Collectors.toSet());
-	}
-
-	private String valueForSystemRoleConstraintValue(final User user, final SystemRoleAssignmentConstraintValue constraintValue) {
-		return switch (constraintValue.getConstraintValueType()) {
-			case INHERITED ->
-				getOrgUnitUuidsFromPositions(user);
-			case EXTENDED_INHERITED ->
-				getExtendedOrgUnitUuids(user);
-			case VALUE, SELECTED_INHERITED ->
-				String.join(",", organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
-			case INHERITED_FROM_MANAGER_ROLE ->
-				getOrgUnitUuidsFromManagerRole(user, false);
-			case EXTENDED_INHERITED_FROM_MANAGER_ROLE ->
-				getOrgUnitUuidsFromManagerRole(user, true);
-			case INHERITED_FROM_FUNCTIONS ->
-				getOrgUnitUuidsFromFunctions(user, false, ConstraintValueUtil.parseFunctionUuids(constraintValue.getConstraintValue()));
-			case EXTENDED_INHERITED_FROM_FUNCTIONS ->
-				getOrgUnitUuidsFromFunctions(user, true, ConstraintValueUtil.parseFunctionUuids(constraintValue.getConstraintValue()));
-			default ->
-				throw new IllegalStateException(
-					"OU constraint cannot contain value of type " + constraintValue.getConstraintValueType()
-				);
-		};
-	}
-
-	private Optional<SystemRole> findAssignedSystemRole(final List<UserRole> userRoles, final String systemRoleIdentifier) {
-		return userRoles.stream()
-			.flatMap(ur -> ur.getSystemRoleAssignments().stream())
-			.map(SystemRoleAssignment::getSystemRole)
-			.filter(sr -> sr.getIdentifier().equals(systemRoleIdentifier))
-			.findFirst();
-	}
-
-	private static String getOrgUnitUuidsFromPositions(User user) {
-		return user.getPositions().stream()
-			.map(p -> p.getOrgUnit().getUuid())
-			.collect(Collectors.joining(","));
-	}
-
-	private static String getExtendedOrgUnitUuids(User user) {
-		return user.getPositions().stream()
-			.flatMap(p -> getRecursive(p.getOrgUnit(), new HashSet<>()).stream())
-			.collect(Collectors.joining(","));
-	}
-
-	private static Set<String> getRecursive(final OrgUnit orgUnit, final Set<String> accumulator) {
-		if (accumulator.contains(orgUnit.getUuid())) {
-			log.error("Same OU encountered twice, must be cyclic ou uuid {}", orgUnit.getUuid());
-			return accumulator;
-		}
-		accumulator.add(orgUnit.getUuid());
-		orgUnit.getChildren().forEach(ou -> getRecursive(ou, accumulator));
-		return accumulator;
-	}
-
-	private static String getOrgUnitUuidsFromManagerRole(User user, boolean extended) {
-		Set<String> result = new HashSet<>();
-		for (OrgUnit ou : user.getManagedOrgUnits()) {
-			if (extended) {
-				getRecursive(ou, result);
-			} else {
-				result.add(ou.getUuid());
-			}
-		}
-		for (ManagerSubstitute sub : user.getSubstituteFor()) {
-			if (extended) {
-				getRecursive(sub.getOrgUnit(), result);
-			} else {
-				result.add(sub.getOrgUnit().getUuid());
-			}
-		}
-		return String.join(",", result);
-	}
-
-	private static String getOrgUnitUuidsFromFunctions(User user, boolean extended, Set<String> allowedFunctionUuids) {
-		Set<String> result = new HashSet<>();
-		for (UserOUFunction f : user.getFunctionAssignments()) {
-			if (!allowedFunctionUuids.contains(f.getFunction().getUuid())) {
-				continue;
-			}
-			if (extended) {
-				getRecursive(f.getOrgUnit(), result);
-			} else {
-				result.add(f.getOrgUnit().getUuid());
-			}
-		}
-		return String.join(",", result);
-	}
-
-
 }

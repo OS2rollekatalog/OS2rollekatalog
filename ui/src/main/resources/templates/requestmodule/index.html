@@ -47,6 +47,7 @@
 														<th></th>
 														<th th:text="#{requestmodule.html.dashboard.tabs.roles.name}"></th>
 														<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}"></th>
+														<th th:text="#{requestmodule.html.dashboard.tabs.roles.reason}"></th>
 														<th th:text="#{requestmodule.html.dashboard.tabs.roles.status}"></th>
 														<th th:text="#{html.control.operations}"
 															style="width: 160px;"></th>
@@ -60,6 +61,7 @@
 														<td class="dt-control"></td>
 														<td th:text="${roleGroup.name}"></td>
 														<td class="preformat" th:text="${roleGroup.description}"></td>
+														<td th:replace="~{requestmodule/fragments/assignment_reason :: reasonCell(${roleGroup.reason})}"></td>
 														<td>
 															<span th:text="#{${roleGroup.status}}"></span>
 															<span
@@ -80,6 +82,7 @@
 														<td class="dt-control"></td>
 														<td th:text="${roleGroup.name}"></td>
 														<td class="preformat" th:text="${roleGroup.description}"></td>
+														<td></td>
 														<td>
 															<span th:text="#{${roleGroup.status}}"></span>
 														</td>
@@ -103,6 +106,7 @@
 													<th th:text="#{requestmodule.html.dashboard.tabs.roles.itsystem}"></th>
 													<th th:text="#{requestmodule.html.dashboard.tabs.roles.role}"></th>
 													<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}"></th>
+													<th th:text="#{requestmodule.html.dashboard.tabs.roles.reason}"></th>
 													<th th:text="#{requestmodule.html.dashboard.tabs.roles.status}"></th>
 													<th th:text="#{html.control.operations}" style="width: 160px;"></th>
 												</tr>
@@ -114,6 +118,7 @@
 													<td th:text="${userRole.itSystemName}"></td>
 													<td th:text="${userRole.name}"></td>
 													<td class="preformat" th:text="${userRole.description}"></td>
+													<td th:replace="~{requestmodule/fragments/assignment_reason :: reasonCell(${userRole.reason})}"></td>
 													<td>
 														<span th:text="#{${userRole.status}}"></span>
 														<span
@@ -133,6 +138,7 @@
 													<td th:text="${userRole.itSystemName}"></td>
 													<td th:text="${userRole.name}"></td>
 													<td class="preformat" th:text="${userRole.description}"></td>
+													<td></td>
 													<td>
 														<span th:text="#{${userRole.status}}"></span>
 													</td>
@@ -161,7 +167,8 @@
 	{
 		"detailsUrl": "[[@{/ui/request/rolegroups}]]",
 		"restUrl": "[[@{/rest/rolerequest}]]",
-		"reasonRequirement": "[[${reasonRequirement}]]"
+		"reasonRequirement": "[[${reasonRequirement}]]",
+		"autoApproveRemoval": [[${autoApproveRemoval}]]
 	}
 </script>
 <script th:src="@{/js/service/SweetAlertService.js}"></script>

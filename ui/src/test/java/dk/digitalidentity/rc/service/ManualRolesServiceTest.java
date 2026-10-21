@@ -7,14 +7,16 @@ import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManualAssignmentNotificationMap;
-import dk.digitalidentity.rc.dao.model.ManualNotificationPendingUser;
+import dk.digitalidentity.rc.dao.model.ManualNotificationPendingUserProjection;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.service.assignment.AssignmentReasonService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.model.AssignmentReasons;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,20 +30,25 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Limit;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,10 +73,12 @@ class ManualRolesServiceTest {
 	@Mock private ManagerSubstituteService managerSubstituteService;
 	@Mock private SettingsService settingsService;
 	@Mock private AssignmentService assignmentService;
+	@Mock private AssignmentReasonService assignmentReasonService;
 	@Mock private ManualAssignmentNotificationMapService manualAssignmentNotificationMapService;
 	@Mock private ManualNotificationPendingUserDao manualNotificationPendingUserDao;
 	@Mock private EntityManager entityManager;
 	@Mock private PostponedConstraintService postponedConstraintService;
+	@Mock private ObjectProvider<ManualRolesService> self;
 
 	@Spy private EmailTemplateRenderer emailTemplateRenderer;
 
@@ -83,17 +92,22 @@ class ManualRolesServiceTest {
 		emailTemplateService = new EmailTemplateService();
 		ReflectionTestUtils.setField(emailTemplateService, "emailTemplateDao", emailTemplateDao);
 		ReflectionTestUtils.setField(manualRolesService, "emailTemplateService", emailTemplateService);
+		// processPendingUsers går gennem selv-proxien for at få REQUIRES_NEW pr. batch
+		given(self.getObject()).willReturn(manualRolesService);
+		lenient().when(assignmentReasonService.findFor(any())).thenReturn(AssignmentReasons.NONE);
 	}
 
 	@Test
 	@DisplayName("Tom pending-tabel: ingen behandling overhovedet")
 	void emptyPendingTableIsNoOp() {
-		given(manualNotificationPendingUserDao.findAll()).willReturn(List.of());
+		given(manualNotificationPendingUserDao.findBatchAfter(anyLong(), any(Limit.class))).willReturn(List.of());
 
 		manualRolesService.processPendingUsers();
 
-		verifyNoInteractions(userService, itSystemService, assignmentService, emailService, settingsService);
-		verify(manualNotificationPendingUserDao, never()).deleteAll(any());
+		verifyNoInteractions(userService, itSystemService, assignmentService, emailService);
+		verify(manualNotificationPendingUserDao, never()).deleteAllByIdIn(any());
+		// firstRun læses nu før batch-løkken, men markøren må kun sættes når noget faktisk blev behandlet
+		verify(settingsService, never()).setFirstManualITSystemRun(any());
 	}
 
 	@Test
@@ -126,7 +140,7 @@ class ManualRolesServiceTest {
 		// a notification-map baseline row is recorded for each user via saveAll
 		verify(manualAssignmentNotificationMapDao).saveAll(any());
 		// the processed pending rows are cleared
-		verify(manualNotificationPendingUserDao).deleteAll(any());
+		verify(manualNotificationPendingUserDao).deleteAllByIdIn(any());
 		// guards the O(n²)-autoflush fix: queries inside the per-user loop must not autoflush
 		verify(entityManager).setFlushMode(FlushModeType.COMMIT);
 	}
@@ -166,7 +180,7 @@ class ManualRolesServiceTest {
 	}
 
 	@Test
-	@DisplayName("Default-skabelon: fjernet rolle giver byte-identisk 'Fjern rolle'-linje")
+	@DisplayName("Default template: removed role renders the legacy 'Fjern rolle' line byte for byte, naming the person who removed it")
 	void defaultTemplateProducesExactLegacyBodyForRemovedRole() {
 		Domain domain = domain();
 		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
@@ -174,7 +188,8 @@ class ManualRolesServiceTest {
 		User u1 = user("u1", "user1", domain);
 		ManualAssignmentNotificationMap mapRow = mapRow(1L, ROLE_ID, "user1");
 		mapRow.setOrgUnitName("Afdeling X");
-		mapRow.setAssignedBy("Test (test)");
+		mapRow.setAssignedBy("Assigner (assigner)");
+		mapRow.setRemovedBy("Test (test)");
 
 		stubPending(u1);
 		stubResolvableUsers(u1);
@@ -201,6 +216,33 @@ class ManualRolesServiceTest {
 
 		verify(emailService, times(1)).sendMessage(eq(IT_SYSTEM_EMAIL), eq(expectedTitle), eq(expectedBody), isNull());
 		verify(manualAssignmentNotificationMapDao).deleteAll(any());
+	}
+
+	@Test
+	@DisplayName("Removed role without a recorded person is attributed to the system, not the original assigner")
+	void removedRoleWithoutRemoverIsAttributedToSystem() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+		ManualAssignmentNotificationMap mapRow = mapRow(1L, ROLE_ID, "user1");
+		mapRow.setAssignedBy("Assigner (assigner)");
+
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of());
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of(mapRow));
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of(role));
+
+		manualRolesService.processPendingUsers();
+
+		ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+		verify(emailService).sendMessage(eq(IT_SYSTEM_EMAIL), anyString(), body.capture(), isNull());
+		assertThat(body.getValue()).contains("fjernet af Systembruger (system)").doesNotContain("Assigner");
 	}
 
 	@Test
@@ -317,6 +359,37 @@ class ManualRolesServiceTest {
 	}
 
 	@Test
+	@DisplayName("Role contact mail: assignment with constraint shows {afgrænsninger} for performer")
+	void roleContactMailShowsConstraintValuesForPerformer() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		UserRole role = role(itSystem);
+		role.setContactEmail("rolle@example.com");
+		User u1 = user("u1", "user1", domain);
+
+		CurrentAssignment assignment = currentAssignment(u1, role, itSystem);
+		assignment.getPostponedConstraints().add(constraint(42L, "some-entity", "val1", "val2"));
+
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+		enableTemplateWithConstraintPlaceholder(EmailTemplateType.MANUAL_ROLE_CONTACT_PERFORMER);
+
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(assignment));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+
+		manualRolesService.processPendingUsers();
+
+		ArgumentCaptor<String> body = ArgumentCaptor.captor();
+		verify(emailService).sendMessage(eq("rolle@example.com"), anyString(), body.capture(), isNull());
+		assertThat(body.getValue()).contains(", afgrænset til").contains("name-42");
+	}
+
+	@Test
 	@DisplayName("Rolle-advis: sendes til rollens advis-adresse når rolle-advis-skabelonen er aktiv, selvom rollen ingen contactEmail har")
 	void roleAdvisMailSentForRoleWithOnlyAdvisEmail() {
 		Domain domain = domain();
@@ -365,11 +438,11 @@ class ManualRolesServiceTest {
 		verifyNoInteractions(emailService);
 		verify(manualAssignmentNotificationMapDao, never()).saveAll(any());
 		// pending is still cleared so the row does not pile up
-		verify(manualNotificationPendingUserDao).deleteAll(any());
+		verify(manualNotificationPendingUserDao).deleteAllByIdIn(any());
 	}
 
 	@Test
-	@DisplayName("ROL-503 regression: it-system der lige er blevet berettiget (tom baseline) floder IKKE mails for alle eksisterende tildelinger under den fulde sweep")
+	@DisplayName("it-system der lige er blevet berettiget (tom baseline) floder IKKE mails for alle eksisterende tildelinger under den fulde sweep")
 	void newlyEligibleItSystemDoesNotFloodExistingAssignments() {
 		Domain domain = domain();
 		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
@@ -507,14 +580,52 @@ class ManualRolesServiceTest {
 		verifyNoInteractions(emailService);
 		// baseline is still recorded via saveAll so the user is not re-notified once the cooling-off passes
 		verify(manualAssignmentNotificationMapDao).saveAll(any());
-		verify(manualNotificationPendingUserDao).deleteAll(any());
+		verify(manualNotificationPendingUserDao).deleteAllByIdIn(any());
+	}
+
+	@Test
+	@DisplayName("Pending-rækker fordelt over to sider: begge sider behandles, og løkken stopper")
+	void pendingSpanningTwoBatchesIsFullyProcessed() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+		User u2 = user("u2", "user2", domain);
+
+		given(manualNotificationPendingUserDao.findBatchAfter(eq(0L), any(Limit.class)))
+			.willReturn(List.of(new ManualNotificationPendingUserProjection(1L, u1.getUuid())));
+		given(manualNotificationPendingUserDao.findBatchAfter(eq(1L), any(Limit.class)))
+			.willReturn(List.of(new ManualNotificationPendingUserProjection(2L, u2.getUuid())));
+		// opslaget efter id 2 er ustubbet -> tom liste -> løkken stopper
+
+		given(userService.getAllActiveByUuidIn(Set.of(u1.getUuid()))).willReturn(List.of(u1));
+		given(userService.getAllActiveByUuidIn(Set.of(u2.getUuid()))).willReturn(List.of(u2));
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList()))
+			.willReturn(Set.of(currentAssignment(u1, role, itSystem), currentAssignment(u2, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+
+		manualRolesService.processPendingUsers();
+
+		// hver side er sin egen transaktion og sin egen digest - to sider giver to mails
+		verify(emailService, times(2)).sendMessage(eq(IT_SYSTEM_EMAIL), anyString(), anyString(), isNull());
+		verify(manualNotificationPendingUserDao, times(2)).deleteAllByIdIn(any());
+		verify(manualNotificationPendingUserDao).findBatchAfter(eq(2L), any(Limit.class));
 	}
 
 	// ---- helpers ---- //
 
 	private void stubPending(User... users) {
-		given(manualNotificationPendingUserDao.findAll()).willReturn(
-			java.util.Arrays.stream(users).map(u -> pendingRow(u.getUuid())).toList());
+		List<ManualNotificationPendingUserProjection> batch = java.util.stream.IntStream.range(0, users.length)
+			.mapToObj(i -> new ManualNotificationPendingUserProjection((long) i + 1, users[i].getUuid()))
+			.toList();
+		// kun første side stubbes - opslaget efter sidste id falder tilbage på Mockitos tomme liste,
+		// og det er det der stopper batch-løkken
+		given(manualNotificationPendingUserDao.findBatchAfter(eq(0L), any(Limit.class))).willReturn(batch);
 	}
 
 	private void stubResolvableUsers(User... users) {
@@ -553,6 +664,13 @@ class ManualRolesServiceTest {
 		given(emailTemplateDao.findByTemplateType(type)).willReturn(template);
 	}
 
+	private void enableTemplateWithConstraintPlaceholder(EmailTemplateType type) {
+		EmailTemplate template = emailTemplateService.findByTemplateType(type);
+		template.setEnabled(true);
+		template.setRepeatingPart(template.getRepeatingPart() + "{afgrænsninger}");
+		given(emailTemplateDao.findByTemplateType(type)).willReturn(template);
+	}
+
 	private Domain domain() {
 		Domain domain = new Domain();
 		domain.setId(DOMAIN_ID);
@@ -565,7 +683,7 @@ class ManualRolesServiceTest {
 		itSystem.setId(IT_SYSTEM_ID);
 		itSystem.setName("Test IT System");
 		itSystem.setEmail(email);
-		// existing tests model an already-initialized system; the ROL-503 regression test above
+		// existing tests model an already-initialized system; the regression test above
 		// explicitly overrides this to false to reproduce a newly-eligible system
 		itSystem.setContactNotificationsInitialized(true);
 		return itSystem;
@@ -605,13 +723,6 @@ class ManualRolesServiceTest {
 		map.setUserUserId(userUserId);
 		map.setDomainId(DOMAIN_ID);
 		return map;
-	}
-
-	private ManualNotificationPendingUser pendingRow(String userUuid) {
-		ManualNotificationPendingUser pending = new ManualNotificationPendingUser();
-		pending.setUserUuid(userUuid);
-		pending.setCreatedAt(LocalDateTime.now());
-		return pending;
 	}
 
 	private CurrentAssignmentPostponedConstraint constraint(long systemRoleId, String entityId, String... values) {
@@ -693,6 +804,124 @@ class ManualRolesServiceTest {
 
 		verifyNoInteractions(emailService);
 		verify(manualAssignmentNotificationMapDao, never()).saveAll(any());
+	}
+
+	@Test
+	@DisplayName("begrundelse i skabelon vises for udfører, ikke for advis")
+	void reasonShownForPerformerOnlyNotAdvis() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		itSystem.setAdvisEmail(IT_SYSTEM_ADVIS_EMAIL);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+		User u2 = user("u2", "user2", domain);
+
+		stubPending(u1, u2);
+		stubResolvableUsers(u1, u2);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+		addReasonPlaceholderToNestedRepeatingPart(EmailTemplateType.MANUAL_SYSTEM_CONTACT_PERFORMER);
+		addReasonPlaceholderToNestedRepeatingPart(EmailTemplateType.MANUAL_SYSTEM_CONTACT_ADVIS);
+
+		CurrentAssignment withReason = currentAssignment(u1, role, itSystem);
+		withReason.setAssignmentId(1L);
+		CurrentAssignment withoutReason = currentAssignment(u2, role, itSystem);
+		withoutReason.setAssignmentId(2L);
+		given(assignmentReasonService.findFor(any()))
+			.willReturn(new AssignmentReasons(Map.of(1L, "fordi jeg sagde det"), Map.of()));
+
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList()))
+			.willReturn(Set.of(withReason, withoutReason));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+
+		manualRolesService.processPendingUsers();
+
+		ArgumentCaptor<String> performerBody = ArgumentCaptor.captor();
+		verify(emailService).sendMessage(eq(IT_SYSTEM_EMAIL), anyString(), performerBody.capture(), isNull());
+		// user1 has a reason, user2 does not - a missing reason must render as "" not the string "null"
+		assertThat(performerBody.getValue())
+			.contains("Test Role (desc), tildelt af Test (test)fordi jeg sagde det")
+			.contains("Test Role (desc), tildelt af Test (test)</li>");
+
+		// even an admin who pastes {begrundelse} into the advis template must never see the actual reason text -
+		// the token itself may render literally (renderer behavior for an unmapped placeholder), but the value must not leak
+		ArgumentCaptor<String> advisBody = ArgumentCaptor.captor();
+		verify(emailService).sendMessage(eq(IT_SYSTEM_ADVIS_EMAIL), anyString(), advisBody.capture(), isNull());
+		assertThat(advisBody.getValue()).doesNotContain("fordi jeg sagde det");
+	}
+
+	@Test
+	@DisplayName("fjernelses-begrundelse fra map-rækken bæres videre til Fjern-rækken")
+	void removalReasonCarriedToRemovedRow() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+		ManualAssignmentNotificationMap mapRow = mapRow(1L, ROLE_ID, "user1");
+		mapRow.setAssignedBy("Test (test)");
+		mapRow.setRemovalReason("ikke længere ansat");
+
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+		addReasonPlaceholderToNestedRepeatingPart(EmailTemplateType.MANUAL_SYSTEM_CONTACT_PERFORMER);
+
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of());
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of(mapRow));
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of(role));
+
+		manualRolesService.processPendingUsers();
+
+		ArgumentCaptor<String> body = ArgumentCaptor.captor();
+		verify(emailService).sendMessage(eq(IT_SYSTEM_EMAIL), anyString(), body.capture(), isNull());
+		assertThat(body.getValue()).contains("ikke længere ansat");
+	}
+
+	@Test
+	@DisplayName("rolle stadig tildelt -> stale removalReason på map-rækken nulstilles")
+	void staleRemovalReasonClearedWhenRoleStillAssigned() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+		ManualAssignmentNotificationMap mapRow = mapRow(1L, ROLE_ID, "user1");
+		mapRow.setAssignedBy("Test (test)");
+		mapRow.setRemovalReason("skulle have været fjernet, men blev gentildelt");
+		mapRow.setConstraintFingerprint(null);
+
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+
+		// role is still assigned today under the same roleId/fingerprint pairing as the existing map row
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList()))
+			.willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of(mapRow));
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+
+		manualRolesService.processPendingUsers();
+
+		verifyNoInteractions(emailService);
+		ArgumentCaptor<List<ManualAssignmentNotificationMap>> saved = ArgumentCaptor.captor();
+		verify(manualAssignmentNotificationMapDao).saveAll(saved.capture());
+		assertThat(saved.getValue()).extracting(ManualAssignmentNotificationMap::getRemovalReason).containsOnly((String) null);
+	}
+
+	/** Seeds the real default for the given type, enables it, and adds {begrundelse} to its nested repeating part. */
+	private void addReasonPlaceholderToNestedRepeatingPart(EmailTemplateType type) {
+		EmailTemplate template = emailTemplateService.findByTemplateType(type);
+		template.setEnabled(true);
+		template.setNestedRepeatingPart(template.getNestedRepeatingPart() + "{begrundelse}");
+		given(emailTemplateDao.findByTemplateType(type)).willReturn(template);
 	}
 
 	/** Mirrors ManualRolesService.buildConstraintFingerprint so tests can construct matching stored values. */

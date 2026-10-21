@@ -9,6 +9,8 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +23,8 @@ public class MockFactory {
 	public static ItSystem createItSystem(String uuid, List<ApprovableBy> approvableBy, List<RequestableBy> requesterPermission) {
 		ItSystem itSystem = new ItSystem();
 		itSystem.setUuid(uuid);
-		itSystem.setApproverPermission(approvableBy);
-		itSystem.setRequesterPermission(requesterPermission);
+		itSystem.setApproverPermission(ApproverPermission.of(approvableBy));
+		itSystem.setRequesterPermission(RequesterPermission.of(requesterPermission));
 		itSystem.setOrgUnitFilterOrgUnits(new ArrayList<>());
 		return itSystem;
 	}
@@ -35,8 +37,8 @@ public class MockFactory {
 		UserRole userRole = new UserRole();
 		userRole.setUuid(uuid);
 		userRole.setItSystem(itSystem);
-		userRole.setApproverPermission(approvableBy);
-		userRole.setRequesterPermission(requesterPermission);
+		userRole.setApproverPermission(ApproverPermission.of(approvableBy));
+		userRole.setRequesterPermission(RequesterPermission.of(requesterPermission));
 		userRole.setReadOnly(false);
 		userRole.setOrgUnitFilterOrgUnits(new ArrayList<>());
 		return userRole;
@@ -58,8 +60,8 @@ public class MockFactory {
 				})
 				.toList()
 		);
-		roleGroup.setApproverPermission(approvableBy);
-		roleGroup.setRequesterPermission(requesterPermission);
+		roleGroup.setApproverPermission(ApproverPermission.of(approvableBy));
+		roleGroup.setRequesterPermission(RequesterPermission.of(requesterPermission));
 		return roleGroup;
 	}
 

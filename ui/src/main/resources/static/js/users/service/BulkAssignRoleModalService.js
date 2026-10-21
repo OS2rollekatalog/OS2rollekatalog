@@ -247,12 +247,13 @@ class BulkAssignRoleModalService {
                 }
 
                 const selectedValue = orgUnits.length === 1 ? orgUnits[0].uuid : "";
+                const hasChoice = orgUnits.length > 1;
 
                 tbody.append(`
                     <tr data-uuid="${uuid}">
                         <td>${escapeHtml(name)}</td>
                         <td>
-                            <select class="form-control js-bulk-assign-orgunit-select" data-uuid="${uuid}">
+                            <select class="form-control js-bulk-assign-orgunit-select" data-uuid="${uuid}" data-has-choice="${hasChoice}">
                                 ${optionsHtml}
                             </select>
                         </td>
@@ -265,19 +266,37 @@ class BulkAssignRoleModalService {
                 }
             });
 
+            $("#bulkAssignOrgUnitsMissingError").prop("hidden", true);
             $("#modal-bulk-assign-orgunits").modal({ backdrop: "static", keyboard: false });
         });
     }
 
     orgUnitSelected(select) {
         this.setOrgUnitSelected(select.dataset.uuid, select.value);
+
+        if (select.value) {
+            $(select).removeClass("is-invalid");
+        }
     }
 
     setOrgUnitSelected(uuid, orgUnitUuid) {
         this.orgUnitsByUser.set(uuid, orgUnitUuid);
     }
 
+    findUnselectedOrgUnitChoices() {
+        return $("#bulkAssignOrgUnitsTableBody .js-bulk-assign-orgunit-select").filter(
+            (index, select) => select.dataset.hasChoice === "true" && !select.value
+        );
+    }
+
     finishClicked() {
+        const unselected = this.findUnselectedOrgUnitChoices();
+        if (unselected.length > 0) {
+            unselected.addClass("is-invalid");
+            $("#bulkAssignOrgUnitsMissingError").prop("hidden", false);
+            return;
+        }
+
         $("#modal-bulk-assign-orgunits").modal("hide");
 
         // Rolegroups never support postponed constraints, so skip straight to submit.

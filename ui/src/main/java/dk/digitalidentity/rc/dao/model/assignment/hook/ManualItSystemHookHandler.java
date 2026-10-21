@@ -1,12 +1,11 @@
 package dk.digitalidentity.rc.dao.model.assignment.hook;
 
-import java.util.Objects;
+import java.util.Collections;
 
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.ManualRolesService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -23,7 +22,7 @@ public class ManualItSystemHookHandler implements AssignmentHookHandler {
 	public void handleEvent(HookEvent hookEvent) {
 		UserRole userRole = userRoleService.getById(hookEvent.getUserRoleId());
 		if (userRole != null) {
-			if (Objects.equals(userRole.getItSystem().getSystemType(), ItSystemType.MANUAL)) {
+			if (manualRolesService.hasContactEmail(userRole.getItSystem(), Collections.singletonMap(userRole.getId(), userRole))) {
 				User user = userService.getByUuid(hookEvent.getUserUuid());
 				if (user != null) {
 					manualRolesService.markUserPending(user);

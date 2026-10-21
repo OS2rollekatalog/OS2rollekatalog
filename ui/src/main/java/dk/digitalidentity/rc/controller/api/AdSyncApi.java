@@ -8,8 +8,8 @@ import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.log.MemoryLogger;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -62,6 +62,9 @@ public class AdSyncApi {
 	@Autowired
 	private AssignmentService assignmentService;
 
+	@Autowired
+	private MemoryLogger memoryLogger;
+
 	@GetMapping("/api/ad/v2/operations")
 	public ResponseEntity<ADOperationsResult> getPendingOperations(@RequestParam(name = "domain", required = false) String domain) {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
@@ -113,11 +116,22 @@ public class AdSyncApi {
 
 		List<DirtyADGroup> updates = new ArrayList<>();
 
+		log.debug("Performing sync");
+		if (log.isDebugEnabled()) {
+			memoryLogger.logMemoryMetrics();
+		}
+
 		if (!fullSync) {
 			// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
-			updates = pendingADUpdateService.find100(foundDomain);
+			pendingADUpdateService.cleanupDuplicates();
+			
+			updates = pendingADUpdateService.find30(foundDomain);
 		}
 		else {
+			// I'm not sure a full sync is a good idea - we should instead flag them all for
+			// sync and use the normal 50 at a time sync method
+			log.warn("Performing full sync");
+
 			List<ItSystem> allADSystems = itSystemService.getBySystemType(ItSystemType.AD).stream()
 					.filter(s -> s.getDomain() != null && foundDomain.getId() == s.getDomain().getId())
 					.filter(s -> !s.isReadonly())
@@ -138,6 +152,10 @@ public class AdSyncApi {
 			}
 		}
 
+		if (updates.size() == 0) {
+			return new ResponseEntity<>(result, HttpStatus.OK);
+		}
+		
 		// compute max
 		long maxId = 0;
 		try {
@@ -162,6 +180,11 @@ public class AdSyncApi {
 				.stream()
 				.collect(Collectors.groupingBy(sr -> sr.getItSystem().getId()));
 
+		if (log.isDebugEnabled()) {
+			log.debug("Before looping over updates");
+			memoryLogger.logMemoryMetrics();
+		}
+		
 		for (DirtyADGroup update : updates) {
 			List<SystemRole> siblings = systemRoleMap.get(update.getItSystemId());
 			if (siblings == null) {
@@ -192,6 +215,11 @@ public class AdSyncApi {
 		Map<SystemRole, Set<UserRole>> systemRoleToUserRoleMap = new HashMap<>();
 		Set<UserRole> userRoles = systemRoleService.userRolesWithSystemRoles(dirtySystemRoles.values());
 
+		if (log.isDebugEnabled()) {
+			log.debug("Before looping over userRoles (count = " + userRoles.size() + ")");
+			memoryLogger.logMemoryMetrics();
+		}
+
 		for (UserRole userRole : userRoles) {
 			userRole.getSystemRoleAssignments().forEach(sra -> {
 				SystemRole systemRole = sra.getSystemRole();
@@ -209,10 +237,11 @@ public class AdSyncApi {
 			});
 		}
 
-		Map<Long, List<CurrentAssignmentSmallProjection>> assignmentMap = assignmentService.getActiveByUserRolesAsProjection(userRoles)
-				.stream()
-				.collect(Collectors.groupingBy(CurrentAssignmentSmallProjection::getUserRoleId));
-
+		if (log.isDebugEnabled()) {
+			log.debug("Before looping over systemRoles (count = " + dirtySystemRoles.values().size() + ")");
+			memoryLogger.logMemoryMetrics();
+		}
+		
 		for (SystemRole dirtySystemRole : dirtySystemRoles.values()) {
 			Set<UserRole> dirtyUserRoles = systemRoleToUserRoleMap.get(dirtySystemRole);
 			if (dirtyUserRoles == null) {
@@ -221,17 +250,7 @@ public class AdSyncApi {
 			}
 
 			// get all users that has a given system-role
-			Set<String> sAMAccountNames = new HashSet<>();
-			for (UserRole userRole : dirtyUserRoles) {
-				List<CurrentAssignmentSmallProjection> assignments = assignmentMap.get(userRole.getId());
-				if (assignments != null) {
-					for (CurrentAssignmentSmallProjection assignment : assignments) {
-						if (assignment.getUserDomainId() == foundDomain.getId()) {
-							sAMAccountNames.add(assignment.getUserId());
-						}
-					}
-				}
-			}
+			Set<String> sAMAccountNames = assignmentService.getActiveUserIds(dirtyUserRoles, foundDomain.getId());
 
 			ADGroupAssignments assignment = new ADGroupAssignments();
 			assignment.setItSystemId(dirtySystemRole.getItSystem().getId());
@@ -245,6 +264,12 @@ public class AdSyncApi {
 		// support weighted it-systems by removing assignments that should not have been added due to an assignment with higher weight
 		// get distinct it systems
 		List<Long> itSystems = result.getAssignments().stream().map( a -> a.getItSystemId()).distinct().collect(Collectors.toList());
+
+		if (log.isDebugEnabled()) {
+			log.debug("Before looping over itSystem (count = " + itSystems.size() + ")");
+			memoryLogger.logMemoryMetrics();
+		}
+
 		for (long itSystemId : itSystems) {
 			// get assignments belonging to this it system
 			List<ADGroupAssignments> itSystemAssignments = result.getAssignments().stream().filter(a -> a.getItSystemId() == itSystemId).collect(Collectors.toList());
@@ -265,6 +290,12 @@ public class AdSyncApi {
 		
 		result.setHead(maxId);
 		result.setMaxHead(pendingADUpdateService.findMaxHead());
+
+		if (log.isDebugEnabled()) {
+			memoryLogger.logMemoryMetrics();
+		}
+
+		log.debug("Completed sync");
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}

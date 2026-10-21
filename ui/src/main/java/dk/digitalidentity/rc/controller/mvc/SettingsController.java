@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +25,7 @@ import dk.digitalidentity.rc.dao.model.Notification;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.rolerequest.model.dto.RequestConstraintDTO;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.rolerequest.model.dto.RoleRequestSettingsDTO;
 import dk.digitalidentity.rc.rolerequest.service.RequestConstraintService;
 import dk.digitalidentity.rc.security.permission.Permission;
@@ -75,11 +77,12 @@ public class SettingsController {
         settingsForm.setShowAllRolesTab(settingsService.isShowAllRolesTab());
         settingsForm.setShowExistingRolesTab(settingsService.isShowExistingRolesTab());
 		settingsForm.setAlternativeEmails(settingsService.getRoleRequestApproverEmails());
-		settingsForm.setApprovableByList(settingsService.getRolerequestApprover());
-		settingsForm.setRequestableByList(settingsService.getRolerequestRequester());
+		settingsForm.setApprovableByList(settingsService.getRolerequestApprover().getApprovableBy());
+		settingsForm.setRequestableByList(settingsService.getRolerequestRequester().getRequestableBy());
 		settingsForm.setServicedeskEmail(settingsService.getRequestApproveServicedeskEmail());
 		settingsForm.setShowSingleTableInRequestApproveEnabled(settingsService.isShowSingleTableInRequestApproveEnabled());
 		settingsForm.setAllowSelfApproval(settingsService.isAllowSelfApprovalEnabled());
+		settingsForm.setAutoApproveRemoval(settingsService.isAutoApproveRemovalEnabled());
 
         Set<RequestConstraintDTO> constraints = constraintService.getAllConstraints().stream()
             .map(constraint -> RequestConstraintDTO.builder()
@@ -111,6 +114,7 @@ public class SettingsController {
 		settingsService.setCaseNumberEnabled(settingsForm.isCaseNumberEnabled());
 		settingsService.setAutomaticNiveauMapping(settingsForm.isAutoNiveauEnabled());
 		settingsService.setRemoveDirectAssignmentsForDisabled(settingsForm.getRemoveDirectAssignmentsForDeleted());
+		settingsService.setRemoveDirectAssignmentsOnRelevantPositionChangeEnabled(settingsForm.isRemoveRolesOnRelevantPositionChange());
 		if (!settingsForm.isAutoNiveauEnabled()) {
 			settingsService.clearExistingNiveauMappings();
 		}
@@ -118,6 +122,8 @@ public class SettingsController {
 			settingsService.setNiveauMapping(settingsForm.getDepthToNiveauMappings());
 		}
 		settingsService.setExcludedOUs(settingsForm.getExcludedOUs());
+		
+		settingsService.setPreventDuplicateRoles(settingsForm.isPreventDuplicateRoles());
 
         redirectAttributes.addFlashAttribute("saved", true);
 
@@ -160,6 +166,8 @@ public class SettingsController {
         settingsService.setFirstAttestationDate(attestationSettingsForm.getFirstAttestationDate());
         settingsService.setAttestationRequestChangesEnabled(attestationSettingsForm.isChangeRequestsEnabled());
         settingsService.setDontSendMailToManagerEnabled(attestationSettingsForm.isDontSendMailToManager());
+        settingsService.setAttestationEscalationRecipients(attestationSettingsForm.getEscalationRecipients());
+        settingsService.setAttestationEscalationEmails(attestationSettingsForm.getEscalationEmails());
 		settingsService.setAttestationDescriptionRequired(attestationSettingsForm.isDescriptionRequired());
 		settingsService.setAttestationHideDescription(attestationSettingsForm.isHideDescription());
 		settingsService.setAttestationOrgUnitSelectionOptIn(attestationSettingsForm.isOrgUnitOptIn());
@@ -193,10 +201,11 @@ public class SettingsController {
             return "setting/rolerequest_settings";
         }
 
-        settingsService.setRolerequestRequester(settingsForm.getRequestableByList());
-        settingsService.setRolerequestApprover(settingsForm.getApprovableByList());
+        settingsService.setRolerequestRequester(RequesterPermission.global(settingsForm.getRequestableByList()));
+        settingsService.setRolerequestApprover(ApproverPermission.global(settingsForm.getApprovableByList()));
         settingsService.setShowSingleTableInRequestApproveEnabled(settingsForm.isShowSingleTableInRequestApproveEnabled());
         settingsService.setAllowSelfApprovalEnabled(settingsForm.isAllowSelfApproval());
+        settingsService.setAutoApproveRemovalEnabled(settingsForm.isAutoApproveRemoval());
         settingsService.setRolerequestReason(settingsForm.getReasonSetting());
         settingsService.setShowRecommendedRolesTab(settingsForm.isShowRecommendedRolesTab());
         settingsService.setShowAllRolesTab(settingsForm.isShowAllRolesTab());
@@ -218,6 +227,9 @@ public class SettingsController {
 		settingsForm.setAutoNiveauEnabled(settingsService.isAutomaticNiveauMappingEnabled());
 		settingsForm.setDepthToNiveauMappings(settingsService.getNiveauMapping());
 		settingsForm.setRemoveDirectAssignmentsForDeleted(settingsService.getRemoveDirectAssignmentsForDisabled());
+		settingsForm.setPreventDuplicateRoles(settingsService.isPreventDuplicateRoles());
+		settingsForm.setPreventDuplicateRoles(settingsService.isPreventDuplicateRoles());
+		settingsForm.setRemoveRolesOnRelevantPositionChange(settingsService.isRemoveDirectAssignmentsOnRelevantPositionChangeEnabled());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCachedIncludingExcluded()
 				.stream()
@@ -240,6 +252,8 @@ public class SettingsController {
         settingsForm.setFirstAttestationDate(settingsService.getFirstAttestationDate());
         settingsForm.setChangeRequestsEnabled(settingsService.isAttestationRequestChangesEnabled());
         settingsForm.setDontSendMailToManager(settingsService.isDontSendMailToManagerEnabled());
+        settingsForm.setEscalationRecipients(settingsService.getAttestationEscalationRecipients());
+        settingsForm.setEscalationEmails(settingsService.getAttestationEscalationEmails());
 		settingsForm.setDescriptionRequired(settingsService.isAttestationDescriptionRequired());
 		settingsForm.setHideDescription(settingsService.isAttestationHideDescription());
 		settingsForm.setOrgUnitOptIn(settingsService.isAttestationOrgUnitSelectionOptIn());

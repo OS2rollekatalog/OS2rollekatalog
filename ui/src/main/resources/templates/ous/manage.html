@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="~{fragments/header :: header (title=#{html.page.ous.mange.title})}"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.ous.mange.title}, ouAssignment=true)}"></head>
 <body class="layout-fixed">
 	<div class="wrapper" th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
@@ -160,13 +160,13 @@
 
 	<link rel="stylesheet" th:href="@{/css/ous/manage.css}" />
 
-	<div th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})}"></div>
 
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:replace="~{fragments/datatables :: datatables}"></script>
 	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
-	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
+	<script th:src="@{/js/service/JsTreeService.js}"></script>
+	<script th:src="@{/js/service/NotificationService.js}"></script>
 
 	<script th:src="@{/js/service/SweetAlertService.js}"></script>
 	<script th:src="@{/js/ous/service/RolesService.js}"></script>
@@ -188,8 +188,6 @@
 			"deleteRoleAssignmentErrorMessage": [[#{html.page.manage.roles.delete.error}]],
 			"deleteAssignmentConfirmTxt": [[#{html.control.button.yes}]],
 			"deleteAssignmentCancelTxt": [[#{html.control.button.cancel}]],
-			"titles": [[${titles}]],
-			"titlesEnabled": [[${titlesEnabled}]],
 			"substituteUrl": [[@{/rest/manager/substitute}]],
 			"msgAssignSuccess": [[#{html.page.manager.substitute.assign.success}]],
 			"msgAssignFailure": [[#{html.page.manager.substitute.assign.failure}]],
@@ -209,5 +207,8 @@
 	<script th:src="@{/js/ous/fragments/roles-fragments.js}"></script>
 	<script th:src="@{/js/ous/fragments/request-approve.js}"></script>
 	<script th:src="@{/js/ous/manage.js}"></script>
+
+	<div th:replace="~{ous/assign/modal :: assignModal}"></div>
+	<script type="module" th:src="@{/js/ous/manage-ou-assign.js}"></script>
 </body>
 </html>

@@ -284,6 +284,10 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_REQUESTAUTHORIZED));
 		}
 
+		if (roles.contains(Constants.ROLE_APPROVEAUTHORIZED)) {
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_APPROVEAUTHORIZED));
+		}
+
 		if (roles.contains(Constants.ROLE_REPORT_ACCESS_ID)) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_REPORT_ACCESS));
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));

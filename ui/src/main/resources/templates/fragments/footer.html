@@ -24,10 +24,24 @@
 
 		<script th:src="@{/vendor/select2/js/select2.min.js}"></script>
 
+		<script type="application/json" id="datatables-defaults-config" th:inline="javascript">
+			/*[[${
+				{
+					first: #messages.msg('html.datatables.first'),
+					last: #messages.msg('html.datatables.last'),
+					next: #messages.msg('html.datatables.next'),
+					previous: #messages.msg('html.datatables.prev')
+				}
+			}]]*/
+		</script>
+		<script th:src="@{/js/datatables-defaults.js}"></script>
+
 		<script th:src="@{/js/errors.js}"></script>
 		<script th:src="@{/js/service/NetworkService.js}"></script>
 		<script th:src="@{/js/service/QueueDrainService.js}"></script>
+		<script th:src="@{/js/service/UnsavedChangesService.js}"></script>
 		<script th:src="@{/js/fragments/HelpPopover.js}"></script>
+		<script th:src="@{/js/fragments/SaveHeader.js}"></script>
 	</div>
 </body>
 </html>

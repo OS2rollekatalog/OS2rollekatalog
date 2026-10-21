@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="~{fragments/header :: header (title=#{html.report.orgunits_with_duplicate_rolegroup_assignments})}"></head>
+<body>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
+
+	<section>
+		<div class="content-wrapper">
+			<h3>
+				<span th:text="#{html.report.orgunits_with_duplicate_rolegroup_assignments}"></span>
+				<button sec:authorize="hasRole('ROLE_OU_ASSIGNER')" class="btn btn-primary btn-lg js-delete-duplicates" style="float: right;" th:text="#{html.page.report.duplicate.remove}"></button>
+			</h3>
+
+			<div class="panel panel-default" id="cleanup-panel">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<table id="duplicateTable" class="table table-responsive table-striped">
+						<thead>
+						<tr>
+							<th class="col-md-2" th:text="#{html.entity.ou.type}"></th>
+							<th class="col-md-2" th:text="#{html.entity.rolegroup.type}"></th>
+							<th class="col-md-1" th:text="#{html.page.report.ouduplicate.inherit}"></th>
+							<th class="col-md-3" th:text="#{html.page.report.ouduplicate.filters}"></th>
+							<th class="col-md-2" th:text="#{html.page.report.ouduplicate.duplicateOf}"></th>
+							<th class="col-md-1" th:text="#{html.control.operations}"></th>
+						</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+
+<script type="application/json" id="duplicate-orgunit-assignments-config" th:inline="javascript">
+	{
+		"url": [[@{/rest/ous/cleanupDuplicateRoleGroupAssignments}]],
+		"txtTitle": [[#{html.page.report.duplicate.remove}]],
+		"txtBody": [[#{html.page.report.duplicate.remove.text}]],
+		"txtOrderConfirmed": [[#{html.page.report.duplicate.remove.confirmMessage}]],
+		"txtCleanupFailed": [[#{html.page.report.duplicate.remove.failedMessage}]],
+		"txtCleanupSucceeded": [[#{html.page.report.duplicate.remove.successMessage}]],
+		"txtCleanupAlreadyRunning": [[#{html.page.report.duplicate.remove.alreadyRunningMessage}]],
+		"txtQueueSpinner": [[#{html.common.queue.spinner.working}]],
+		"btnNo": [[#{html.control.button.no}]],
+		"btnYes": [[#{html.control.button.yes}]],
+		"searchTxt": [[#{html.datatables.search}]],
+		"dropdownTxt": [[#{html.datatables.dropdown}]],
+		"infoDefaultTxt": [[#{html.datatables.info.default}]],
+		"infoEmptyTxt": [[#{html.datatables.info.empty}]],
+		"infoFilteredTxt": [[#{html.datatables.info.filtered}]],
+		"prevTxt": [[#{html.datatables.prev}]],
+		"nextTxt": [[#{html.datatables.next}]],
+		"rows": [[${rows}]],
+		"showItSystem": false,
+		"canEdit": [[${canEdit}]],
+		"manageUrlBase": [[@{/ui/ous/manage/}]]
+	}
+</script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/reports/custom/service/DuplicateCleanupService.js}"></script>
+<script th:src="@{/js/reports/custom/orgunits_with_duplicate_assignments.js}"></script>
+</body>
+</html>

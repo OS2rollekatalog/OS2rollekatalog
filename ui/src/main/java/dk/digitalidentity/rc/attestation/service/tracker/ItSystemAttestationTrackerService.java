@@ -38,7 +38,7 @@ public class ItSystemAttestationTrackerService {
 
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
     public void updateItSystemRolesAttestations(final LocalDate when) {
-        runTrackerService.getOpenAttestationRun()
+        runTrackerService.getAttestationRunToMaintain(when)
                 .filter(a -> !a.isSensitive())
                 .ifPresent(run -> {
                     // Attestationer for tomme collections er usynlige for alle (synlighed afgøres af
@@ -94,11 +94,6 @@ public class ItSystemAttestationTrackerService {
         );
     }
 
-    /**
-     * Matcher på <em>run</em> og ikke på deadline: et forsinket run har deadline i fortiden, og et
-     * deadline-baseret opslag ville derfor ikke finde runets egne attestationer og oprette dubletter
-     * ved hver kørsel.
-     */
     private Optional<Attestation> findItSystemRolesAttestationFor(final AttestationRun run, final AttestationSystemRoleAssignment assignment) {
         return attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
                 Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, assignment.getItSystemId(), assignment.getResponsibleCollectionId(), run);

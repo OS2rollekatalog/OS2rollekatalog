@@ -355,8 +355,36 @@ class OuRoleAssignmentReportMapperTest {
 		}
 
 		@Test
-		@DisplayName("merges POSITIVE_TITLES and NEGATIVE_TITLES into the single titles column")
-		void mergesPositiveAndNegativeTitles() {
+		@DisplayName("maps POSITIVE_TITLES to the selected-titles column")
+		void mapsPositiveTitles() {
+			// ---- Given ---- //
+			HistoricOuAssignment assignment = withExclusion(ExclusionType.POSITIVE_TITLES, "positive-title-uuid");
+
+			// ---- When ---- //
+			List<OuRoleAssignmentReportRow> rows = mapToRows(assignment, threeLevelTree());
+
+			// ---- Then ---- //
+			assertThat(rows.getFirst().getSelectedTitleUuids()).containsExactly("positive-title-uuid");
+			assertThat(rows.getFirst().getExcludedTitleUuids()).isEmpty();
+		}
+
+		@Test
+		@DisplayName("maps NEGATIVE_TITLES to the excluded-titles column")
+		void mapsNegativeTitles() {
+			// ---- Given ---- //
+			HistoricOuAssignment assignment = withExclusion(ExclusionType.NEGATIVE_TITLES, "negative-title-uuid");
+
+			// ---- When ---- //
+			List<OuRoleAssignmentReportRow> rows = mapToRows(assignment, threeLevelTree());
+
+			// ---- Then ---- //
+			assertThat(rows.getFirst().getExcludedTitleUuids()).containsExactly("negative-title-uuid");
+			assertThat(rows.getFirst().getSelectedTitleUuids()).isEmpty();
+		}
+
+		@Test
+		@DisplayName("keeps POSITIVE_TITLES and NEGATIVE_TITLES in separate columns")
+		void keepsPositiveAndNegativeTitlesSeparate() {
 			// ---- Given ---- //
 			HistoricOuAssignmentExclusion positive = HistoricOuAssignmentExclusion.builder()
 				.exclusionType(ExclusionType.POSITIVE_TITLES)
@@ -372,7 +400,8 @@ class OuRoleAssignmentReportMapperTest {
 			List<OuRoleAssignmentReportRow> rows = mapToRows(assignment, threeLevelTree());
 
 			// ---- Then ---- //
-			assertThat(rows.getFirst().getTitleUuids()).containsExactly("positive-title-uuid", "negative-title-uuid");
+			assertThat(rows.getFirst().getSelectedTitleUuids()).containsExactly("positive-title-uuid");
+			assertThat(rows.getFirst().getExcludedTitleUuids()).containsExactly("negative-title-uuid");
 		}
 
 		@Test
@@ -385,7 +414,8 @@ class OuRoleAssignmentReportMapperTest {
 			List<OuRoleAssignmentReportRow> rows = mapToRows(assignment, threeLevelTree());
 
 			// ---- Then ---- //
-			assertThat(rows.getFirst().getTitleUuids()).isEmpty();
+			assertThat(rows.getFirst().getSelectedTitleUuids()).isEmpty();
+			assertThat(rows.getFirst().getExcludedTitleUuids()).isEmpty();
 		}
 
 		@Test

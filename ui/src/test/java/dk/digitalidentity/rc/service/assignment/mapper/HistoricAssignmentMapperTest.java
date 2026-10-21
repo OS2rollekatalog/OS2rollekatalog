@@ -10,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignmentConstraint;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -91,6 +92,23 @@ class HistoricAssignmentMapperTest {
 		}
 
 		@Test
+		@DisplayName("Should set assignedThroughType to ORGUNIT but keep the title when containsTitles is NEGATIVE")
+		void shouldSetAssignedThroughOrgUnitWhenContainsTitlesIsNegative() {
+			// Arrange - assigned to the org unit with a few titles excluded; this user holds none of them
+			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, testOrgUnit, testTitle, null);
+			currentAssignment.setContainsTitles(ContainsTitles.NEGATIVE);
+
+			// Act
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
+
+			// Assert - clearing the title columns would credit the role to the excluded positions too
+			assertThat(result.getAssignedThroughType()).isEqualTo(AssignedThrough.ORGUNIT);
+			assertThat(result.getAssignedThroughTitleUuid()).isEqualTo(testTitle.getUuid());
+			assertThat(result.getAssignedThroughTitleName()).isEqualTo(testTitle.getName());
+			assertThat(result.getAssignedThroughOUUuid()).isEqualTo(testOrgUnit.getUuid());
+		}
+
+		@Test
 		@DisplayName("Should set assignedThroughType to ORGUNIT when only orgUnit is present (no title)")
 		void shouldSetAssignedThroughOrgUnitWhenOnlyOrgUnitPresent() {
 			// Arrange
@@ -144,6 +162,29 @@ class HistoricAssignmentMapperTest {
 	@Nested
 	@DisplayName("Field mapping")
 	class FieldMappingTests {
+
+		@Test
+		@DisplayName("Should carry assignedWhen over and keep validFrom as the version date")
+		void shouldCarryAssignedWhenOver() {
+			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
+			currentAssignment.setAssignedWhen(java.time.LocalDateTime.of(2024, 9, 9, 14, 9, 14));
+
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
+
+			assertThat(result.getAssignedWhen()).isEqualTo(java.time.LocalDateTime.of(2024, 9, 9, 14, 9, 14));
+			assertThat(result.getValidFrom()).isEqualTo(currentAssignment.getCreatedAt());
+		}
+
+		@Test
+		@DisplayName("Should leave assignedWhen null when the current assignment has none")
+		void shouldLeaveAssignedWhenNull() {
+			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
+			currentAssignment.setAssignedWhen(null);
+
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
+
+			assertThat(result.getAssignedWhen()).isNull();
+		}
 
 		@Test
 		@DisplayName("Should map user fields correctly")

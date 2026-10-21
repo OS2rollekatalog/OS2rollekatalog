@@ -14,6 +14,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,6 +73,7 @@ import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.assignment.AssignmentReasonService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.Constraint;
@@ -139,6 +141,9 @@ public class UserService {
 	private AssignmentService assignmentService;
 
 	@Autowired
+	private AssignmentReasonService assignmentReasonService;
+
+	@Autowired
 	private ApplicationEventPublisher eventPublisher;
 
 	@Autowired
@@ -196,6 +201,10 @@ public class UserService {
 		return userDao.findByUserIdInAndDomainAndDeletedFalse(userIds, domain).stream()
 			.map(User::getUserId)
 			.collect(Collectors.toSet());
+	}
+	
+	public List<String> getAllUuids() {
+		return userDao.findAllUuids();
 	}
 
 	public Optional<User> getByUserIdOrExtUuid(final String userId, final String extUuid, final Domain domain) {
@@ -281,6 +290,10 @@ public class UserService {
 		return userDao.findByUuidInAndDeletedFalse(uuids);
 	}
 
+	public <T> List<T> findProjectionByUuidIn(Set<String> uuids, Class<T> projectionType) {
+		return userDao.findByUuidIn(uuids, projectionType);
+	}
+
 
 	/**
 	 * Determines if a user is considered stale by checking if there are any active messages
@@ -324,7 +337,7 @@ public class UserService {
 			.messageId(user.getUuid()) // Use user uuid as messageId, this ensure we do not get any duplicates in the queue
 			.priority(10L)
 			.dequeueTime(Instant.now().plusSeconds(2)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
-			.body(JsonSimpleMessage.toJson(createUserUpdateMessage(user.getUuid())))
+			.body(JsonSimpleMessage.toJson(createUserUpdateMessage(user.getUuid(), SecurityUtil.getPersonActor())))
 			.build());
 	}
 
@@ -336,6 +349,8 @@ public class UserService {
 			return;
 		}
 
+		// read before the parallel stream: the SecurityContext is thread-bound
+		final String changedBy = SecurityUtil.getPersonActor();
 		List<QueueMessage> messages = userUuids.parallelStream()
 			.filter(Objects::nonNull)
 			.map(uuid -> QueueMessage.builder()
@@ -343,7 +358,7 @@ public class UserService {
 				.messageId(uuid) // Use user uuid as messageId, this ensure we do not get any duplicates in the queue
 				.priority(1L)
 				.dequeueTime(Instant.now().plusSeconds(3)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
-				.body(JsonSimpleMessage.toJson(createUserUpdateMessage(uuid)))
+				.body(JsonSimpleMessage.toJson(createUserUpdateMessage(uuid, changedBy)))
 				.build())
 			.toList();
 		eventPublisher.publishEvent(BulkQueueMessage.builder()
@@ -387,10 +402,11 @@ public class UserService {
 		}
 	}
 
-	private static UpdateUserAssignmentsMessage createUserUpdateMessage(final String userUuid) {
+	private static UpdateUserAssignmentsMessage createUserUpdateMessage(final String userUuid, final String changedBy) {
 		return UpdateUserAssignmentsMessage.builder()
 			.userUuid(userUuid)
 			.timestamp(LocalDateTime.now())
+			.changedBy(changedBy)
 			.build();
 	}
 
@@ -465,8 +481,12 @@ public class UserService {
 		}
 	}
 
-	@AuditLogIntercepted
 	public void addRoleGroup(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate, OrgUnit orgUnit, String caseNumber) {
+		self.addRoleGroup(user, roleGroup, startDate, stopDate, orgUnit, caseNumber, null);
+	}
+
+	@AuditLogIntercepted
+	public void addRoleGroup(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate, OrgUnit orgUnit, String caseNumber, String requestReason) {
 		String userFullname = SecurityUtil.getUserFullname();
 		String userId = SecurityUtil.getUserId();
 		UserRoleGroupAssignment assignment = new UserRoleGroupAssignment();
@@ -493,6 +513,10 @@ public class UserService {
 		}
 
 		user.getRoleGroupAssignments().add(assignment);
+		// guarded here so assignments without a reason never open a transaction
+		if (StringUtils.hasText(requestReason)) {
+			assignmentReasonService.saveFor(assignment, requestReason);
+		}
 	}
 
 	@AuditLogIntercepted
@@ -562,15 +586,19 @@ public class UserService {
 	}
 
 	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
-		self.addUserRole(user, userRole, startDate, stopDate, null, null, true, null);
+		self.addUserRole(user, userRole, startDate, stopDate, null, null, true, null, null);
 	}
 
 	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints) {
-		self.addUserRole(user, userRole, startDate, stopDate, postponedConstraints, null, true, null);
+		self.addUserRole(user, userRole, startDate, stopDate, postponedConstraints, null, true, null, null);
+	}
+
+	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints, OrgUnit orgUnit, boolean notifyByEmail, String caseNumber) {
+		self.addUserRole(user, userRole, startDate, stopDate, postponedConstraints, orgUnit, notifyByEmail, caseNumber, null);
 	}
 
 	@AuditLogIntercepted
-    public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints, OrgUnit orgUnit, boolean notifyByEmail, String caseNumber) {
+    public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints, OrgUnit orgUnit, boolean notifyByEmail, String caseNumber, String requestReason) {
 		if (userRole.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
@@ -611,6 +639,10 @@ public class UserService {
 		assignment.setPostponedConstraints(postponedConstraints);
 
 		user.getUserRoleAssignments().add(assignment);
+
+		if (StringUtils.hasText(requestReason)) {
+			assignmentReasonService.saveFor(assignment, requestReason);
+		}
 	}
 
 	@AuditLogIntercepted
@@ -739,43 +771,44 @@ public class UserService {
 			throw new RuntimeException("No administrator logged in");
 		}
 
-		List<User> allUsers = getAll();
 		List<User> dirtyUsers = new ArrayList<>();
 
-		for (User user : allUsers) {
-			// Kun aktive tildelinger må tælle med — udløbne/fremtidige indirekte rækker
-			// findes stadig i current_assignment, men giver ikke adgang og må aldrig
-			// trigge sletning af en aktiv direkte tildeling.
-			List<CurrentAssignment> activeAssignments = assignmentService.getByUserIncludingInactive(user).stream()
+		Map<String, List<CurrentAssignment>> allAssignmentsMap = assignmentService.getDuplicateUserRoleAssignments().stream()
 				.filter(CurrentAssignment::isActive)
-				.collect(Collectors.toList());
-			if (activeAssignments.isEmpty()) {
-				continue;
-			}
+				.filter(a -> a.getUserRole() != null)
+				.collect(Collectors.groupingBy(ca -> ca.getUser().getUuid()));
 
-			List<CurrentAssignment> directAssignments = activeAssignments.stream()
-				.filter(a -> assignmentService.getAssignedThrough(a) == AssignedThrough.DIRECT && a.getUserRole() != null)
+		for (String userUuid : allAssignmentsMap.keySet()) {
+			List<CurrentAssignment> allAssignments = allAssignmentsMap.get(userUuid);
+
+			// Find direct assignments
+			List<CurrentAssignment> directAssignments = allAssignments.stream()
+				.filter(a -> assignmentService.getAssignedThrough(a) == AssignedThrough.DIRECT)
 				.collect(Collectors.toList());
 
 			if (directAssignments.isEmpty()) {
 				continue;
 			}
 
+			User user = directAssignments.get(0).getUser();
+
 			boolean dirty = false;
 
+			// For each direct assignment, check if the same userRole exists indirectly
 			for (CurrentAssignment directAssignment : directAssignments) {
 				long userRoleId = directAssignment.getUserRole().getId();
 
-				boolean hasIndirectAssignment = activeAssignments.stream()
-					.anyMatch(a -> assignmentService.getAssignedThrough(a) != AssignedThrough.DIRECT
-						&& a.getUserRole() != null
-						&& a.getUserRole().getId() == userRoleId);
+				// Find all indirect assignments with the same userRoleId
+				List<CurrentAssignment> indirectDuplicates = allAssignments.stream()
+					.filter(a -> assignmentService.getAssignedThrough(a) != AssignedThrough.DIRECT)
+					.filter(a -> a.getUserRole().getId() == userRoleId)
+					.collect(Collectors.toList());
 
-				if (hasIndirectAssignment) {
-					// Fjern kun den ene matchende user_roles_mapping-række — ikke alle
-					// direkte tildelinger af rollen som removeUserRole(user, role) gjorde.
-					dirty = dirty | removeDirectUserRoleAssignmentById(user, directAssignment.getAssignmentId());
+				if (indirectDuplicates.size() == 0) {
+					continue;
 				}
+
+				dirty = dirty | removeDirectUserRoleAssignmentById(user, directAssignment.getAssignmentId());
 			}
 
 			if (dirty) {
@@ -797,41 +830,54 @@ public class UserService {
 			throw new RuntimeException("No administrator logged in");
 		}
 
-		List<User> allUsers = getAll();
 		List<User> dirtyUsers = new ArrayList<>();
 
-		for (User user : allUsers) {
-			// Samme logik som userrole-cleanup: udløbne/fremtidige indirekte rækker
-			// må ikke trigge sletning af aktive direkte tildelinger.
-			List<CurrentAssignment> activeRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignmentsByUser(user).stream()
+		Map<String, List<CurrentAssignment>> allAssignmentsMap = assignmentService.getDuplicateRoleGroupAssignments().stream()
 				.filter(CurrentAssignment::isActive)
-				.collect(Collectors.toList());
+				.filter(a -> !a.isRoleGroupOnly())
+				.collect(Collectors.groupingBy(ca -> ca.getUser().getUuid()));
 
-			if (activeRoleGroupAssignments.isEmpty()) {
-				continue;
-			}
+		for (String userUuid : allAssignmentsMap.keySet()) {
+			List<CurrentAssignment> allAssignments = allAssignmentsMap.get(userUuid);
 
-			List<CurrentAssignment> directAssignments = activeRoleGroupAssignments.stream()
-				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT && a.getRoleGroup() != null)
+			// filter duplicates on assignmentId
+			allAssignments = new ArrayList<>(
+					allAssignments.stream()
+			                   .collect(Collectors.toMap(
+			                           CurrentAssignment::getAssignmentId,
+			                           a -> a,
+			                           (first, _) -> first,
+			                           LinkedHashMap::new))
+			                   .values());
+
+			// Find direct assignments
+			List<CurrentAssignment> directAssignments = allAssignments.stream()
+				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT)
 				.collect(Collectors.toList());
 
 			if (directAssignments.isEmpty()) {
 				continue;
 			}
 
+			User user = directAssignments.get(0).getUser();
+
 			boolean dirty = false;
 
+			// For each direct assignment, check if the same roleGroup exists indirectly
 			for (CurrentAssignment directAssignment : directAssignments) {
-				Long roleGroupId = directAssignment.getRoleGroup().getId();
+				long roleGroupId = directAssignment.getRoleGroup().getId();
 
-				boolean hasIndirectAssignment = activeRoleGroupAssignments.stream()
-					.anyMatch(a -> assignmentService.getAssignedThroughForRoleGroup(a) != AssignedThrough.DIRECT && a.getRoleGroup() != null && a.getRoleGroup().getId() == roleGroupId);
+				// Find all indirect assignments with the same roleGroupId
+				List<CurrentAssignment> indirectDuplicates = allAssignments.stream()
+					.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) != AssignedThrough.DIRECT)
+					.filter(a -> a.getRoleGroup().getId() == roleGroupId)
+					.collect(Collectors.toList());
 
-				if (hasIndirectAssignment) {
-					// Målrettet sletning af den ene assignment-række frem for removeRoleGroup
-					// som ville fjerne alle direkte tildelinger af rollebuketten.
-					dirty = dirty | removeDirectRoleGroupAssignmentById(user, directAssignment.getAssignmentId());
+				if (indirectDuplicates.size() == 0) {
+					continue;
 				}
+
+				dirty = dirty | removeDirectRoleGroupAssignmentById(user, directAssignment.getAssignmentId());
 			}
 
 			if (dirty) {
@@ -1621,74 +1667,103 @@ public class UserService {
 		return map;
 	}
 
-	@Transactional
 	public void cleanupDisabledUserAssignments() {
-		log.info("Starting cleanup of assignments for disabled users");
+		// 0 = same day as the user is disabled/deleted, negative = off. A blank setting yields 180, not off, despite
+		// what the help text promises - see SettingsService.getRemoveDirectAssignmentsForDisabled
+		int daysThreshold = settingsService.getRemoveDirectAssignmentsForDisabled();
+
+		if (daysThreshold < 0) {
+			log.debug("Disabled user cleanup is disabled (days threshold: {})", daysThreshold);
+			return;
+		}
+
+		// start of the day after cutoffDate, so the strict-less-than bound catches all of cutoffDate itself
+		LocalDate cutoffDate = LocalDate.now().minusDays(daysThreshold);
+		Date cutoffDateExclusiveUpper = Date.from(cutoffDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+		List<String> userUuids = userDao.findUuidsOfDisabledUsersOlderThan(cutoffDate, cutoffDateExclusiveUpper);
+		if (userUuids.isEmpty()) {
+			log.debug("No disabled or deleted users found older than {}", cutoffDate);
+			return;
+		}
+
+		log.info("Starting cleanup of assignments for {} users disabled or deleted before {}", userUuids.size(), cutoffDate);
+
+		int usersChanged = 0;
+		int userRoleAssignmentsRemoved = 0;
+		int roleGroupAssignmentsRemoved = 0;
+		int usersFailed = 0;
 
 		try {
-			// Get the configured number of days from settings (defaults to 180)
-			Integer daysThreshold = settingsService.getRemoveDirectAssignmentsForDisabled();
+			SecurityUtil.loginSystemAccount();
 
-			// null/blank = funktionen slået fra; 0 = ryd op straks (samme dag som brugeren bliver disabled/deleted)
-			if (daysThreshold == null || daysThreshold < 0) {
-				log.debug("Disabled user cleanup is disabled (days threshold: {})", daysThreshold);
-				return;
-			}
+			for (String userUuid : userUuids) {
+				try {
+					AssignmentCleanupResult result = self.cleanupAssignmentsForDisabledUser(userUuid);
 
-			// Calculate the cutoff date.
-			// cutoffDate bruges til disabledAt (LocalDate-felt). cutoffDateExclusiveUpper er starten af dagen efter
-			// cutoffDate og bruges som strict-less-than-grænse mod lastUpdated (Date-felt) for deleted-brugere,
-			// så alt der er opdateret til-og-med cutoffDate fanges, uanset tidspunkt på dagen.
-			LocalDate cutoffDate = LocalDate.now().minusDays(daysThreshold);
-			Date cutoffDateExclusiveUpper = Date.from(cutoffDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
-			log.info("Looking for disabled/deleted users older than: {}", cutoffDate);
-
-			// Find users who have been disabled or deleted for the specified number of days or more
-			List<User> usersToCleanup = userDao.findDisabledUsersOlderThanWithAssignments(cutoffDate, cutoffDateExclusiveUpper);
-
-			if (usersToCleanup.isEmpty()) {
-				log.debug("No disabled users found older than cutoff date");
-				return;
-			}
-
-			int totalUsersProcessed = 0;
-			int totalUserRoleAssignmentsDeleted = 0;
-			int totalRoleGroupAssignmentsDeleted = 0;
-
-			for (User user : usersToCleanup) {
-				log.debug("Processing disabled user: {} (disabled at: {})", user.getName(), user.getDisabledAt());
-
-				// Count assignments before clearing
-				int userRoleCount = user.getUserRoleAssignments() != null ? user.getUserRoleAssignments().size() : 0;
-				int roleGroupCount = user.getRoleGroupAssignments() != null ? user.getRoleGroupAssignments().size() : 0;
-
-				// Clear the collections
-				if (userRoleCount > 0) {
-					user.getUserRoleAssignments().clear();
-					totalUserRoleAssignmentsDeleted += userRoleCount;
-					log.info("Cleared {} user role assignments for user: {}", userRoleCount, user.getName());
+					if (result.removedAnything()) {
+						usersChanged++;
+						userRoleAssignmentsRemoved += result.userRoleAssignments();
+						roleGroupAssignmentsRemoved += result.roleGroupAssignments();
+					}
 				}
-
-				if (roleGroupCount > 0) {
-					user.getRoleGroupAssignments().clear();
-					totalRoleGroupAssignmentsDeleted += roleGroupCount;
-					log.info("Cleared {} role group assignments for user: {}", roleGroupCount, user.getName());
+				catch (Exception ex) {
+					usersFailed++;
+					log.error("Failed to clean up assignments for disabled user {}", userUuid, ex);
 				}
-
-				// Save the user to persist the changes
-				if (userRoleCount > 0 || roleGroupCount > 0) {
-					userDao.save(user);
-				}
-
-				totalUsersProcessed++;
 			}
-
-			log.info("Cleanup completed. Processed {} users, deleted {} user role assignments and {} role group assignments",
-				totalUsersProcessed, totalUserRoleAssignmentsDeleted, totalRoleGroupAssignmentsDeleted);
-
 		}
-		catch (Exception ex) {
-			log.error("Error during disabled user assignment cleanup", ex);
+		finally {
+			SecurityUtil.logoutSystemAccount();
+		}
+
+		log.info("Cleanup completed. Removed {} user role assignments and {} role group assignments from {} users, {} failed",
+			userRoleAssignmentsRemoved, roleGroupAssignmentsRemoved, usersChanged, usersFailed);
+	}
+
+	/**
+	 * Removes the assignments one at a time instead of clearing the collections, so the RoleChangeInterceptor fires and
+	 * queues the user for recalculation - with the source rows gone, nothing else can trigger it later.
+	 * <p>
+	 * Relies on a non-transactional caller (as EntraIDService.removeUserRoleTransactional does) so each user commits on
+	 * its own and one failure does not roll back the run, and on the caller having logged in the system account, since
+	 * the audit log records the removals under the current principal.
+	 */
+	@Transactional
+	public AssignmentCleanupResult cleanupAssignmentsForDisabledUser(String userUuid) {
+		User user = userDao.findByUuid(userUuid).orElse(null);
+		if (user == null) {
+			return AssignmentCleanupResult.NOTHING_REMOVED;
+		}
+
+		List<UserUserRoleAssignment> userRoleAssignments = new ArrayList<>(user.getUserRoleAssignments());
+		List<UserRoleGroupAssignment> roleGroupAssignments = new ArrayList<>(user.getRoleGroupAssignments());
+
+		if (userRoleAssignments.isEmpty() && roleGroupAssignments.isEmpty()) {
+			return AssignmentCleanupResult.NOTHING_REMOVED;
+		}
+
+		// unlike the (User, long) overload used by the UI this also removes read-only roles, deliberately: the
+		// NemLog-in sync that owns them skips disabled users, so a MitID Erhverv admin role would never be removed
+		for (UserUserRoleAssignment assignment : userRoleAssignments) {
+			self.removeUserRoleAssignment(user, assignment);
+		}
+
+		for (UserRoleGroupAssignment assignment : roleGroupAssignments) {
+			self.removeRoleGroupAssignment(user, assignment);
+		}
+
+		log.info("Removed {} user role assignments and {} role group assignments from disabled user {} ({})",
+			userRoleAssignments.size(), roleGroupAssignments.size(), user.getUserId(), user.getUuid());
+
+		return new AssignmentCleanupResult(userRoleAssignments.size(), roleGroupAssignments.size());
+	}
+
+	public record AssignmentCleanupResult(int userRoleAssignments, int roleGroupAssignments) {
+		private static final AssignmentCleanupResult NOTHING_REMOVED = new AssignmentCleanupResult(0, 0);
+
+		public boolean removedAnything() {
+			return userRoleAssignments > 0 || roleGroupAssignments > 0;
 		}
 	}
 }

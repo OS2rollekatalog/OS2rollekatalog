@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.UserRoleService;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ public class LinkedSystemRoleSyncTask {
 	private RoleCatalogueConfiguration configuration;
 
 	@Scheduled(fixedRate = 60 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	@Transactional
 	public void updateLinkedUserRole() {
 		if (!configuration.getScheduled().isEnabled()) {

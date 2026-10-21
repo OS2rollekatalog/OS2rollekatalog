@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -19,6 +20,7 @@ public class AddDirtyADGroupsTask {
 
 //	@Scheduled(fixedRate = 60 * 1000 * 5)
 	@Scheduled(cron = "${rc.cron.add_dirty_ad_groups}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void addDirtyADGroups() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;
@@ -29,6 +31,7 @@ public class AddDirtyADGroupsTask {
 
 //	@Scheduled(fixedRate = 60 * 1000 * 5)
 	@Scheduled(cron = "${rc.cron.add_dirty_ad_groups_with_start_date}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void addDirtyADGroupsWithStartToday() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

@@ -16,8 +16,12 @@ import org.springframework.web.server.ResponseStatusException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
+import tools.jackson.databind.exc.InvalidTypeIdException;
+
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
+import dk.digitalidentity.rc.controller.api.model.OrgUnitRoleGroupAssignmentAM;
+import dk.digitalidentity.rc.controller.api.model.OrgUnitUserRoleAssignmentAM;
 import dk.digitalidentity.rc.controller.api.v2.AuditLogApiV2;
 import dk.digitalidentity.rc.controller.api.v2.ConstraintApiV2;
 import dk.digitalidentity.rc.controller.api.v2.ItSystemApiV2;
@@ -59,9 +63,9 @@ public class ApiControllerAdvice {
             String fieldName = ife.getPath().stream()
                     .map(JsonMappingException.Reference::getFieldName)
                     .collect(Collectors.joining("."));
-            
+
             Object[] enumConstants = ife.getTargetType().getEnumConstants();
-            
+
             String allowedValues = Arrays.stream(enumConstants)
                     .map(Object::toString)
                     .collect(Collectors.joining(", "));
@@ -69,6 +73,13 @@ public class ApiControllerAdvice {
             message = String.format(
                     "Invalid value '%s' for field '%s'. Allowed values are: [%s]",
                     ife.getValue(), fieldName, allowedValues);
+        } else if (cause instanceof InvalidTypeIdException itie) {
+            String expectedAssignmentType = expectedAssignmentType(itie.getBaseType().getRawClass());
+            if (expectedAssignmentType != null) {
+                message = String.format(
+                        "Invalid assignmentType '%s' for this endpoint. Expected '%s'.",
+                        itie.getTypeId(), expectedAssignmentType);
+            }
         }
 
         return ExceptionResponseAM.builder()
@@ -78,6 +89,16 @@ public class ApiControllerAdvice {
                 .path(request.getRequestURI())
                 .message(message)
                 .build();
+    }
+
+    private static String expectedAssignmentType(final Class<?> baseType) {
+        if (baseType == OrgUnitRoleGroupAssignmentAM.class) {
+            return "ROLE_GROUP";
+        }
+        if (baseType == OrgUnitUserRoleAssignmentAM.class) {
+            return "USER_ROLE";
+        }
+        return null;
     }
 
     @ExceptionHandler(RuntimeException.class)

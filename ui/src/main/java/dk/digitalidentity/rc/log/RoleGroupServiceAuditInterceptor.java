@@ -123,8 +123,8 @@ public class RoleGroupServiceAuditInterceptor {
 		ctx.putBefore(AuditLogContext.FIELD_NAVN, role.getName());
 		ctx.putBefore(AuditLogContext.FIELD_BESKRIVELSE, role.getDescription());
 		ctx.putBefore(AuditLogContext.FIELD_KUN_BRUGERE, String.valueOf(role.isUserOnly()));
-		ctx.putBefore(AuditLogContext.FIELD_KAN_ANMODE, role.getRequesterPermission());
-		ctx.putBefore(AuditLogContext.FIELD_KAN_GODKENDE, role.getApproverPermission());
+		ctx.putBefore(AuditLogContext.FIELD_KAN_ANMODE, role.getRequesterPermission().getRequestableBy());
+		ctx.putBefore(AuditLogContext.FIELD_KAN_GODKENDE, role.getApproverPermission().getApprovableBy());
 		ctx.putBefore(AuditLogContext.FIELD_ENHEDSFILTER, String.valueOf(role.isOuFilterEnabled()));
 	}
 
@@ -133,8 +133,8 @@ public class RoleGroupServiceAuditInterceptor {
 		ctx.diff(AuditLogContext.FIELD_NAVN, after.getName());
 		ctx.diff(AuditLogContext.FIELD_BESKRIVELSE, after.getDescription());
 		ctx.diff(AuditLogContext.FIELD_KUN_BRUGERE, after.isUserOnly());
-		ctx.diff(AuditLogContext.FIELD_KAN_ANMODE, after.getRequesterPermission());
-		ctx.diff(AuditLogContext.FIELD_KAN_GODKENDE, after.getApproverPermission());
+		ctx.diff(AuditLogContext.FIELD_KAN_ANMODE, after.getRequesterPermission().getRequestableBy());
+		ctx.diff(AuditLogContext.FIELD_KAN_GODKENDE, after.getApproverPermission().getApprovableBy());
 		ctx.diff(AuditLogContext.FIELD_ENHEDSFILTER, after.isOuFilterEnabled());
 	}
 

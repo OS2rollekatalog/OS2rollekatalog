@@ -52,6 +52,26 @@ public class TemporalDao {
 
     private final IdRowMapper idRowMapper = new IdRowMapper();
 
+    public Map<Long, RoleMetadata> currentUserRoleMetadata() {
+        return currentRoleMetadata("SELECT id, name, description FROM user_roles");
+    }
+
+    public Map<Long, RoleMetadata> currentRoleGroupMetadata() {
+        return currentRoleMetadata("SELECT id, name, description FROM rolegroup");
+    }
+
+    public Map<Long, RoleMetadata> currentSystemRoleMetadata() {
+        return currentRoleMetadata("SELECT id, name, description FROM system_roles");
+    }
+
+    private Map<Long, RoleMetadata> currentRoleMetadata(final String sql) {
+        final Map<Long, RoleMetadata> metadata = new HashMap<>();
+        jdbcTemplate.query(sql, rs -> {
+            metadata.put(rs.getLong("id"), new RoleMetadata(rs.getString("name"), rs.getString("description")));
+        });
+        return metadata;
+    }
+
     /**
      * Reads from {@code historic_ou_assignment} + {@code historic_ou_assignment_exclusion} and
      * maps directly into {@link HistoricOuAssignment} objects.
@@ -282,14 +302,14 @@ public class TemporalDao {
     }
 
     /**
-     * Returns all {@link HistoricAssignment} records (with their constraints) that are active at
-     * {@code when} for the given IT-system. Populated entirely via JDBC to avoid Hibernate overhead.
+     * Returns a page of {@link HistoricAssignment} records (with their constraints) active at {@code when}
+     * for the given IT-system, ordered by id and starting after {@code afterId}.
      */
-    public List<HistoricAssignment> findHistoricAssignmentsByItSystemAndDate(final LocalDate when, final long itSystemId) {
+    public List<HistoricAssignment> findHistoricAssignmentsByItSystemAndDate(final LocalDate when, final long itSystemId, final long afterId, final int limit) {
         final java.time.LocalDateTime startOfDay = when.atStartOfDay();
         final java.time.LocalDateTime endOfDay = when.plusDays(1).atStartOfDay();
         final String sql = """
-            SELECT ha.id, ha.record_hash, ha.valid_from, ha.valid_to, ha.start_date, ha.stop_date,
+            SELECT ha.id, ha.record_hash, ha.valid_from, ha.valid_to, ha.assigned_when, ha.start_date, ha.stop_date,
                    ha.user_uuid, ha.user_id, ha.user_name,
                    ha.user_role_id, ha.user_role_name, ha.user_role_description,
                    ha.sensitive_role, ha.extra_sensitive_role,
@@ -299,30 +319,34 @@ public class TemporalDao {
                    ha.assigned_through_ou_uuid, ha.assigned_through_ou_name,
                    ha.assigned_through_title_uuid, ha.assigned_through_title_name,
                    ha.assigned_through_rg_id, ha.assigned_through_rg_name,
-                   ha.responsible_ou_uuid, ha.responsible_ou_name, ha.responsible_collection_id,
-                   hac.id AS constraint_id, hac.constraint_type_uuid, hac.constraint_type_name,
-                   hac.constraint_type_entity_id, hac.value AS constraint_value
+                   ha.responsible_ou_uuid, ha.responsible_ou_name, ha.responsible_collection_id
             FROM historic_assignment ha
-            LEFT JOIN historic_assignment_constraint hac ON hac.historic_assignment_id = ha.id
-            WHERE ha.valid_from <= ? AND (ha.valid_to IS NULL OR ha.valid_to > ?) AND ha.it_system_id = ?
+            WHERE ha.valid_from <= ? AND (ha.valid_to IS NULL OR ha.valid_to > ?) AND ha.it_system_id = ? AND ha.id > ?
             ORDER BY ha.id
+            LIMIT ?
             """;
-        return jdbcTemplate.query(sql, rs -> {
-            final LinkedHashMap<Long, HistoricAssignment> map = new LinkedHashMap<>();
-            while (rs.next()) {
-                final long assignmentId = rs.getLong("id");
-                HistoricAssignment assignment = map.get(assignmentId);
-                if (assignment == null) {
-                    assignment = mapHistoricAssignment(rs, assignmentId);
-                    map.put(assignmentId, assignment);
-                }
-                final long constraintId = rs.getLong("constraint_id");
-                if (!rs.wasNull()) {
-                    assignment.getConstraints().add(mapHistoricAssignmentConstraint(rs, constraintId, assignment));
-                }
-            }
-            return new ArrayList<>(map.values());
-        }, endOfDay, startOfDay, itSystemId);
+        final LinkedHashMap<Long, HistoricAssignment> page = new LinkedHashMap<>();
+        jdbcTemplate.query(sql, rs -> {
+            final long id = rs.getLong("id");
+            page.put(id, mapHistoricAssignment(rs, id));
+        }, endOfDay, startOfDay, itSystemId, afterId, limit);
+        if (page.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Fetched separately so the wide assignment columns are not repeated per constraint
+        final String constraintSql = """
+            SELECT hac.historic_assignment_id, hac.id AS constraint_id, hac.constraint_type_uuid, hac.constraint_type_name,
+                   hac.constraint_type_entity_id, hac.value AS constraint_value
+            FROM historic_assignment_constraint hac
+            WHERE hac.historic_assignment_id IN (:ids)
+            ORDER BY hac.historic_assignment_id, hac.id
+            """;
+        namedParameterJdbcTemplate.query(constraintSql, new MapSqlParameterSource("ids", page.keySet()), rs -> {
+            final HistoricAssignment assignment = page.get(rs.getLong("historic_assignment_id"));
+            assignment.getConstraints().add(mapHistoricAssignmentConstraint(rs, rs.getLong("constraint_id"), assignment));
+        });
+        return new ArrayList<>(page.values());
     }
 
     private static HistoricAssignment mapHistoricAssignment(final java.sql.ResultSet rs, final long id) throws java.sql.SQLException {
@@ -333,6 +357,8 @@ public class TemporalDao {
         a.setValidFrom(validFrom != null ? validFrom.toLocalDateTime() : null);
         final java.sql.Timestamp validTo = rs.getTimestamp("valid_to");
         a.setValidTo(validTo != null ? validTo.toLocalDateTime() : null);
+        final java.sql.Timestamp assignedWhen = rs.getTimestamp("assigned_when");
+        a.setAssignedWhen(assignedWhen != null ? assignedWhen.toLocalDateTime() : null);
         final java.sql.Date startDate = rs.getDate("start_date");
         a.setStartDate(startDate != null ? startDate.toLocalDate() : null);
         final java.sql.Date stopDate = rs.getDate("stop_date");
@@ -553,17 +579,18 @@ public class TemporalDao {
         parameters.put("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
 		parameters.put("manager", assignment.isManager());
 		parameters.put("substitutes", assignment.isSubstitutes());
+        parameters.put("excepted_ou_uuids", RowMapperUtils.joinFromList(assignment.getExceptedOuUuids()));
         namedParameterJdbcTemplate.update("INSERT INTO attestation_ou_role_assignments (record_hash, updated_at, valid_from, valid_to," +
                 "                                                    assigned_through_name, assigned_through_type, assigned_through_uuid," +
                 "                                                    inherited, it_system_id, it_system_name, role_description, role_id," +
                 "                                                    role_name, role_group_name, role_group_id, role_group_description," +
                 "                                                    sensitive_role, extra_sensitive_role, ou_name, ou_uuid, excepted_user_uuids, title_uuids," +
                 "                                                    function_uuids, attestation_responsible_collection_id, responsible_ou_name, responsible_ou_uuid," +
-                "                                                    inherit, excepted_title_uuids, manager, substitutes) " +
+                "                                                    inherit, excepted_title_uuids, manager, substitutes, excepted_ou_uuids) " +
                 " VALUES (:record_hash, :updated_at, :valid_from, :valid_to, :assigned_through_name, :assigned_through_type, :assigned_through_uuid," +
                 "         :inherited, :it_system_id, :it_system_name, :role_description, :role_id, :role_name, :role_group_name, " +
                 "         :role_group_id, :role_group_description, :sensitive_role, :extra_sensitive_role, :ou_name, :ou_uuid, :excepted_user_uuids, " +
-                "         :title_uuids, :function_uuids, :attestation_responsible_collection_id, :responsible_ou_name, :responsible_ou_uuid, :inherit, :excepted_title_uuids, :manager, :substitutes)",
+                "         :title_uuids, :function_uuids, :attestation_responsible_collection_id, :responsible_ou_name, :responsible_ou_uuid, :inherit, :excepted_title_uuids, :manager, :substitutes, :excepted_ou_uuids)",
                 parameters);
 
     }
@@ -601,6 +628,7 @@ public class TemporalDao {
         in.addValue("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
 		in.addValue("manager", assignment.isManager());
 		in.addValue("substitutes", assignment.isSubstitutes());
+        in.addValue("excepted_ou_uuids", RowMapperUtils.joinFromList(assignment.getExceptedOuUuids()));
 
         return namedParameterJdbcTemplate.update("UPDATE attestation_ou_role_assignments SET " +
                 "record_hash=:record_hash, updated_at=:updated_at, valid_from=:valid_from, valid_to=:valid_to, assigned_through_name=:assigned_through_name, " +
@@ -609,7 +637,7 @@ public class TemporalDao {
                 "role_name=:role_name, role_group_name=:role_group_name, role_group_id=:role_group_id, role_group_description=:role_group_description, " +
                 "sensitive_role=:sensitive_role, extra_sensitive_role=:extra_sensitive_role, ou_name=:ou_name, ou_uuid=:ou_uuid, excepted_user_uuids=:excepted_user_uuids, " +
                 "title_uuids=:title_uuids, function_uuids=:function_uuids, attestation_responsible_collection_id=:attestation_responsible_collection_id, responsible_ou_name=:responsible_ou_name, " +
-                "responsible_ou_uuid=:responsible_ou_uuid, inherit=:inherit, excepted_title_uuids=:excepted_title_uuids, manager=:manager, substitutes=:substitutes " +
+                "responsible_ou_uuid=:responsible_ou_uuid, inherit=:inherit, excepted_title_uuids=:excepted_title_uuids, manager=:manager, substitutes=:substitutes, excepted_ou_uuids=:excepted_ou_uuids " +
                 " WHERE id=:id", in);
     }
 

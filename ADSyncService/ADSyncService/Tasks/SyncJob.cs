@@ -23,9 +23,16 @@ namespace ADSyncService
 
         public void Execute(IJobExecutionContext context)
         {
-             bool membershipSyncEnabled = remoteConfiguration.GetConfiguration().membershipSyncFeatureEnabled;
-             bool createDeleteEnabled = remoteConfiguration.GetConfiguration().createDeleteFeatureEnabled;
-             bool backSyncEnabled = remoteConfiguration.GetConfiguration().backSyncFeatureEnabled;
+            RemoteConfiguration configuration = remoteConfiguration.GetConfigurationIfAvailable();
+            if (configuration == null)
+            {
+                log.Error("SyncJob skipped: no valid configuration");
+                return;
+            }
+
+            bool membershipSyncEnabled = configuration.membershipSyncFeatureEnabled;
+            bool createDeleteEnabled = configuration.createDeleteFeatureEnabled;
+            bool backSyncEnabled = configuration.backSyncFeatureEnabled;
             log.Info("membershipSyncEnabled: " + membershipSyncEnabled);
             log.Info("createDeleteEnabled: " + createDeleteEnabled);
             log.Info("backSyncEnabled: " + backSyncEnabled);

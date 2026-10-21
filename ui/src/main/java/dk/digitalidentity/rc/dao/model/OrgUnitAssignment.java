@@ -2,11 +2,23 @@ package dk.digitalidentity.rc.dao.model;
 
 import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 public interface OrgUnitAssignment {
 
+	long getId();
+
+	OrgUnit getOrgUnit();
+
 	boolean isInherit();
+
+	LocalDate getStartDate();
+
+	LocalDate getStopDate();
+
+	Date getAssignedTimestamp();
 
 	List<Title> getTitles();
 

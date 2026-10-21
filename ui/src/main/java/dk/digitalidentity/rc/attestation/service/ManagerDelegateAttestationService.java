@@ -32,7 +32,6 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerUuid;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.UserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
@@ -41,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 public class ManagerDelegateAttestationService {
-	
+
 	@PersistenceContext
 	private EntityManager entityManager;
 
@@ -56,9 +55,6 @@ public class ManagerDelegateAttestationService {
 
 	@Autowired
 	private AttestationOuAssignmentsDao ouAssignmentsDao;
-
-	@Autowired
-	private UserService userService;
 
 	@Autowired
 	private OrgUnitDao orgUnitDao;
@@ -137,7 +133,7 @@ public class ManagerDelegateAttestationService {
 		final List<AttestationOuRoleAssignment> organisationAssignments = ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(attestationOrganisation.getCreatedAt(), attestationOrganisation.getResponsibleOuUuid());
 		final List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroupAssignments = organisationAttestationService.orgUnitRoleGroups(organisationAssignments);
 		final List<OrgUnitUserRoleAssignmentItSystemDTO> orgUnitUserRoleAssignmentsPrItSystem = organisationAttestationService.orgUnitUserRolesPrItSystem(attestationOrganisation, organisationAssignments);
-		final String performedBy = AttestationOverviewService.resolvePerformedBy(attestationOrganisation.getOrganisationUserAttestationEntries(), userService);
+		final String performedBy = organisationAttestationService.resolvePerformedBy(attestationOrganisation);
 		ManagerDelegateOrganisationAttestationDTO managerDelegateOrganisationAttestationDTO = ManagerDelegateOrganisationAttestationDTO.builder()
 				.createdAt(attestationOrganisation.getCreatedAt())
 				.attestationUuid(attestationOrganisation.getUuid())

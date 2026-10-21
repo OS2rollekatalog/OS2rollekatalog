@@ -38,6 +38,7 @@ public abstract class HistoricExceptedAssignmentMapper {
 		historic.setStopDate(current.getStopDate());
 
 		historic.setValidFrom(current.getCreatedAt());
+		historic.setAssignedWhen(current.getAssignedWhen());
 		historic.setValidTo(null);
 
 		return historic;

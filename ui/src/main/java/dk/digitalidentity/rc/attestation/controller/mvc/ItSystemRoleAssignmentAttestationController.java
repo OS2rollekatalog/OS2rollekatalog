@@ -39,6 +39,7 @@ public class ItSystemRoleAssignmentAttestationController {
 	@Autowired
 	private SettingsService settingsService;
 
+	@SuppressWarnings("removal")
 	@GetMapping(value = "/ui/attestation/v2/itsystems/{id}/roleassignments")
 	@Timed("attestation.controller.mvc.it_system_role_assignment_attestation_controller.index.timer")
 	public String index(Model model, @PathVariable long id) {

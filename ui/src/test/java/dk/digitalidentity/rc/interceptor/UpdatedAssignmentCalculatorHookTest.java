@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.interceptor;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -103,5 +104,47 @@ class UpdatedAssignmentCalculatorHookTest {
 		verify(orgUnitService).findUserUuidsForOu(ou, true);
 		verify(orgUnitService, never()).findUserUuidsForOu(ou, false);
 		verify(userService).queueMultipleForRecalculation(descendantUsers);
+	}
+
+	@Test
+	@DisplayName("removing one specific user role assignment closes only that assignment's history")
+	void removeSpecificUserRoleAssignmentClosesOnlyItsHistory() {
+		// Arrange
+		UserRole userRole = new UserRole();
+		OrgUnitUserRoleAssignment removed = new OrgUnitUserRoleAssignment();
+		removed.setUserRole(userRole);
+		OrgUnitUserRoleAssignment kept = new OrgUnitUserRoleAssignment();
+		kept.setUserRole(userRole);
+		OrgUnit ou = new OrgUnit();
+		ou.setUserRoleAssignments(new ArrayList<>(List.of(removed, kept)));
+		Set<String> descendantUsers = Set.of("user-in-sub-ou");
+		when(orgUnitService.findUserUuidsForOu(ou, true)).thenReturn(descendantUsers);
+
+		// Act
+		hook.interceptRemoveUserRoleAssignmentOnOrgUnit(ou, removed);
+
+		// Assert
+		verify(historicOuAssignmentService).recordUserRoleAssignmentRemoved(ou, removed);
+		verify(historicOuAssignmentService, never()).recordUserRoleRemoved(ou, kept);
+		verify(userService).queueMultipleForRecalculation(descendantUsers);
+	}
+
+	@Test
+	@DisplayName("removing one specific role group assignment closes only that assignment's history")
+	void removeSpecificRoleGroupAssignmentClosesOnlyItsHistory() {
+		// Arrange
+		RoleGroup roleGroup = new RoleGroup();
+		OrgUnit ou = orgUnitWithRoleGroup(roleGroup, false);
+		OrgUnitRoleGroupAssignment removed = ou.getRoleGroupAssignments().getFirst();
+		Set<String> directUsers = Set.of("user-in-this-ou");
+		when(orgUnitService.findUserUuidsForOu(ou, false)).thenReturn(directUsers);
+
+		// Act
+		hook.interceptRemoveRoleGroupAssignmentOnOrgUnit(ou, removed);
+
+		// Assert
+		verify(historicOuAssignmentService).recordRoleGroupAssignmentRemoved(ou, removed);
+		verify(historicOuAssignmentService, never()).recordRoleGroupRemoved(ou, removed);
+		verify(userService).queueMultipleForRecalculation(directUsers);
 	}
 }

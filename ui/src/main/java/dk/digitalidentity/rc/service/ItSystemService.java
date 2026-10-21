@@ -6,10 +6,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +40,7 @@ import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KitosRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
 import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -75,6 +80,9 @@ public class ItSystemService {
 
 	@Autowired
 	private HistoricOuAssignmentDao historicOuAssignmentDao;
+
+	@Autowired
+	private HistoricAssignmentService historicAssignmentService;
 
 	@Autowired
 	private HistoricItSystemAssignmentService historicItSystemAssignmentService;
@@ -197,41 +205,51 @@ public class ItSystemService {
 	}
 
 	/**
-	 * Rydder et IT-systems {@link AttestationResponsibleCollection}, hvis den er en "spøgelses-collection":
-	 * ikke-tom snapshot, men INGEN levende systemansvarlig.
+	 * Brings an IT system's {@link AttestationResponsibleCollection} back in sync with the live
+	 * responsible list.
 	 * <p>
-	 * V1_352 seedede collections ud fra HISTORISKE attesteringsdata (responsible_user_uuid på de
-	 * temporale snapshot-tabeller), ikke fra den levende ansvarsliste. Systemer der engang havde en
-	 * systemansvarlig men ikke længere har det, endte derfor med en ikke-tom collection og optræder
-	 * stadig i attesteringsmodulet, selvom ingen aktuelt kan attestere dem. Denne metode genbruger
-	 * {@link #updateAttestationResponsibles} med en tom liste — som netop tømmer collectionen og
-	 * sletter åbne attesteringer — så oprydningen følger nøjagtig samme veletablerede sti som når den
-	 * sidste ansvarlige fjernes manuelt.
+	 * V1_351 seeded the collections from the live responsible list, but V1_352 then layered the
+	 * historic attestation rows on top - the union of everyone ever responsible for the system.
+	 * Recipients resolve from the collection
+	 * ({@code AttestationEmailNotificationService.findAttesters}) while page access is gated on the
+	 * live list, so a former responsible keeps receiving attestation mails they cannot act on, and a
+	 * system with nobody left responsible still shows in the admin overview.
 	 * <p>
-	 * Bevidst afgrænset til spøgelser (live tom): collections der blot divergerer fra en <i>ikke-tom</i>
-	 * levende liste (fx en ansvarlig fjernet midt i en kørsel) er et legitimt point-in-time-snapshot og
-	 * røres ikke — det er bruger-stiens live-krydstjek og admin-overblikkets filter der styrer synlighed
-	 * for dem, ikke en snapshot-mutation.
+	 * Only the membership drifted, never the collection id, so the two paths differ in cost: with
+	 * nobody left responsible we go through {@link #updateAttestationResponsibles}, which also deletes
+	 * the open attestations along with the child rows that have no ON DELETE CASCADE. Otherwise we
+	 * rewrite the membership here instead, because that method would additionally run three bulk
+	 * UPDATEs over the (large, and on it_system_id unindexed) historic tables per system, and clear
+	 * responsible_ou_uuid on every open row it touches - backfills that repair a collection id which
+	 * has not changed.
 	 *
-	 * @return true hvis en spøgelses-collection blev ryddet
+	 * @return true if the collection diverged and was rewritten
 	 */
 	@Transactional
 	public boolean reconcileAttestationResponsibleCollection(long itSystemId) {
 		AttestationResponsibleCollection collection = attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId).orElse(null);
-		if (collection == null || collection.getUsersUuid().isEmpty()) {
+		if (collection == null) {
 			return false;
 		}
 		ItSystem itSystem = itSystemDao.findById(itSystemId).orElse(null);
 		if (itSystem == null) {
-			// System findes ikke længere — FK-cascade (ON DELETE CASCADE) har ryddet collectionen.
+			// The system is gone - the FK cascade (ON DELETE CASCADE) already removed the collection.
 			return false;
 		}
 		List<User> liveResponsibles = getAttestationResponsibles(itSystem);
-		if (!liveResponsibles.isEmpty()) {
-			// Ikke en spøgelse — der er en aktuel systemansvarlig. Lad snapshottet være.
+		Set<String> liveUuids = liveResponsibles.stream().map(User::getUuid).collect(Collectors.toSet());
+		Set<String> snapshotUuids = new HashSet<>(collection.getUsersUuid());
+		if (liveUuids.equals(snapshotUuids)) {
 			return false;
 		}
-		updateAttestationResponsibles(itSystemId, liveResponsibles);
+		log.info("Reconciling responsible collection for IT system {}: snapshot {} -> live {}", itSystemId, snapshotUuids, liveUuids);
+		if (liveUuids.isEmpty()) {
+			updateAttestationResponsibles(itSystemId, liveResponsibles);
+		} else {
+			collection.getUsersUuid().clear();
+			collection.getUsersUuid().addAll(liveUuids);
+			attestationResponsibleCollectionDao.save(collection);
+		}
 		return true;
 	}
 
@@ -462,9 +480,10 @@ public class ItSystemService {
 			return;
 		}
 
-		List<User> allUsers = userService.getAll();
+		// Ét opslag for hele kørslen frem for en fuld scanning pr. Kitos-bruger pr. system.
+		KitosUserLookup lookup = KitosUserLookup.of(userService.getAll());
 		for (ItSystem system : systems) {
-			handleSingleITSystemKitosOwnerAndResponsible(system, allUsers);
+			handleSingleITSystemKitosOwnerAndResponsible(system, lookup);
 		}
 	}
 
@@ -473,12 +492,12 @@ public class ItSystemService {
 	// kald, der bypasser proxien, så den deltager blot i den allerede åbne transaktion.
 	@Transactional
 	public void handleSingleITSystemKitosOwnerAndResponsible(ItSystem system, List<User> allUsers) {
-		User owner = null;
-		User responsible = null;
-		if (system.getKitosITSystem().getKitosUsers() != null) {
-			owner = findUserForKitosRole(KitosRole.SYSTEM_OWNER, system, allUsers);
-			responsible = findUserForKitosRole(KitosRole.SYSTEM_RESPONSIBLE, system, allUsers);
-		}
+		handleSingleITSystemKitosOwnerAndResponsible(system, KitosUserLookup.of(allUsers));
+	}
+
+	private void handleSingleITSystemKitosOwnerAndResponsible(ItSystem system, KitosUserLookup lookup) {
+		List<User> desiredOwners = findUsersForKitosRole(KitosRole.SYSTEM_OWNER, system, lookup);
+		List<User> desiredResponsibles = findUsersForKitosRole(KitosRole.SYSTEM_RESPONSIBLE, system, lookup);
 
 		// Kun rør collections når Kitos faktisk afviger fra den nuværende tilstand. I det normale
 		// tilfælde (stabilt ejerskab) er sættene uændrede, så vi undgår både delete+reinsert af de
@@ -492,8 +511,6 @@ public class ItSystemService {
 		// orphanRemoval-DELETE af en række en samtidig transaktion allerede har slettet. Kun ÉN refresh
 		// (ikke én pr. mutator): en anden refresh på samme entitet ville kassere den førstes pending ændringer.
 		// Bagefter kører mutatorerne på den friske, låste instans (deres findByIdForUpdate returnerer den).
-		List<User> desiredOwners = owner != null ? List.of(owner) : List.of();
-		List<User> desiredResponsibles = responsible != null ? List.of(responsible) : List.of();
 		boolean ownersDiffer = !sameUsers(system.getSystemOwners().stream().map(ItSystemSystemOwner::getUser).toList(), desiredOwners);
 		boolean responsiblesDiffer = !sameUsers(getAttestationResponsibles(system), desiredResponsibles);
 		if (!ownersDiffer && !responsiblesDiffer) {
@@ -515,23 +532,60 @@ public class ItSystemService {
 		return currentUuids.equals(desiredUuids);
 	}
 
-	private User findUserForKitosRole(KitosRole kitosRole, ItSystem system, List<User> allUsers) {
-		List<KitosITSystemUser> kitosUsers = system.getKitosITSystem().getKitosUsers().stream()
-				.filter(u -> u.getRole().equals(kitosRole))
-				.toList();
-
-		for (KitosITSystemUser kitosUser : kitosUsers) {
-            // Match by email, before we match by name to avoid same name troubles
-			return allUsers.stream()
-					.filter(u ->  kitosUser.getEmail().equalsIgnoreCase(u.getEmail()))
-					.findFirst()
-                    .orElseGet(() ->
-                            allUsers.stream()
-                                    .filter(u -> kitosUser.getName().equalsIgnoreCase(u.getName()))
-                                    .findFirst().orElse(null));
+	private List<User> findUsersForKitosRole(KitosRole kitosRole, ItSystem system, KitosUserLookup lookup) {
+		Map<String, User> matched = new LinkedHashMap<>();
+		List<UUID> unmatched = new ArrayList<>();
+		for (KitosITSystemUser kitosUser : system.getKitosITSystem().getKitosUsers()) {
+			if (!kitosUser.getRole().equals(kitosRole)) {
+				continue;
+			}
+			// Slås op uafhængigt og dedupliceres på uuid: gjorde vi matchet afhængigt af hvem de øvrige
+			// tog, kunne en Kitos-bruger med allerede-fundet bruger lande på en navnefælle i stedet.
+			lookup.uniqueByEmail(kitosUser.getEmail())
+					.or(() -> lookup.uniqueByName(kitosUser.getName()))
+					.ifPresentOrElse(u -> matched.put(u.getUuid(), u), () -> unmatched.add(kitosUser.getKitosUuid()));
 		}
 
-		return null;
+		if (!unmatched.isEmpty()) {
+			log.warn("{} Kitos users with role {} on IT system {} matched no unique role catalogue user, skipped: {}",
+					unmatched.size(), kitosRole, system.getId(), unmatched);
+		}
+
+		return List.copyOf(matched.values());
+	}
+
+	// Kræver ét entydigt match: to navnefæller må ikke gøre valget til et lotteri.
+	private record KitosUserLookup(Map<String, List<User>> byEmail, Map<String, List<User>> byName) {
+
+		private static KitosUserLookup of(List<User> allUsers) {
+			return new KitosUserLookup(index(allUsers, User::getEmail), index(allUsers, User::getName));
+		}
+
+		private static Map<String, List<User>> index(List<User> allUsers, Function<User, String> key) {
+			return allUsers.stream()
+					.filter(u -> hasValue(key.apply(u)))
+					.collect(Collectors.groupingBy(u -> key.apply(u).trim().toLowerCase()));
+		}
+
+		private Optional<User> uniqueByEmail(String email) {
+			return unique(byEmail, email);
+		}
+
+		private Optional<User> uniqueByName(String name) {
+			return unique(byName, name);
+		}
+
+		private static Optional<User> unique(Map<String, List<User>> index, String kitosValue) {
+			if (!hasValue(kitosValue)) {
+				return Optional.empty();
+			}
+			List<User> candidates = index.get(kitosValue.trim().toLowerCase());
+			return candidates != null && candidates.size() == 1 ? Optional.of(candidates.getFirst()) : Optional.empty();
+		}
+
+		private static boolean hasValue(String value) {
+			return value != null && !value.isBlank();
+		}
 	}
 
 	public long systemResponsibleCount(User user){
@@ -559,6 +613,7 @@ public class ItSystemService {
 
 	@Transactional
 	public void deleteAll(List<ItSystem> itSystems) {
+		historicAssignmentService.closeOpenForDeletedItSystems(itSystems);
 		itSystemDao.deleteAll(itSystems);
 	}
 

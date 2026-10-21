@@ -5,3 +5,10 @@
 toastr.options = {
     positionClass: "toast-top-right toastr-buffer"
 };
+
+// shows bootstrap tooltips for any element with data-tooltip
+$(document.body).tooltip({
+    selector: '[data-toggle="tooltip"]',
+    container: 'body',
+    boundary: 'window'
+});

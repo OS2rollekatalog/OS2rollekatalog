@@ -12,10 +12,17 @@
 				<span th:text="#{html.page.report.title}"></span>
 			</h3>
 
+			<div id="rememberedSettingsBar" class="alert alert-warning" style="display:none;">
+				<span id="rememberedSettingsText"></span>
+				<a href="#" id="resetToDefaultLink" th:text="#{html.page.report.remembered.reset}" style="float:right;"></a>
+			</div>
+
 			<div class="panel panel-default">
 				<div class="panel-heading"></div>
 				<div class="panel-body">
 					<form id="reportForm" class="form-horizontal" th:object="${reportForm}">
+
+						<input id="selectedColumnsJson" th:field="*{selectedColumnsJson}" type="hidden">
 
 						<div class="form-group">
 							<h4 class="col-sm-12" th:text="#{html.page.report.date}"></h4>
@@ -46,11 +53,18 @@
 							<input class="column-choice" id="realShowUsers" th:field="*{showUsers}" type="hidden">
 							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.user}"></label>
 							<div class="col-sm-9">
-								<div class="checkbox c-checkbox">
-									<label>
-										<input id="UserColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowUsers" th:attr="checked=${reportForm.showUsers}"/>
-										<span class="fa fa-check"></span>
-									</label>
+								<div class="column-row-flex">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="UserColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowUsers" th:attr="checked=${reportForm.showUsers}"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnToggle(panelId='Brugere')}"></div>
+								</div>
+								<div class="column-panel" style="display:none;" data-panel-id="Brugere">
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnGroup(contentTypeKey='ShowUsers', groupLabel=#{html.page.report.column.user}, columns=${columnDefinitions.get('ShowUsers')})}"></div>
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnGroup(contentTypeKey='ShowKLE', groupLabel=#{html.page.report.column.group.userKle}, columns=${columnDefinitions.get('ShowKLE')})}"></div>
 								</div>
 							</div>
 						</div>
@@ -59,11 +73,18 @@
 							<input class="column-choice" id="realShowOUs" th:field="*{showOUs}" type="hidden">
 							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.ou}"></label>
 							<div class="col-sm-9">
-								<div class="checkbox c-checkbox">
-									<label>
-										<input id="OUColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowOUs" th:attr="checked=${reportForm.showOUs}"/>
-										<span class="fa fa-check"></span>
-									</label>
+								<div class="column-row-flex">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="OUColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowOUs" th:attr="checked=${reportForm.showOUs}"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnToggle(panelId='Enheder')}"></div>
+								</div>
+								<div class="column-panel" style="display:none;" data-panel-id="Enheder">
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnGroup(contentTypeKey='ShowOUs', groupLabel=#{html.page.report.column.group.ouRoles}, columns=${columnDefinitions.get('ShowOUs')})}"></div>
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnGroup(contentTypeKey='ShowOUKLE', groupLabel=#{html.page.report.column.group.ouKle}, columns=${columnDefinitions.get('ShowOUKLE')})}"></div>
 								</div>
 							</div>
 						</div>
@@ -72,11 +93,17 @@
 							<input class="column-choice" id="realShowUserRoles" th:field="*{showUserRoles}" type="hidden">
 							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.userrole}"></label>
 							<div class="col-sm-9">
-								<div class="checkbox c-checkbox">
-									<label>
-										<input id="UserRolesColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowUserRoles" th:attr="checked=${reportForm.showUserRoles}"/>
-										<span class="fa fa-check"></span>
-									</label>
+								<div class="column-row-flex">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="UserRolesColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowUserRoles" th:attr="checked=${reportForm.showUserRoles}"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnToggle(panelId='Roller')}"></div>
+								</div>
+								<div class="column-panel" style="display:none;" data-panel-id="Roller">
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnGroup(contentTypeKey='ShowUserRoles', groupLabel=#{html.page.report.column.group.userRoles}, columns=${columnDefinitions.get('ShowUserRoles')})}"></div>
 								</div>
 							</div>
 						</div>
@@ -95,27 +122,20 @@
 						</div>
 
 						<div class="form-group" style="margin-bottom: 20px">
-							<input class="column-choice" id="realShowKLE" th:field="*{showKLE}" type="hidden">
-							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.kle}"></label>
-							<div class="col-sm-9">
-								<div class="checkbox c-checkbox">
-									<label>
-										<input id="KLEColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowKLE" th:attr="checked=${reportForm.showKLE}"/>
-										<span class="fa fa-check"></span>
-									</label>
-								</div>
-							</div>
-						</div>
-
-						<div class="form-group" style="margin-bottom: 20px">
 							<input class="column-choice" id="realShowItSystems" th:field="*{showItSystems}" type="hidden">
 							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.itsystem}"></label>
 							<div class="col-sm-9">
-								<div class="checkbox c-checkbox">
-									<label>
-										<input id="ItSystemDataColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowItSystems" th:attr="checked=${reportForm.showItSystems}"/>
-										<span class="fa fa-check"></span>
-									</label>
+								<div class="column-row-flex">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="ItSystemDataColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowItSystems" th:attr="checked=${reportForm.showItSystems}"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnToggle(panelId='ItSystems')}"></div>
+								</div>
+								<div class="column-panel" style="display:none;" data-panel-id="ItSystems">
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnGroup(contentTypeKey='ShowItSystems', groupLabel=#{html.page.report.column.itsystem}, columns=${columnDefinitions.get('ShowItSystems')})}"></div>
 								</div>
 							</div>
 						</div>
@@ -137,11 +157,17 @@
 							<input class="column-choice" id="realShowSystemRoles" th:field="*{showSystemRoles}" type="hidden">
 							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.systemroles}"></label>
 							<div class="col-sm-9">
-								<div class="checkbox c-checkbox">
-									<label>
-										<input id="ShowSystemRolesCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowSystemRoles" th:attr="checked=${reportForm.showSystemRoles}"/>
-										<span class="fa fa-check"></span>
-									</label>
+								<div class="column-row-flex">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="ShowSystemRolesCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowSystemRoles" th:attr="checked=${reportForm.showSystemRoles}"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnToggle(panelId='SystemRoles')}"></div>
+								</div>
+								<div class="column-panel" style="display:none;" data-panel-id="SystemRoles">
+									<div th:replace="~{reports/fragments/columnPanelFragment :: columnGroup(contentTypeKey='ShowSystemRoles', groupLabel=#{html.page.report.column.show.systemroles}, columns=${columnDefinitions.get('ShowSystemRoles')})}"></div>
 								</div>
 							</div>
 						</div>
@@ -214,6 +240,8 @@
 		"restUrlOus": [[@{/rest/ous}]],
 		"fieldUpdatedMsg": [[#{html.page.report.modal.successMsg}]],
 		"fieldNotUpdatedMsg": [[#{html.page.report.modal.failMsg}]],
+		"columnSelectedCountMsg": [[#{html.page.report.column.selectedCount}]],
+		"rememberedSettingsMsg": [[#{html.page.report.remembered.text}]],
 		"manager": [[${reportForm.managerFilter}]],
 		"itsystemFilter": [[${reportForm.itsystemFilter}]],
 		"unitFilter": [[${reportForm.unitFilter}]],

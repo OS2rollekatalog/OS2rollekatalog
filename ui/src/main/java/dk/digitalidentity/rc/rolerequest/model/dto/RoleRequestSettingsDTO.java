@@ -25,4 +25,5 @@ public class RoleRequestSettingsDTO {
 	private Map<ApprovableBy, String> alternativeEmails;
 	private boolean showSingleTableInRequestApproveEnabled;
 	private boolean allowSelfApproval;
+	private boolean autoApproveRemoval;
 }

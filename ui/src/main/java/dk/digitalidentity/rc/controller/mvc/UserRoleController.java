@@ -1,29 +1,51 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import java.security.Principal;
+import java.text.Collator;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.Validator;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditRolegroupRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleCheckedDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
 import dk.digitalidentity.rc.controller.viewmodel.EditSystemRoleRow;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
-import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
@@ -38,11 +60,11 @@ import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
+import dk.digitalidentity.rc.service.ADConfigurationService;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.FunctionService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
-import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PNumberService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -50,46 +72,20 @@ import dk.digitalidentity.rc.service.SENumberService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
-import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import dk.digitalidentity.rc.service.model.UserWithRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.Validator;
-import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.InitBinder;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-
-import java.security.Principal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RequireControllerPermission(section = Section.USER_ROLE, permission = Permission.READ)
 @RequiredArgsConstructor
 @Controller
 public class UserRoleController {
 	private final UserRoleService userRoleService;
+	private final ADConfigurationService adConfigurationService;
 	private final ItSystemService itSystemService;
 	private final SystemRoleService systemRoleService;
 	private final UserRoleValidator userRoleValidator;
@@ -99,13 +95,10 @@ public class UserRoleController {
 	private final UserService userService;
 	private final KleService kleService;
 	private final OrgUnitService orgUnitService;
-	private final RoleCatalogueConfiguration configuration;
 	private final RoleGroupService roleGroupService;
 	private final SENumberService seNumberService;
 	private final PNumberService pNumberService;
-	private final TitleService titleService;
 	private final UserPermissionContext userPermissionContext;
-	private final ManagerSubstituteService managerSubstituteService;
 	private final FunctionService functionService;
 	private final AssignmentService assignmentService;
 	private final Validator validator;
@@ -142,9 +135,6 @@ public class UserRoleController {
 		roleForm.setRoleGroups(roleGroups);
 		model.addAttribute("role", roleForm);
 
-		boolean titlesEnabled = configuration.getTitles().isEnabled();
-		model.addAttribute("titlesEnabled", titlesEnabled);
-
 		boolean hideRolegroups = false;
 		if (role.isAllowPostponing()) {
 			hideRolegroups = true;
@@ -164,7 +154,7 @@ public class UserRoleController {
 	}
 
 	@GetMapping(value = "/ui/userroles/{id}/assignedUsersFragment")
-	public String assignedUsersFragment(Model model, @PathVariable("id") long userRoleId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
+	public String assignedUsersFragment(Model model, @PathVariable("id") long userRoleId) {
 		UserRole role = userRoleService.getById(userRoleId);
 		if (role == null) {
 			return "redirect:../list";
@@ -175,31 +165,8 @@ public class UserRoleController {
 		boolean canAssign = userRoleService.isAssignableRole(role) // the role must be assignable at all - see UserRestController.addRoleToUser
 			&& (isAdmin // must either be admin...
 			||	(!isInternalRCRole && userPermissionContext.hasPermission(Section.USER, Permission.ASSIGN))); // ... or have assigning permission AND role cannot be from rolecatalogue
-		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.USER, Permission.ASSIGN);
-		// the role itself does not change per row, so the decision is made once and combined with each row below
-		boolean roleAssignable = userRoleService.isUserRoleAssignable(role, true, assignConstraint);
 
-		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(role);
-
-		List<UserWithRole> usersWithRoleMapping = assignments.stream()
-			.map(assignment -> {
-				AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
-				UserWithRole userWithRole = UserWithRole.fromCurrentAssignment(assignment, assignedThrough, RoleAssignmentType.USERROLE);
-
-				// Editing/deleting follows the same permission as creating the assignment does, so a role
-				// assigner may maintain what it is allowed to create. Only direct assignments can be edited.
-				boolean isDirectAssignment = assignedThrough.equals(AssignedThrough.DIRECT);
-				userWithRole.getAssignment().setCanEdit(roleAssignable && isDirectAssignment);
-
-				return userWithRole;
-			})
-			// Filter by allowed orgunits
-			.filter(uwr -> userPermissionContext.getConstraint(Section.USER, Permission.READ).allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
-			.toList();
-
-
-		model.addAttribute("userRoleMapping", usersWithRoleMapping);
-		model.addAttribute("showEdit", showEdit);
+		model.addAttribute("roleId", role.getId());
 		model.addAttribute("assignmentAddingAllowed", canAssign);
 
 		return "userroles/fragments/manage_users :: users";
@@ -438,7 +405,7 @@ public class UserRoleController {
 		if (role == null || role.isReadOnly()) {
 			return "redirect:../list";
 		}
-		
+
 		boolean constraintsAllowAccess = userPermissionContext.getConstraint(permissionEntity, Permission.UPDATE).allowsITSystem(role.getItSystem().getId());
 		if (!constraintsAllowAccess) {
 			return "redirect:../list";
@@ -459,6 +426,7 @@ public class UserRoleController {
 
 		model.addAttribute("role", new UserRoleForm(role, false, false));
 		model.addAttribute("roleId", id);
+		model.addAttribute("nameAndDescriptionMaintainedByBackSync", adConfigurationService.isNameAndDescriptionMaintainedByBackSync(role));
 
 		// TODO: way to much mapping logic - refactor to deal with this
 		model.addAttribute("ouConstraintUuid", getOUConstraintUuid());
@@ -470,9 +438,7 @@ public class UserRoleController {
 		List<EditRolegroupRow> editRoleGroups = mapToEditRolegroupRows(roleGroups, role);
 		model.addAttribute("editRoleGroups", editRoleGroups);
 
-		model.addAttribute("orgUnitList", select2Service.getOrgUnitList());
 		model.addAttribute("itSystemList", select2Service.getItSystemList());
-		model.addAttribute("titlesEnabled", configuration.getTitles().isEnabled());
 		model.addAttribute("allowPostponing", role.isAllowPostponing());
 
 		if (itSystem.getSystemType().equals(ItSystemType.NEMLOGIN)) {
@@ -489,8 +455,10 @@ public class UserRoleController {
 
 		Map<Permission, PermissionConstraint> orgunitConstraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
 		PermissionConstraint readOrgunitConstraint = orgunitConstraintMap.getOrDefault(Permission.READ, new PermissionConstraint(null, null));
+		Collator collator = Collator.getInstance(Locale.of("da", "DK"));
 		List<OUListForm> ouListForms = orgUnitService.getAllCached().stream()
 			.filter(ou -> readOrgunitConstraint.allowsOrgunit(ou.getUuid()))
+			.sorted(Comparator.comparing(OrgUnit::getName, collator))
 			.map(ou -> new OUListForm(ou, false))
 			.toList();
 
@@ -619,82 +587,7 @@ public class UserRoleController {
 		return "users/fragments/user_user_role_modal :: userUserRoleModalScript";
 	}
 
-	record ManagerOrSubstituteDTO(String name, String userId) {}
 	record FunctionDTO(String uuid, String name, boolean checked) {}
-	record OuDTO(String uuid, String name, boolean checked) {}
-	@GetMapping(value = "/ui/userroles/fragments/ou/{uuid}")
-	public String getOUFragment(Model model, @PathVariable("uuid") String uuid, @RequestParam(name = "edit", required = false, defaultValue = "false") boolean edit) {
-		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
-		boolean titlesEnabled = configuration.getTitles().isEnabled();
-
-		if (titlesEnabled && orgUnit != null) {
-			List<Title> titles = orgUnitService.getTitles(orgUnit);
-
-			List<TitleListForm> titleForms = titles
-					.stream()
-					.map(title -> new TitleListForm(title, false))
-					.collect(Collectors.toList());
-
-			List<String> titleFormsUuids = titleForms.stream().map(TitleListForm::getId).toList();
-			titleForms.addAll(orgUnit.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
-
-			// add titles without positions if they are used for assignments (e.g. a title renamed in OPUS
-			// leaves the old title behind with no positions - it must still be shown so it can be deselected).
-			// Mirrors OrgUnitController.manage(); without it this fragment shows fewer titles than the
-			// "N stillinger" count on the org unit, which counts every title on the assignment.
-			List<String> newTitleFormsUuids = titleForms.stream().map(TitleListForm::getId).collect(Collectors.toList());
-			for (OrgUnitUserRoleAssignment userRoleAssignment : orgUnit.getUserRoleAssignments()) {
-				for (Title title : userRoleAssignment.getTitles()) {
-					if (!newTitleFormsUuids.contains(title.getUuid())) {
-						titleForms.add(new TitleListForm(title, false, true));
-						newTitleFormsUuids.add(title.getUuid());
-					}
-				}
-			}
-			for (OrgUnitRoleGroupAssignment roleGroupAssignment : orgUnit.getRoleGroupAssignments()) {
-				for (Title title : roleGroupAssignment.getTitles()) {
-					if (!newTitleFormsUuids.contains(title.getUuid())) {
-						titleForms.add(new TitleListForm(title, false, true));
-						newTitleFormsUuids.add(title.getUuid());
-					}
-				}
-			}
-
-			model.addAttribute("titles", titleForms);
-
-			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
-			model.addAttribute("allTitles", allTitles);
-		} else {
-			model.addAttribute("titles", null);
-		}
-
-		if (orgUnit != null) {
-			User manager = orgUnitService.getManager(orgUnit);
-			model.addAttribute("manager", manager == null ? null : new ManagerOrSubstituteDTO(manager.getName(), manager.getUserId()));
-			List<User> substitutesForOrgUnit = managerSubstituteService.getSubstitutesForOrgUnit(orgUnit);
-			model.addAttribute("substitutes", substitutesForOrgUnit
-					.stream()
-					.map(s -> new ManagerOrSubstituteDTO(s.getName(), s.getUserId()))
-					.collect(Collectors.toList())
-			);
-
-			List<Function> functions = functionService.getAllActive();
-			model.addAttribute("functions", functions
-					.stream()
-					.map(f -> new FunctionDTO(f.getUuid(), f.getName(), false))
-					.collect(Collectors.toList())
-			);
-
-			List<OuDTO> children = orgUnitService.getAllDescendantsOfOu(orgUnit).stream()
-				.map(ou -> new OuDTO(ou.getUuid(), ou.getName(), false))
-				.collect(Collectors.toList());
-			model.addAttribute("childOus", children);
-		}
-
-		model.addAttribute("titlesEnabled", titlesEnabled);
-
-		return "ous/fragments/ou_roles_modal :: ouRolesModal";
-	}
 
 	private UserRole copyUserRole(UserRoleForm roleForm, UserRole roleToCopy) {
 		UserRole role = roleForm.toUserRole();

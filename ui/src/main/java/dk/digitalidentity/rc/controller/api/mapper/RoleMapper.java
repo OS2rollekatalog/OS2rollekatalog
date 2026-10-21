@@ -25,20 +25,19 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 
 public abstract class RoleMapper {
 
-	public static UserUserRoleAssignmentAM currentAssignmentToApi(final CurrentAssignment assignment, final User user, final AssignedThrough assignedThrough) {
+	public static UserUserRoleAssignmentAM currentAssignmentToApi(final CurrentAssignment assignment, final User user, final AssignedThrough assignedThrough, final RequesterPermission effectiveRequesterPermission) {
 		return UserUserRoleAssignmentAM.builder()
 			.user(UserMapper.toShallowApi(user))
-			.userRole(userRoleToApi(assignment.getUserRole()))
+			.userRole(userRoleToApi(assignment.getUserRole(), effectiveRequesterPermission))
 			.responsibleOrgUnit(OrgUnitMapper.toShallowApi(assignment.getResponsibleOrgUnit()))
-			.assignedThroughTitle(titleToApi(assignment.getTitle()))
+			.assignedThroughTitle(assignedThrough == AssignedThrough.TITLE ? titleToApi(assignment.getTitle()) : null)
 			.assignedThrough(assignedThroughToApi(assignedThrough))
 			.postponedConstraints(currentAssignmentPostponedConstraintsToApi(assignment.getPostponedConstraints()))
 			.manager(assignment.isManager())
@@ -123,22 +122,13 @@ public abstract class RoleMapper {
 			.build();
 	}
 
-    public static UserRoleAM userRoleToApi(final UserRole userRole) {
-        return userRoleToApi(userRole, userRole.getApproverPermission());
+    public static UserRoleAM userRoleToApi(final UserRole userRole, final RequesterPermission effectiveRequesterPermission) {
+        return userRoleToApi(userRole, effectiveRequesterPermission, userRole.getApproverPermission());
     }
 
-    /**
-     * Resolves the approver permission's INHERIT value (via {@link ApproverOptionService#getInheritedApproverOption(UserRole)})
-     * before serializing, so that external API consumers receive a concrete approver type instead of
-     * the unresolved "INHERIT" placeholder, which only has meaning within the Role Catalog itself.
-     */
-    public static UserRoleAM userRoleToApi(final UserRole userRole, final ApproverOptionService approverOptionService) {
-        return userRoleToApi(userRole, approverOptionService.getInheritedApproverOption(userRole));
-    }
-
-    private static UserRoleAM userRoleToApi(final UserRole userRole, final List<ApprovableBy> approverPermission) {
-        // intentionally checked against the raw unresolved list — the flag tells consumers whether the value was inherited, not what it resolved to
-        boolean approverPermissionInherited = userRole.getApproverPermission().contains(ApprovableBy.INHERIT);
+    public static UserRoleAM userRoleToApi(final UserRole userRole, final RequesterPermission effectiveRequesterPermission, final ApproverPermission approverPermission) {
+        // intentionally checked against the raw unresolved value — the flag tells consumers whether the value was inherited, not what it resolved to
+        boolean approverPermissionInherited = userRole.getApproverPermission().isInherit();
         return UserRoleAM.builder()
                 .id(userRole.getId())
                 .name(userRole.getName())
@@ -146,7 +136,7 @@ public abstract class RoleMapper {
                 .delegatedFromCvr(userRole.getDelegatedFromCvr())
                 .description(userRole.getDescription())
                 .userOnly(userRole.isUserOnly())
-                .canRequest(!RequestableBy.isNoneOrEmpty(userRole.getRequesterPermission()))
+                .canRequest(!effectiveRequesterPermission.isNone())
                 .sensitiveRole(userRole.isSensitiveRole())
                 .itSystemId(userRole.getItSystem().getId())
                 .systemRoleAssignments(userRole.getSystemRoleAssignments() != null
@@ -161,8 +151,8 @@ public abstract class RoleMapper {
 				.roleAssignmentAttestationByAttestationResponsible(userRole.isRoleAssignmentAttestationByAttestationResponsible())
 				.extraSensitiveRole(userRole.isExtraSensitiveRole())
 				.allowPostponing(userRole.isAllowPostponing())
-                .requesterPermission(userRole.getRequesterPermission())
-                .approverPermission(approverPermission)
+                .requesterPermission(userRole.getRequesterPermission().getRequestableBy())
+                .approverPermission(approverPermission.getApprovableBy())
                 .approverPermissionInherited(approverPermissionInherited)
                 .build();
     }

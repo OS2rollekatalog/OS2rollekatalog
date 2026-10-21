@@ -193,14 +193,8 @@
 									<label class="col-sm-2 control-label"
 										   th:text="#{html.entity.itsystem.requestersetting}"></label>
 									<div class="col-sm-8">
-										<th:block th:if="${itsystem.requesterPermission != null and !itsystem.requesterPermission.isEmpty()}">
-											<input th:value="${#strings.listJoin(itsystem.requesterPermission.![displayName], ', ')}"
-												   readonly="readonly" class="form-control" />
-										</th:block>
-										<th:block th:unless="${itsystem.requesterPermission != null and !itsystem.requesterPermission.isEmpty()}">
-											<input th:value="#{html.entity.itsystem.requestersetting.inherit}"
-												   readonly="readonly" class="form-control" />
-										</th:block>
+										<input th:value="${#strings.listJoin(itsystem.requesterPermission.requestableBy.![displayName], ', ')}"
+											   readonly="readonly" class="form-control" />
 									</div>
 								</div>
 							</fieldset>
@@ -210,12 +204,12 @@
 									<label class="col-sm-2 control-label"
 										   th:text="#{html.entity.itsystem.approversetting}"></label>
 									<div class="col-sm-8">
-										<th:block th:if="${itsystem.approverPermission != null and !itsystem.approverPermission.isEmpty()}">
-											<input th:value="${#strings.listJoin(itsystem.approverPermission.![displayName], ', ')}"
+										<th:block th:if="${!itsystem.approverPermission.nobody}">
+											<input th:value="${#strings.listJoin(itsystem.approverPermission.approvableBy.![displayName], ', ')}"
 												   readonly="readonly" class="form-control" />
 										</th:block>
-										<th:block th:unless="${itsystem.approverPermission != null and !itsystem.approverPermission.isEmpty()}">
-											<input th:value="#{html.entity.itsystem.approversetting.inherit}"
+										<th:block th:if="${itsystem.approverPermission.nobody}">
+											<input th:value="#{html.enum.sttings.approvableby.none}"
 												   readonly="readonly" class="form-control" />
 										</th:block>
 									</div>
@@ -284,7 +278,7 @@
 													<td th:if="${@settingsService.isRequestApproveEnabled()}"
 														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
 													<td th:if="${@settingsService.isRequestApproveEnabled()}"
-														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
+														th:text="${#lists.isEmpty(role.approverPermission)} ? #{html.enum.sttings.approvableby.none} : ${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -361,7 +355,7 @@
 													<td th:if="${@settingsService.isRequestApproveEnabled()}"
 														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
 													<td th:if="${@settingsService.isRequestApproveEnabled()}"
-														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
+														th:text="${#lists.isEmpty(role.approverPermission)} ? #{html.enum.sttings.approvableby.none} : ${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -435,7 +429,7 @@
 													<td th:if="${@settingsService.isRequestApproveEnabled()}"
 														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
 													<td th:if="${@settingsService.isRequestApproveEnabled()}"
-														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
+														th:text="${#lists.isEmpty(role.approverPermission)} ? #{html.enum.sttings.approvableby.none} : ${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>

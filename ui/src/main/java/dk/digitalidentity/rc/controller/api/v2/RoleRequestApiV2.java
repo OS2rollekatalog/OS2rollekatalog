@@ -2,13 +2,15 @@ package dk.digitalidentity.rc.controller.api.v2;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.rolerequest.model.dto.RequestedRole;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.rolerequest.log.RequestAuditLogger;
 import dk.digitalidentity.rc.rolerequest.log.RequestLogEvent;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
+import dk.digitalidentity.rc.rolerequest.service.permission.ApprovableRequestService;
+import dk.digitalidentity.rc.rolerequest.service.permission.RequestableRoleService;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
@@ -35,9 +37,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @RequestMapping(value = "/api/v2")
 @RestController
@@ -49,6 +51,8 @@ public class RoleRequestApiV2 {
 
     private final OrgUnitService orgUnitService;
     private final RequestService requestService;
+    private final RequestableRoleService requestableRoleService;
+    private final ApprovableRequestService approvableRequestService;
     private final RequestAuditLogger requestLogger;
 
     public record RoleRequestResponseAM(
@@ -126,23 +130,14 @@ public class RoleRequestApiV2 {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "OrgUnit not found: " + body.orgUnitUuid()));
 
         UUID groupUuid = UUID.randomUUID();
-        List<RoleRequest> requestGroup = new ArrayList<>();
-
         List<RoleItemAM> userRoles = body.userRoles() != null ? body.userRoles() : List.of();
-        for (RoleItemAM item : userRoles) {
-            requestGroup.add(
-                    requestService.createRoleRequest(requester, receiver, orgUnit,
-                            groupUuid, body.reason(), item.id(), null, item.startDate(), item.stopDate(), body.requestAction())
-            );
-        }
-
         List<RoleItemAM> roleGroups = body.roleGroups() != null ? body.roleGroups() : List.of();
-        for (RoleItemAM item : roleGroups) {
-            requestGroup.add(
-                    requestService.createRoleRequest(requester, receiver, orgUnit, groupUuid, body.reason(), null,
-                            item.id(), item.startDate(), item.stopDate(), body.requestAction())
-            );
-        }
+        List<RequestedRole> requestedRoles = Stream.concat(
+                userRoles.stream().map(item -> RequestedRole.userRole(item.id(), item.startDate(), item.stopDate())),
+                roleGroups.stream().map(item -> RequestedRole.roleGroup(item.id(), item.startDate(), item.stopDate())))
+            .toList();
+        List<RoleRequest> requestGroup = requestService.buildPermittedRoleRequests(
+                requester, receiver, orgUnit, groupUuid, body.reason(), requestedRoles, body.requestAction());
 
         requestService.saveRequestGroupWithLogAndAutoApprove(requestGroup, requester);
 
@@ -162,8 +157,8 @@ public class RoleRequestApiV2 {
     public ResponseEntity<List<Long>> getRequestableRoleIdsForUser(@RequestParam String requesterUserId, @RequestParam String receiverUserId) {
         User requester = requestService.resolveUserByUserId(requesterUserId, "requester");
         User receiver = requestService.resolveUserByUserId(receiverUserId, "receiver");
-        List<Long> ids = requestService.getRequestableUserRoles(requester, receiver)
-            .map(UserRole::getId)
+        List<Long> ids = requestableRoleService.requestableUserRoleIds(requester, receiver).stream()
+            .sorted()
             .toList();
         return ResponseEntity.ok(ids);
     }
@@ -220,7 +215,7 @@ public class RoleRequestApiV2 {
         User approver = requestService.resolveUserByUserId(body.approverUserId(), "approver");
         RoleRequest request = requestService.getRoleRequestById(requestId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "RoleRequest not found: " + requestId));
-        if (!requestService.canApprove(request, approver)) {
+        if (!approvableRequestService.canApprove(request, approver)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not allowed to approve this request");
         }
         if (request.getStatus() != RequestApproveStatus.REQUESTED) {
@@ -252,7 +247,7 @@ public class RoleRequestApiV2 {
         User approver = requestService.resolveUserByUserId(body.approverUserId(), "approver");
         RoleRequest request = requestService.getRoleRequestById(requestId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "RoleRequest not found: " + requestId));
-        if (!requestService.canApprove(request, approver)) {
+        if (!approvableRequestService.canApprove(request, approver)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not allowed to reject this request");
         }
         if (request.getStatus() != RequestApproveStatus.REQUESTED) {

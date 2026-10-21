@@ -30,10 +30,12 @@ import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.rolerequest.model.entity.RequestConstraint;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.service.permission.RequestableRoleService;
 import dk.digitalidentity.rc.rolerequest.service.RequestAuthorizedRoleService;
 import dk.digitalidentity.rc.rolerequest.service.RequestConstraintService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
+import dk.digitalidentity.rc.rolerequest.service.scope.LimitedToOrgUnits;
+import dk.digitalidentity.rc.rolerequest.service.scope.LimitedToType;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
@@ -45,7 +47,9 @@ import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentReasonService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.model.AssignmentReasons;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,15 +71,17 @@ public class RequestController {
 	private final RequestAuthorizedRoleService requestAuthorizedRoleService;
 	private final ManagerSubstituteService managerSubstituteService;
 	private final RequestService requestService;
+	private final RequestableRoleService requestableRoleService;
 	private final AssignmentService assignmentService;
 	private final PostponedConstraintService postponedConstraintService;
+	private final AssignmentReasonService assignmentReasonService;
 
 	record RoleGroupListEntry(long id, long assignmentId, String name, String description, String status,
-							  String assignedThroughName, boolean removable, boolean pendingRemoval) {
+							  String assignedThroughName, boolean removable, boolean pendingRemoval, String reason) {
 	}
 
 	record UserRoleListEntry(long id, long assignmentId, String itSystemName, String name, String description,
-							 String status, String assignedThroughName, boolean removable, boolean pendingRemoval) {
+							 String status, String assignedThroughName, boolean removable, boolean pendingRemoval, String reason) {
 	}
 
 	record PendingRequest(long roleId, long requestId, String itSystemName, String name, String description,
@@ -95,6 +101,9 @@ public class RequestController {
 
 		Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(user);
 		Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignments(currentAssignments);
+		Set<Long> removableRoleGroupIds = requestableRoleService.removableRoleGroupIds(user, user, roleGroupIds(currentAssignments));
+		Set<Long> removableUserRoleIds = requestableRoleService.removableUserRoleIds(user, user, userRoleIds(currentAssignments));
+		AssignmentReasons reasons = assignmentReasonService.findFor(currentAssignments);
 
 		List<RoleGroupListEntry> roleGroups = new ArrayList<>();
 		for (CurrentAssignment currentAssignment : uniqueRoleGroupAssignments) {
@@ -105,8 +114,7 @@ public class RequestController {
 			final AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(currentAssignment);
 			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
 				&& !removalPending
-				&& rolerequestService.canRequestRemoval(
-					user, currentAssignment.getRoleGroup(), user, settingsService.getRolerequestRequester());
+				&& removableRoleGroupIds.contains(currentAssignment.getRoleGroup().getId());
 
 			roleGroups.add(new RoleGroupListEntry(
 				currentAssignment.getRoleGroup().getId(),
@@ -116,7 +124,8 @@ public class RequestController {
 				assignedThrough.getMessage(),
 				assignmentService.getAssignedThroughName(currentAssignment, assignedThrough),
 				requestRemovalPossible,
-				removalPending
+				removalPending,
+				reasons.reasonFor(currentAssignment).orElse(null)
 			));
 		}
 
@@ -153,10 +162,9 @@ public class RequestController {
 			final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(currentAssignment);
 			final UserRole userRole = currentAssignment.getUserRole();
 			boolean removalPending = rolerequestService.hasPendingRemovalRequestForUserrole(userRole.getId(), user.getUuid());
-			List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
 			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
 				&& !removalPending
-				&& rolerequestService.canRequestRemoval(user, userRole, user, globalRequesterSetting);
+				&& removableUserRoleIds.contains(userRole.getId());
 
 			userRoles.add(new UserRoleListEntry(userRole.getId(),
 				currentAssignment.getAssignmentId(),
@@ -166,7 +174,8 @@ public class RequestController {
 				assignedThrough.getMessage(),
 				assignmentService.getAssignedThroughName(currentAssignment, assignedThrough),
 				requestRemovalPossible,
-				removalPending));
+				removalPending,
+				reasons.reasonFor(currentAssignment).orElse(null)));
 		}
 
 		List<PendingRequest> pendingUserRoles = new ArrayList<>();
@@ -185,6 +194,7 @@ public class RequestController {
 
 		//get setting for reason requirement
 		model.addAttribute("reasonRequirement", settingsService.getRolerequestReason().toString());
+		model.addAttribute("autoApproveRemoval", settingsService.isAutoApproveRemovalEnabled());
 		model.addAttribute("pendingRolegroups", pendingRolegroups);
 		model.addAttribute("pendingUserRoles", pendingUserRoles);
 
@@ -212,7 +222,7 @@ public class RequestController {
 		return "requestmodule/wizard/employees";
 	}
 
-	record RoleForUser(long id, long assignmentId, String itSystemName, String name, String description, boolean removable) {}
+	record RoleForUser(long id, long assignmentId, String itSystemName, String name, String description, boolean removable, String reason) {}
 
 	@GetMapping("/ui/request/remove/wizard")
 	@Transactional(readOnly = true)
@@ -236,6 +246,9 @@ public class RequestController {
 		List<RoleForUser> userRoles = new ArrayList<>();
 
 		final Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(requestForUser);
+		final Set<Long> removableRoleGroupIds = requestableRoleService.removableRoleGroupIds(loggedInUser, requestForUser, roleGroupIds(currentAssignments));
+		final Set<Long> removableUserRoleIds = requestableRoleService.removableUserRoleIds(loggedInUser, requestForUser, userRoleIds(currentAssignments));
+		final AssignmentReasons reasons = assignmentReasonService.findFor(currentAssignments);
 		for (var assignment : currentAssignments) {
 			if (assignment.getRoleGroup() != null) {
 				// Collect into a Map so we won't have duplicate entries
@@ -245,8 +258,7 @@ public class RequestController {
 				// ROLEGROUP for them, so a directly-assigned role group would otherwise never be removable here.
 				final AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
 				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
-					&& rolerequestService.canRequestRemoval(
-						loggedInUser, roleGroup, requestForUser, settingsService.getRolerequestRequester());
+					&& removableRoleGroupIds.contains(roleGroup.getId());
 
 				// if already stored, only overwrite when the new assignment is DIRECT and the stored one
 				// wasn't, so a DIRECT (removable) assignment is never shadowed by an indirect one (e.g.
@@ -254,13 +266,13 @@ public class RequestController {
 				if (roleGroupsById.containsKey(roleGroup.getId()) && !requestRemovalPossible) {
 					continue;
 				}
-				roleGroupsById.put(roleGroup.getId(), new RoleForUser(roleGroup.getId(), assignment.getAssignmentId(), "", roleGroup.getName(), roleGroup.getDescription(), requestRemovalPossible));
+				roleGroupsById.put(roleGroup.getId(), new RoleForUser(roleGroup.getId(), assignment.getAssignmentId(), "", roleGroup.getName(), roleGroup.getDescription(), requestRemovalPossible, reasons.reasonFor(assignment).orElse(null)));
 			} else {
 				final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
 				final UserRole userRole = assignment.getUserRole();
 				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
-					&& rolerequestService.canRequestRemoval(loggedInUser, userRole, requestForUser, settingsService.getRolerequestRequester());
-				userRoles.add(new RoleForUser(userRole.getId(), assignment.getAssignmentId(), userRole.getItSystem().getName(), userRole.getName(), userRole.getDescription(), requestRemovalPossible));
+					&& removableUserRoleIds.contains(userRole.getId());
+				userRoles.add(new RoleForUser(userRole.getId(), assignment.getAssignmentId(), userRole.getItSystem().getName(), userRole.getName(), userRole.getDescription(), requestRemovalPossible, reasons.reasonFor(assignment).orElse(null)));
 			}
 		}
 		model.addAttribute("reasonSetting", settingsService.getRolerequestReason());
@@ -269,6 +281,7 @@ public class RequestController {
 		model.addAttribute("titleAddition", " fra " + requestForUser.getEntityName());
 		model.addAttribute("userUuid", requestForUser.getUuid());
 		model.addAttribute("isCombinedEnabled", settingsService.isShowSingleTableInRequestApproveEnabled());
+		model.addAttribute("autoApproveRemoval", settingsService.isAutoApproveRemovalEnabled());
 
 
 		return "requestmodule/wizard/remove/request";
@@ -300,7 +313,7 @@ public class RequestController {
 				return "redirect:/error";
 			}
 
-			RequestAuthorizedRoleService.LimitedToOrgUnits limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(loggedInUser);
+			LimitedToOrgUnits limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(loggedInUser);
 			List<PositionDTO> positions = requestForUser.getPositions().stream()
 				.filter(p ->
 						SecurityUtil.hasDirectAdminRole()
@@ -308,7 +321,7 @@ public class RequestController {
 						|| managerSubstituteService.isSubstituteforOrgUnit(p.getOrgUnit())
 						|| userService.isEffectiveManagerOrSubstituteFor(loggedInUser, requestForUser, p.getOrgUnit()) // nearest leader in the hierarchy, e.g. a chief requesting for a team leader
 						|| p.getOrgUnit().getAuthorizationManagers().stream().map(AuthorizationManager::getUser).toList().contains(loggedInUser) // User is authorizationmanager
-							|| limitedToOrgUnits.type().equals(RequestAuthorizedRoleService.LimitedToType.ALL)
+							|| limitedToOrgUnits.type().equals(LimitedToType.ALL)
 							|| limitedToOrgUnits.orgUnits().contains(p.getOrgUnit().getUuid()) // If current user is requestauthorized only for some units, we should filter by those
 				)
 				.map(p -> new PositionDTO(p.getId(), p.getName(), p.getOrgUnit().getName()))
@@ -324,7 +337,7 @@ public class RequestController {
 		model.addAttribute("showRecommendedTab", showRecommendedTab);
 		model.addAttribute("showAllTab", showAllTab);
 		model.addAttribute("showExistingTab", showExistingTab);
-		model.addAttribute("isCombinedEnabled", settingsService.isShowSingleTableInRequestApproveEnabled() && showRecommendedTab && showAllTab);
+		model.addAttribute("isCombinedEnabled", isCombinedRoleTableEnabled(showRecommendedTab, showAllTab));
 		model.addAttribute("reasonSetting", settingsService.getRolerequestReason());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
@@ -367,8 +380,13 @@ public class RequestController {
 		model.addAttribute("showRecommendedTab", showRecommendedTab);
 		model.addAttribute("showAllTab", showAllTab);
 		model.addAttribute("showExistingTab", showExistingTab);
-		model.addAttribute("showCombinedTable", settingsService.isShowSingleTableInRequestApproveEnabled() && showRecommendedTab && showAllTab);
+		model.addAttribute("showCombinedTable", isCombinedRoleTableEnabled(showRecommendedTab, showAllTab));
 		return "requestmodule/wizard/fragments/roles :: rolesForWizard";
+	}
+
+	// den samlede tabel kræver kun, at der er mindst én fane at vise den på
+	private boolean isCombinedRoleTableEnabled(boolean showRecommendedTab, boolean showAllTab) {
+		return settingsService.isShowSingleTableInRequestApproveEnabled() && (showRecommendedTab || showAllTab);
 	}
 
 	@GetMapping("/ui/request/wizard/constraintfragment")
@@ -451,5 +469,19 @@ public class RequestController {
 		userService.addPostponedListsToModel(model);
 
 		return "requestmodule/wizard/fragments/userrole_constraint_modal :: UserroleConstraintModal";
+	}
+
+	private static Set<Long> roleGroupIds(Set<CurrentAssignment> assignments) {
+		return assignments.stream()
+			.filter(assignment -> assignment.getRoleGroup() != null)
+			.map(assignment -> assignment.getRoleGroup().getId())
+			.collect(Collectors.toSet());
+	}
+
+	private static Set<Long> userRoleIds(Set<CurrentAssignment> assignments) {
+		return assignments.stream()
+			.filter(assignment -> assignment.getRoleGroup() == null && assignment.getUserRole() != null)
+			.map(assignment -> assignment.getUserRole().getId())
+			.collect(Collectors.toSet());
 	}
 }

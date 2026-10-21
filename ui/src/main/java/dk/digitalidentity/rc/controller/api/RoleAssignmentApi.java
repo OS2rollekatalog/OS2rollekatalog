@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 @SecurityRequirement(name = "ApiKey")
 public class RoleAssignmentApi {
 	private final AssignmentService assignmentService;
+	private final SettingsService settingsService;
 
 	private static class ErrorMessage {
         private static final String USER_NOT_FOUND = "User not found.";
@@ -128,6 +130,11 @@ public class RoleAssignmentApi {
 			return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
 
+		// blocker either supplied by API, or by config
+		if (!onlyIfNotAssigned) {
+			onlyIfNotAssigned = settingsService.isPreventDuplicateRoles();
+		}
+		
 		for (User user : users) {
 			if (onlyIfNotAssigned) {
 				// if already assigned, skip it
@@ -144,7 +151,7 @@ public class RoleAssignmentApi {
     }
 
     @RequestMapping(value = "/api/user/{userUuid}/assign/rolegroup/{roleGroupId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignRoleGroupToUser(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "domain", required = false) String domain) {
+    public ResponseEntity<String> assignRoleGroupToUser(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "onlyIfNotAssigned", required = false, defaultValue = "true") boolean onlyIfNotAssigned, @RequestParam(name = "domain", required = false) String domain) {
         List<User> users = userService.getByExtUuid(userUuid);
         if (users == null || users.isEmpty()) {
         	users = new ArrayList<>();
@@ -169,17 +176,28 @@ public class RoleAssignmentApi {
 			return new ResponseEntity<>(ErrorMessage.ROLE_GROUP_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
 
+		// blocker either supplied by API, or by config
+		if (!onlyIfNotAssigned) {
+			onlyIfNotAssigned = settingsService.isPreventDuplicateRoles();
+		}
+
 		for (User user : users) {
+			if (onlyIfNotAssigned) {
+				// if already assigned, skip it
+				if (user.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == roleGroupId)) {
+					continue;
+				}
+			}
+
 			userService.addRoleGroup(user, roleGroup, startDate, stopDate, null, null);
 			userService.save(user);
-
 		}
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @RequestMapping(value = "/api/ou/{ouUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignUserRoleToOrgUnit(@PathVariable("userRoleId") long userRoleId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit) {
+    public ResponseEntity<String> assignUserRoleToOrgUnit(@PathVariable("userRoleId") long userRoleId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "onlyIfNotAssigned", required = false, defaultValue = "true") boolean onlyIfNotAssigned, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit) {
         OrgUnit ou = orgUnitService.getByUuid(ouUuid);
         UserRole userRole = userRoleService.getById(userRoleId);
 
@@ -189,14 +207,29 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-		orgUnitService.addUserRole(ou, userRole, inherit, startDate, stopDate, new HashSet<>(), new HashSet<>());
-		orgUnitService.save(ou);
+		// blocker either supplied by API, or by config
+		if (!onlyIfNotAssigned) {
+			onlyIfNotAssigned = settingsService.isPreventDuplicateRoles();
+		}
+		
+		boolean assign = true;
+		if (onlyIfNotAssigned) {
+			// if already assigned, skip it
+			if (ou.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == userRoleId)) {
+				assign = false;
+			}
+		}
+
+		if (assign) {
+			orgUnitService.addUserRole(ou, userRole, inherit, startDate, stopDate, new HashSet<>(), new HashSet<>());
+			orgUnitService.save(ou);
+		}
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @RequestMapping(value = "/api/ou/{ouUuid}/assign/rolegroup/{roleGroupId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignRoleGroupToOrgUnit(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit) {
+    public ResponseEntity<String> assignRoleGroupToOrgUnit(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "onlyIfNotAssigned", required = false, defaultValue = "true") boolean onlyIfNotAssigned, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit) {
         OrgUnit ou = orgUnitService.getByUuid(ouUuid);
         RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
 
@@ -206,9 +239,19 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.ROLE_GROUP_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, new HashSet<>(), new HashSet<>());
-		orgUnitService.save(ou);
+		boolean assign = true;
+		if (onlyIfNotAssigned) {
+			// if already assigned, skip it
+			if (ou.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == roleGroupId)) {
+				assign = false;
+			}
+		}
 
+		if (assign) {
+			orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, new HashSet<>(), new HashSet<>());
+			orgUnitService.save(ou);
+		}
+		
         return new ResponseEntity<>(HttpStatus.OK);
     }
 

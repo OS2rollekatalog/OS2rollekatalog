@@ -16,8 +16,14 @@ namespace ADSyncService
 
         public void Execute(IJobExecutionContext context)
         {
-            bool itSystemGroupsEnabled = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureEnabled;
-            if (itSystemGroupsEnabled)
+            RemoteConfiguration configuration = remoteConfigurationService.GetConfigurationIfAvailable();
+            if (configuration == null)
+            {
+                log.Error("ItSystemsGroupsJob skipped: no valid configuration");
+                return;
+            }
+
+            if (configuration.itSystemGroupFeatureEnabled)
             {
                 try
                 {

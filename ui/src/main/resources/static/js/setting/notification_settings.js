@@ -3,7 +3,6 @@
  * and the save action, which confirms via SweetAlert whether previously
  * created notifications of deselected types should also be deleted.
  */
-let modifications = false;
 let settingService;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -15,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("click", (event) => {
-    if (event.target.closest(".js-save-settings-btn")) {
+    if (event.target.closest(".js-page-save")) {
         event.preventDefault();
         settingService.submitForm();
     }
@@ -35,7 +34,7 @@ class SettingService {
     }
 
     submitForm() {
-        if (!modifications) {
+        if (!window.unsavedChangesService.isDirty()) {
             $.notify({
                 message: this.config.successMsg
             }, {
@@ -68,7 +67,7 @@ class SettingService {
     }
 
     postSettings(notificationTypes, deleteAlreadyCreated) {
-        modifications = false;
+        window.unsavedChangesService.reset();
 
         $.ajax({
             method: "POST",
@@ -94,7 +93,5 @@ class SettingService {
     handleCheckbox(obj, id) {
         const checked = $(obj).prop("checked");
         $("#" + id).val(checked);
-
-        modifications = true;
     }
 }

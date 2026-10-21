@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.rolerequest.dao;
 
+import dk.digitalidentity.rc.dao.SpecificationIdFinder;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
@@ -14,7 +15,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
-public interface RoleRequestDao extends CrudRepository<RoleRequest, Long> {
+public interface RoleRequestDao extends CrudRepository<RoleRequest, Long>, SpecificationIdFinder<RoleRequest> {
 
 	Set<RoleRequest> findByStatus(RequestApproveStatus status);
 
@@ -22,7 +23,7 @@ public interface RoleRequestDao extends CrudRepository<RoleRequest, Long> {
 	 * No DISTINCT on purpose: it is emitted as SQL SELECT DISTINCT, which applies to the whole
 	 * joined row and therefore removes nothing, but it does force the database into a temporary
 	 * table and blocks it from satisfying the ORDER BY from an index. The duplicate root rows
-	 * from the collection fetch join are removed in RequestService instead.
+	 * from the collection fetch join are removed by the caller instead.
 	 */
 	@Query("""
 		SELECT r FROM RoleRequest r
@@ -33,16 +34,30 @@ public interface RoleRequestDao extends CrudRepository<RoleRequest, Long> {
 		LEFT JOIN FETCH r.roleGroup rg
 		LEFT JOIN FETCH r.requestPostponedConstraints pc
 		LEFT JOIN FETCH pc.constraintType
-		WHERE r.status = :status
+		WHERE r.id IN :ids
 		ORDER BY r.requestTimestamp DESC, r.id DESC
 	""")
-	List<RoleRequest> findByStatusEager(@Param("status") RequestApproveStatus status);
+	List<RoleRequest> findByIdInEager(@Param("ids") Collection<Long> ids);
+
+	@Query("""
+		SELECT r FROM RoleRequest r
+		LEFT JOIN FETCH r.receiver receiver
+		LEFT JOIN FETCH receiver.positions position
+		LEFT JOIN FETCH position.orgUnit
+		LEFT JOIN FETCH r.orgUnit
+		LEFT JOIN FETCH r.userRole ur
+		LEFT JOIN FETCH ur.itSystem
+		LEFT JOIN FETCH r.roleGroup
+		WHERE r.status = dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus.REQUESTED
+		AND (:includeAlreadyEmailed = true OR r.emailSent = false)
+	""")
+	List<RoleRequest> findPendingForApprovalEmails(@Param("includeAlreadyEmailed") boolean includeAlreadyEmailed);
 
     Set<RoleRequest> findByOrgUnitInAndRequesterNotAndReceiverNotAndStatus(Collection<OrgUnit> orgUnits, User requester, User reciever, RequestApproveStatus status);
 
-	Set<RoleRequest> findByRequestActionAndReceiver_UuidAndUserRole_Id(RequestAction requestAction, String uuid, long id);
+	Set<RoleRequest> findByRequestActionAndReceiver_UuidAndUserRole_IdAndStatus(RequestAction requestAction, String uuid, long id, RequestApproveStatus status);
 
-	Set<RoleRequest> findByRequestActionAndReceiver_UuidAndRoleGroup_Id(RequestAction requestAction, String uuid, long id);
+	Set<RoleRequest> findByRequestActionAndReceiver_UuidAndRoleGroup_IdAndStatus(RequestAction requestAction, String uuid, long id, RequestApproveStatus status);
 
 	List<RoleRequest> findByReceiver_UuidAndStatus(String uuid, RequestApproveStatus status);
 

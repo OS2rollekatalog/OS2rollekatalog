@@ -23,10 +23,10 @@ import org.springframework.web.client.HttpClientErrorException;
 
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.kitos.exception.KitosSynchronizationException;
-import dk.kitos.api.ApiV2DeltaFeedApi;
-import dk.kitos.api.ApiV2ItSystemApi;
-import dk.kitos.api.ApiV2ItSystemUsageApi;
-import dk.kitos.api.ApiV2OrganizationApi;
+import dk.kitos.api.DeltaFeedV2Api;
+import dk.kitos.api.ItSystemUsageV2Api;
+import dk.kitos.api.ItSystemV2Api;
+import dk.kitos.api.OrganizationV2Api;
 import dk.kitos.api.model.ItSystemResponseDTO;
 import dk.kitos.api.model.ItSystemUsageResponseDTO;
 import dk.kitos.api.model.OrganizationResponseDTO;
@@ -39,10 +39,10 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class KitosClientService {
-    private final ApiV2ItSystemApi itSystemApi;
-    private final ApiV2ItSystemUsageApi itSystemUsageApi;
-    private final ApiV2OrganizationApi organizationApi;
-    private final ApiV2DeltaFeedApi deltaFeedApi;
+    private final ItSystemV2Api itSystemApi;
+    private final ItSystemUsageV2Api itSystemUsageApi;
+    private final OrganizationV2Api organizationApi;
+    private final DeltaFeedV2Api deltaFeedApi;
     private final SettingsService settingsService;
 
     public UUID lookupMunicipalUuid(final String cvr) {

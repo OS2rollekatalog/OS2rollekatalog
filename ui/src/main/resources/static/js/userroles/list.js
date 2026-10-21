@@ -141,12 +141,12 @@ function initDataTable() {
                         return "";
                     }
                     if (type === "display") {
-                        if (data) {
+                        if (data && data.length > 0) {
                             return data
                                 .map((p) => pageConfig.approvableBy[p.trim()] || p.trim())
                                 .join(", ");
                         }
-                        return pageConfig.approvableBy.INHERIT;
+                        return pageConfig.approvableBy.NONE;
                     }
                     return data;
                 }
@@ -241,7 +241,11 @@ function initDeleteDialog() {
                     const ous = `Enheder: ${result.ous}`;
                     const users = `Brugere: ${result.users}`;
                     const rolegroups = `Rollebuketter: ${result.roleGroups}`;
-                    bodyTxt = formatString(pageConfig.bodyTxtAdditional, ous, users, rolegroups);
+                    const adGroupNames = result.adGroups.map(escapeNotificationHtml).join(", ");
+                    const adGroups = result.adGroups.length > 0
+                        ? `AD-grupper: ${result.adGroups.length} (${adGroupNames})`
+                        : "AD-grupper: 0";
+                    bodyTxt = formatString(pageConfig.bodyTxtAdditional, ous, users, rolegroups, adGroups);
                 }
 
                 window.sweetAlertService.confirm(

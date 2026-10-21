@@ -7,6 +7,7 @@ class RolesService {
         this.UIUrl = config.UIUrl;
         this.restUrl = config.restUrl;
         this.user = config.user;
+        this.viewOnly = config.viewOnly;
         this.deleteRoleAssignmentTitleTxt = config.deleteRoleAssignmentTitleTxt;
         this.deleteRoleAssignmentBodyTxt = config.deleteRoleAssignmentBodyTxt;
         this.deleteRoleAssignmentErrorMessage = config.deleteRoleAssignmentErrorMessage;
@@ -19,11 +20,13 @@ class RolesService {
         this.bulkRemoveBodyTxt = config.bulkRemoveBodyTxt;
         this.bulkRemoveErrorTxt = config.bulkRemoveErrorTxt;
         this.selectedCountLabel = config.selectedCountLabel;
+		this.preventDuplicates = config.preventDuplicates;
         this.bulkRemoveModeActive = false;
     }
 
     loadRolesFragment() {
-        $("#roles_menu").load(this.UIUrl + this.user + "/roles", () => {
+        const rolesUrl = `${this.UIUrl}${this.user}/roles${this.viewOnly ? "?viewOnly=true" : ""}`;
+		$("#roles_menu").load(rolesUrl, () => {
             const hideColumn = [2, 5, 6];
             window.currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 100, "user_manage_list_of_roles");
             dataTablesRefreshIcons($('#dataTableDropdown'));
@@ -131,7 +134,7 @@ class RolesService {
                     searchable: false,
                     sortable: false,
                     render: (data, type, row) => {
-                        if (!data || !row.assignable || row.assignable === 'false') {
+                        if (!data || !row.assignable || row.assignable === 'false' || (this.preventDuplicates && row.alreadyAssigned && !data.allowPostponing)) {
                             return null;
                         }
                         return `<a href="#" class="js-add-user-role" data-roleid="${data}" data-systemtype="${row.itSystemType}" data-name="${row.name}"><em class="fa fa-plus"></em></a>`;

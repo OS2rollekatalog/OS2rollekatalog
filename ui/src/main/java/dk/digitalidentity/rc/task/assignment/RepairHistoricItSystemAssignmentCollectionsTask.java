@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.task.assignment;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.assignment.HistoricItSystemAssignmentDao;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class RepairHistoricItSystemAssignmentCollectionsTask {
 	private long totalFailed = 0;
 
 	@Scheduled(fixedDelay = 30_000)
+	@WarnIfSlowerThan(millis = 10 * 1000)
 	public void repairChunk() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

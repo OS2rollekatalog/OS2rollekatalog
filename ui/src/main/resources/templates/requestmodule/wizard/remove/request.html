@@ -47,6 +47,7 @@
 															<th th:text="#{requestmodule.html.dashboard.tabs.roles.itsystem}"></th>
 															<th th:text="#{requestmodule.html.dashboard.tabs.roles.role}"></th>
 															<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}"></th>
+															<th th:text="#{requestmodule.html.dashboard.tabs.roles.reason}"></th>
 														</tr>
 														</thead>
 														<tbody>
@@ -62,6 +63,7 @@
 															<td th:text="${userRole.itSystemName}"></td>
 															<td th:text="${userRole.name}"></td>
 															<td class="preformat" th:text="${userRole.description}"></td>
+															<td th:replace="~{requestmodule/fragments/assignment_reason :: reasonCell(${userRole.reason})}"></td>
 														</tr>
 														</tbody>
 													</table>
@@ -78,6 +80,7 @@
 															<th style="width: 50px;"></th>
 															<th th:text="#{requestmodule.html.dashboard.tabs.roles.name}"></th>
 															<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}"></th>
+															<th th:text="#{requestmodule.html.dashboard.tabs.roles.reason}"></th>
 														</tr>
 														</thead>
 														<tbody>
@@ -93,6 +96,7 @@
 															</td>
 															<td th:text="${roleGroup.name}"></td>
 															<td class="preformat" th:text="${roleGroup.description}"></td>
+															<td th:replace="~{requestmodule/fragments/assignment_reason :: reasonCell(${roleGroup.reason})}"></td>
 														</tr>
 														</tbody>
 													</table>
@@ -110,6 +114,7 @@
 													<th th:text="#{requestmodule.html.dashboard.tabs.roles.itsystem}"></th>
 													<th th:text="#{requestmodule.html.dashboard.tabs.roles.name}"></th>
 													<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}"></th>
+													<th th:text="#{requestmodule.html.dashboard.tabs.roles.reason}"></th>
 												</tr>
 												</thead>
 												<tbody>
@@ -128,6 +133,7 @@
 													<td th:text="${userRole.itSystemName}"></td>
 													<td th:text="${userRole.name}"></td>
 													<td class="preformat" th:text="${userRole.description}"></td>
+													<td th:replace="~{requestmodule/fragments/assignment_reason :: reasonCell(${userRole.reason})}"></td>
 												</tr>
 
 												<tr th:each="roleGroup : ${roleGroups}">
@@ -144,6 +150,7 @@
 													<td>-</td>
 													<td th:text="${roleGroup.name}"></td>
 													<td class="preformat" th:text="${roleGroup.description}"></td>
+													<td th:replace="~{requestmodule/fragments/assignment_reason :: reasonCell(${roleGroup.reason})}"></td>
 												</tr>
 												</tbody>
 											</table>
@@ -154,13 +161,15 @@
 								<h2 th:text="#{requestmodule.html.request.wizard.reason.title}"></h2>
 								<section>
 									<h3 th:text="#{requestmodule.html.request.wizard.reason.subtitle}"></h3>
-									<textarea class="form-control" rows="10" id="reason"
+									<textarea class="form-control" rows="10" id="reason" th:maxlength="${T(dk.digitalidentity.rc.rolerequest.RequestConstants).REASON_MAX_LENGTH}"
 											  th:disabled="${reasonSetting == T(dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption).NONE}"></textarea>
 								</section>
 
 								<h2 th:text="#{requestmodule.html.request.wizard.confirm.title}"></h2>
 								<section>
 									<h3 th:text="#{requestmodule.html.request.wizard.confirm.subtitle}"></h3>
+
+									<div th:if="${autoApproveRemoval}" class="alert alert-warning" th:text="#{requestmodule.html.request.remove.wizard.confirm.autoApprove}"></div>
 
 									<p th:text="#{requestmodule.html.request.remove.wizard.confirm.roles}"></p>
 									<table class="table table-striped" id="confirmRolesTable">
@@ -202,6 +211,7 @@
 		"userUuid": [[${userUuid}]],
 		"isCombinedEnabled": [[${isCombinedEnabled}]],
 		"reasonSetting": [[${reasonSetting}]],
+		"autoApproveRemoval": [[${autoApproveRemoval}]],
 		"userRoleText": [[#{html.navbar.jobroles}]],
 		"roleGroupText": [[#{html.navbar.rolegroups}]],
 		"skipAutoICheckInit": true

@@ -50,7 +50,8 @@
                             </div>
                         </div>
                         <div class="expandable-content">
-                            <b th:if="${showInherit} AND ${userRole.inherit}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inherit}"></b>
+                            <b th:if="${showInherit} AND ${userRole.inherit} AND ${#lists.isEmpty(userRole.exceptedOus)}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inherit}"></b>
+                            <b th:if="${showInherit} AND ${userRole.inherit} AND !${#lists.isEmpty(userRole.exceptedOus)}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inherit} + #{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inheritExcept} + ' ' + ${#strings.listJoin(userRole.exceptedOus, ', ')} + ' ' + #{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inheritExceptSuffix}"></b>
                             <pre class="expandable-content-description" th:text="${userRole.roleDescription}"></pre>
 
                         </div>

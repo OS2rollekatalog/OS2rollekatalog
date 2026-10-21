@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -557,6 +558,23 @@ class OuAssignmentsUpdaterJdbcTest {
 		}
 
 		@Test
+		@DisplayName("EXCEPTED_OUS exclusion is mapped to exceptedOuUuids")
+		void exceptedOusAreMapped() {
+			// ---- Given ---- //
+			HistoricOuAssignmentExclusion exclusion = HistoricOuAssignmentExclusion.builder()
+					.exclusionType(HistoricOuAssignmentExclusion.ExclusionType.EXCEPTED_OUS)
+					.uuids(List.of("excepted-ou-uuid-1", "excepted-ou-uuid-2"))
+					.build();
+			HistoricOuAssignment assignment = base().exclusions(new ArrayList<>(List.of(exclusion))).build();
+
+			// ---- When ---- //
+			AttestationOuRoleAssignment result = runAndCapture(assignment);
+
+			// ---- Then ---- //
+			assertThat(result.getExceptedOuUuids()).containsExactlyInAnyOrder("excepted-ou-uuid-1", "excepted-ou-uuid-2");
+		}
+
+		@Test
 		@DisplayName("each exclusion type is independent — other lists remain empty")
 		void otherExclusionListsRemainEmpty() {
 			// ---- Given ---- //
@@ -573,6 +591,7 @@ class OuAssignmentsUpdaterJdbcTest {
 			assertThat(result.getTitleUuids()).isEmpty();
 			assertThat(result.getExceptedTitleUuids()).isEmpty();
 			assertThat(result.getFunctionUuids()).isEmpty();
+			assertThat(result.getExceptedOuUuids()).isEmpty();
 		}
 
 		@Test
@@ -589,6 +608,96 @@ class OuAssignmentsUpdaterJdbcTest {
 			assertThat(result.getExceptedTitleUuids()).isEmpty();
 			assertThat(result.getExceptedUserUuids()).isEmpty();
 			assertThat(result.getFunctionUuids()).isEmpty();
+			assertThat(result.getExceptedOuUuids()).isEmpty();
+		}
+	}
+
+	@Nested
+	@DisplayName("live role metadata")
+	class LiveRoleMetadata {
+
+		@Test
+		@DisplayName("uses the current name and description of the role and the role group, not the copy frozen on the historic row")
+		void usesCurrentNameAndDescription() {
+			// ---- Given ---- //
+			given(temporalDao.currentUserRoleMetadata())
+					.willReturn(Map.of(20L, new RoleMetadata("Renamed Role", "Rewritten role description")));
+			given(temporalDao.currentRoleGroupMetadata())
+					.willReturn(Map.of(30L, new RoleMetadata("Renamed Role Group", "Rewritten role group description")));
+
+			// ---- When ---- //
+			AttestationOuRoleAssignment result = runAndCapture(base()
+					.roleRoleGroupId(30L)
+					.roleRoleGroupName("Test Role Group")
+					.roleGroupDescription("Role group description")
+					.build());
+
+			// ---- Then ---- //
+			assertThat(result.getRoleName()).isEqualTo("Renamed Role");
+			assertThat(result.getRoleDescription()).isEqualTo("Rewritten role description");
+			assertThat(result.getRoleGroupName()).isEqualTo("Renamed Role Group");
+			assertThat(result.getRoleGroupDescription()).isEqualTo("Rewritten role group description");
+		}
+	}
+
+	@Nested
+	@DisplayName("row stored under an older identity version")
+	class OlderIdentityVersion {
+
+		private static final long STORED_ID = 99L;
+		private static final LocalDate STORED_VALID_FROM = LocalDate.of(2024, 1, 1);
+
+		private ArgumentCaptor<AttestationOuRoleAssignment> runWithRowOnlyFoundByOlderHash() {
+			HistoricOuAssignment assignment = base()
+					.exclusions(new ArrayList<>(List.of(HistoricOuAssignmentExclusion.builder()
+							.exclusionType(HistoricOuAssignmentExclusion.ExclusionType.EXCEPTED_OUS)
+							.uuids(List.of("excepted-ou-uuid"))
+							.build())))
+					.build();
+			AttestationOuRoleAssignment stored = AttestationOuRoleAssignment.builder().build();
+			stored.setId(STORED_ID);
+			stored.setValidFrom(STORED_VALID_FROM);
+			given(temporalDao.listHistoricOuAssignmentsByDate(WHEN)).willReturn(List.of(assignment));
+			// the first lookup is by the current hash, the next by the older one
+			given(temporalDao.findValidOuRoleAssignmentWithHash(any(), any())).willReturn(null, stored);
+
+			updater.updateOuAssignments(WHEN);
+
+			ArgumentCaptor<AttestationOuRoleAssignment> captor = ArgumentCaptor.forClass(AttestationOuRoleAssignment.class);
+			verify(temporalDao).updateAttestationOuRoleAssignment(captor.capture());
+			return captor;
+		}
+
+		@Test
+		@DisplayName("is updated in place instead of a new row being inserted")
+		void updatedInPlace() {
+			// ---- When ---- //
+			runWithRowOnlyFoundByOlderHash();
+
+			// ---- Then ---- //
+			verify(temporalDao, org.mockito.Mockito.never()).saveAttestationOuRoleAssignment(any());
+		}
+
+		@Test
+		@DisplayName("keeps its id and validFrom")
+		void keepsIdAndValidFrom() {
+			// ---- When ---- //
+			AttestationOuRoleAssignment updated = runWithRowOnlyFoundByOlderHash().getValue();
+
+			// ---- Then ---- //
+			assertThat(updated.getId()).isEqualTo(STORED_ID);
+			assertThat(updated.getValidFrom()).isEqualTo(STORED_VALID_FROM);
+		}
+
+		@Test
+		@DisplayName("gets the current hash and the new identity field")
+		void getsCurrentHashAndNewField() {
+			// ---- When ---- //
+			AttestationOuRoleAssignment updated = runWithRowOnlyFoundByOlderHash().getValue();
+
+			// ---- Then ---- //
+			assertThat(updated.getRecordHash()).isEqualTo(TemporalHasher.hashEntity(updated));
+			assertThat(updated.getExceptedOuUuids()).containsExactly("excepted-ou-uuid");
 		}
 	}
 }

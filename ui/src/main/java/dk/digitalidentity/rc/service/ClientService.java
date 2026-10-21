@@ -15,6 +15,7 @@ import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 
 @Service
 @EnableScheduling
@@ -27,8 +28,10 @@ public class ClientService {
 	@Autowired
 	private ClientService self;
 
-	// used by the ApiSecurityFilter class on every single API call, so caching will help a lot here
-	@Cacheable(value = "clientList")
+	// used by the ApiSecurityFilter class on every single API call, so caching will help a lot here.
+	// misses are deliberately not cached - the key comes from a request header, so caching them would let
+	// unknown keys fill the cache, and would keep a newly created client on 401 until the cache is cleared
+	@Cacheable(value = "clientList", unless = "#result == null")
 	public Client getClientByApiKey(String apiKey) {
 		return clientDao.findByApiKey(apiKey);
 	}
@@ -77,6 +80,7 @@ public class ClientService {
 
 	// run every 10 minutes
 	@Scheduled(fixedRate = 1000 * 60 * 10)
+	@WarnIfSlowerThan(millis = 5 * 1000)
 	public void cacheClearTask() {
 		self.cacheClear();
 	}

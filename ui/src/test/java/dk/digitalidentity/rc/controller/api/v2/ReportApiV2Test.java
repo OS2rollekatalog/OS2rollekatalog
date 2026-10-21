@@ -56,7 +56,6 @@ public class ReportApiV2Test extends AbstractApiTest {
 	 * - date: Report generation date (format: yyyy-MM-dd)
 	 * - showUsers: Include user information
 	 * - showOUs: Include organizational unit information
-	 * - showKLE: Include KLE classification codes
 	 * - showItSystems: Include IT system information
 	 * - showTitles: Include job titles
 	 * - showInactiveUsers: Include inactive/disabled users
@@ -76,7 +75,6 @@ public class ReportApiV2Test extends AbstractApiTest {
 				"date": "%s",
 				"showUsers": true,
 				"showOUs": true,
-				"showKLE": false,
 				"showItSystems": true,
 				"showTitles": false,
 				"showInactiveUsers": false,

@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ManualRolesService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +26,7 @@ public class UpdateManualSystemsTask {
 	// The cron is randomized (SpEL) per instance so customers don't all run at the same time.
 	@Scheduled(cron = "${rc.cron.manual_it_system_task}")
 //	@Scheduled(fixedDelay = 20 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void processUsersFromWaitingTable() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
@@ -41,7 +43,8 @@ public class UpdateManualSystemsTask {
 	// Frequent but cheap flush of users marked pending by ManualRolesUserAssignmentsChangedListener.
 	// Processes only changed users, batched together into per-it-system digest mails. No-op when nothing changed.
 	// The cron is randomized (SpEL) per instance so customers don't all run at the same time.
-	@Scheduled(cron = "${rc.cron.manual_it_system_pending_task}")
+	@Scheduled(cron = "${rc.cron.manual_it_system_pending_task:#{new java.util.Random().nextInt(55)} #{new java.util.Random().nextInt(10)}/10 * * * *}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void processPendingUsers() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

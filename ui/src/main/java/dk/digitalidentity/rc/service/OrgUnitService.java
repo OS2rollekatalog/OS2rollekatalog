@@ -6,6 +6,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -28,12 +30,16 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.dao.OrgUnitNearestManagerDao;
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.TitleDao;
@@ -43,6 +49,7 @@ import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.OrgUnitNearestManager;
 import dk.digitalidentity.rc.dao.model.OrgUnitAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
@@ -57,11 +64,12 @@ import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
-import dk.digitalidentity.rc.dao.projections.OrgUnitUuidAndName;
+import dk.digitalidentity.rc.dao.projections.OrgUnitUuidNameAndParent;
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
 import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
@@ -116,9 +124,20 @@ public class OrgUnitService {
 
 	@Autowired
 	private FunctionService functionService;
+	
+	@Autowired
+	private PlatformTransactionManager transactionManager;
+
+	@Autowired
+	private OrgUnitNearestManagerDao orgUnitNearestManagerDao;
 
 	@Value("${environment.dev:false}")
 	private boolean devEnvironment;
+
+	/** jsTree node; "#" as parent marks a root of the rendered tree. */
+	public record OuTreeNode(String id, String parent, String text) {}
+
+	private static final String JSTREE_ROOT = "#";
 
 	// dao methods
 
@@ -317,6 +336,7 @@ public class OrgUnitService {
 
 	// clears cache every 5 minutes
 	@Scheduled(fixedDelay = 5 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 5 * 1000)
 	public void resetOrgUnitCache() {
 		self.expireOrgUnitCache();
 	}
@@ -1000,22 +1020,37 @@ public class OrgUnitService {
 				.collect(Collectors.toList());
 	}
 
-	public List<Title> getContainsTitlesForOrgUnit(OrgUnit orgUnit, ContainsTitles containsTitles) {
-		return orgUnitUserRoleAssignmentDao.findByOrgUnitAndContainsTitles(orgUnit, containsTitles)
-				.stream()
-				.filter(orgUnitUserRoleAssignment -> !orgUnitUserRoleAssignment.getTitles().isEmpty())
-				.flatMap(orgUnitUserRoleAssignment -> orgUnitUserRoleAssignment.getTitles().stream())
-				.filter(StreamExtensions.distinctByKey(Title::getUuid))
-				.toList();
+	/**
+	 * Titles held by a position, declared in ou_title_mapping, or referenced by an existing
+	 * role/role-group assignment, for orgUnit - or active descendants if includeDescendants.
+	 */
+	public List<Title> getRelevantTitles(OrgUnit orgUnit, boolean includeDescendants) {
+		Set<String> titleUuids = includeDescendants
+				? titleDao.findRelevantTitleUuids(orgUnit.getUuid())
+				: titleDao.findRelevantTitleUuidsForSingleOu(orgUnit.getUuid());
+
+		return titleDao.findByUuidInAndActiveTrue(titleUuids);
 	}
 
-	public List<Title> getContainsTitlesAndInheritanceForOrgUnit(OrgUnit orgUnit, ContainsTitles containsTitles, boolean inheritance) {
-		return orgUnitUserRoleAssignmentDao.findByOrgUnitAndContainsTitlesAndInherit(orgUnit, containsTitles, inheritance)
-				.stream()
-				.filter(orgUnitUserRoleAssignment -> !orgUnitUserRoleAssignment.getTitles().isEmpty())
-				.flatMap(orgUnitUserRoleAssignment -> orgUnitUserRoleAssignment.getTitles().stream())
-				.filter(StreamExtensions.distinctByKey(Title::getUuid))
-				.toList();
+	/**
+	 * The active org units below orgUnitUuid as jsTree nodes, sorted by name.
+	 * The org unit itself is not part of the result.
+	 * Empty when the org unit is unknown; an existing org unit without descendants yields an empty list.
+	 */
+	public Optional<List<OuTreeNode>> findDescendantTree(String orgUnitUuid) {
+		if (getByUuid(orgUnitUuid) == null) {
+			return Optional.empty();
+		}
+
+		Set<String> uuids = orgUnitDao.findDescendantOuUuids(orgUnitUuid);
+
+		return Optional.of(orgUnitDao.findUuidNameAndParentByUuidIn(uuids).stream()
+				.filter(ou -> !Objects.equals(ou.uuid(), orgUnitUuid))
+				.sorted(Comparator.comparing(OrgUnitUuidNameAndParent::name, Comparator.nullsLast(String::compareToIgnoreCase)))
+				.map(ou -> new OuTreeNode(ou.uuid(),
+						ou.parentUuid() == null || Objects.equals(ou.parentUuid(), orgUnitUuid) ? JSTREE_ROOT : ou.parentUuid(),
+						ou.name()))
+				.toList());
 	}
 
 	public List<UserRole> getUserRoles(OrgUnit orgUnit, boolean inherit) {
@@ -1315,21 +1350,21 @@ public class OrgUnitService {
 
 	public record EffectiveApprover(User manager, OrgUnit orgUnit) {}
 
-	// Like getManager, but skips any OU whose manager is the receiver — used so that
-	// a manager's own role request gets approved by the parent OU's manager, not themselves.
-	// Returns the manager and the OU they were found in, so callers can filter substitutes by OU.
+	/**
+	 * The manager who approves a request for the receiver in this OU (see {@link OrgUnitNearestManager#approvingManagerFor}),
+	 * with the OU they were found in, so callers can filter substitutes by OU. {@code null} if there is none.
+	 */
 	public EffectiveApprover getEffectiveApprover(OrgUnit orgUnit, User receiver) {
-		if (orgUnit.getManager() != null) {
-			if (receiver == null || !Objects.equals(orgUnit.getManager().getUuid(), receiver.getUuid())) {
-				return new EffectiveApprover(orgUnit.getManager(), orgUnit);
-			}
+		if (orgUnit == null) {
+			return null;
 		}
-
-		if (orgUnit.getParent() != null) {
-			return getEffectiveApprover(orgUnit.getParent(), receiver);
-		}
-
-		return null;
+		String receiverUuid = receiver == null ? null : receiver.getUuid();
+		return orgUnitNearestManagerDao.findById(orgUnit.getUuid())
+			.flatMap(managers -> managers.approvingManagerFor(receiverUuid))
+			.flatMap(approving -> userDao.findById(approving.managerUuid())
+				.flatMap(manager -> orgUnitDao.findById(approving.orgUnitUuid())
+					.map(foundIn -> new EffectiveApprover(manager, foundIn))))
+			.orElse(null);
 	}
 
 	public record ManagerRequestScope(Set<OrgUnit> orgUnits, Set<String> subManagerUserUuids) {}
@@ -1543,70 +1578,127 @@ public class OrgUnitService {
 		}
 	}
 
-	@Transactional
 	public void assignResponsibleOuOnAssignments() {
-		List<User> users = userService.getAll();
-		for (User user : users) {
-			List<OrgUnit> orgUnits = getOrgUnitsForUser(user);
-			if (orgUnits.isEmpty()) {
-				continue;
+		forEachUserInBatches("assignResponsibleOuOnAssignments", userService.getAllUuids(), this::assignMissingOrgUnitsForUser);
+	}
+
+	private void assignMissingOrgUnitsForUser(User user) {
+		// Only look up the user's OUs if there is actually something to fix
+		boolean hasMissingOrgUnit = user.getUserRoleAssignments().stream().anyMatch(a -> a.getOrgUnit() == null) || user.getRoleGroupAssignments().stream().anyMatch(a -> a.getOrgUnit() == null);
+		if (!hasMissingOrgUnit) {
+			return;
+		}
+
+		List<OrgUnit> orgUnits = getOrgUnitsForUser(user);
+		if (orgUnits.isEmpty()) {
+			return;
+		}
+
+		OrgUnit fallback = orgUnits.getFirst();
+
+		for (UserUserRoleAssignment assignment : user.getUserRoleAssignments()) {
+			if (assignment.getOrgUnit() == null) {
+				log.info("UserRole does not have responsible OU, assigning users first OU {}", assignment.getId());
+				assignment.setOrgUnit(fallback);
 			}
-			for (UserUserRoleAssignment userRoleAssignment : user.getUserRoleAssignments()) {
-				if (userRoleAssignment.getOrgUnit() == null) {
-					log.info("UserRole does not have responsible OU, assigning users first OU {}", userRoleAssignment.getId());
-					userRoleAssignment.setOrgUnit(orgUnits.getFirst());
-				}
-			}
-			for (UserRoleGroupAssignment roleGroupAssignment : user.getRoleGroupAssignments()) {
-				if (roleGroupAssignment.getOrgUnit() == null) {
-					log.info("RoleGroup does not have responsible OU, assigning users first OU {}", roleGroupAssignment.getId());
-					roleGroupAssignment.setOrgUnit(orgUnits.getFirst());
-				}
+		}
+
+		for (UserRoleGroupAssignment assignment : user.getRoleGroupAssignments()) {
+			if (assignment.getOrgUnit() == null) {
+				log.info("RoleGroup does not have responsible OU, assigning users first OU {}", assignment.getId());
+				assignment.setOrgUnit(fallback);
 			}
 		}
 	}
 
-	/**
-	 * This methods will look through all direct assignments and check if the user is still associated with the responsible ou
-	 * if not the responsible ou will be changed to one of the users current ou's.
-	 */
-	@Transactional
-	public void updateOrgUnitOnRoleAssignments() {
-		List<User> users = userService.getAll();
-		for (User user : users) {
-			List<OrgUnit> orgUnits = getOrgUnitsForUser(user);
-			if (orgUnits.isEmpty()) {
-				continue;
-			}
+	private void forEachUserInBatches(String jobName, List<String> userUuids, Consumer<User> action) {
+		final int USER_BATCH_SIZE = 500;
 
-			boolean changes = false;
-			for (UserUserRoleAssignment userRoleAssignment : user.getUserRoleAssignments()) {
-				if (userRoleAssignment.getOrgUnit() != null) {
-					// check if the orgUnit on the assignment is one of the possible OrgUnits. If not set the role assignment OrgUnit to first of list
-					if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(userRoleAssignment.getOrgUnit().getUuid()))) {
-						log.debug("Changing OU for roleGroupAssignment: {}", userRoleAssignment.getId());
-						userRoleAssignment.setOrgUnit(orgUnits.get(0));
-						changes = true;
-					}
-				}
-			}
-			for (UserRoleGroupAssignment roleGroupAssignment : user.getRoleGroupAssignments()) {
-				if (roleGroupAssignment.getOrgUnit() != null) {
-					// check if the orgUnit on the assignment is one of the possible OrgUnits. If not set the role assignment OrgUnit to first of list
-					if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(roleGroupAssignment.getOrgUnit().getUuid()))) {
-						log.debug("Changing OU for roleGroupAssignment: {}", roleGroupAssignment.getId());
-						roleGroupAssignment.setOrgUnit(orgUnits.get(0));
-						changes = true;
-					}
-				}
-			}
+		TransactionTemplate batchTx = new TransactionTemplate(transactionManager);
+		batchTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-			if (changes) {
-				userService.save(user);
+		for (int i = 0; i < userUuids.size(); i += USER_BATCH_SIZE) {
+			Set<String> batch = new HashSet<>(userUuids.subList(i, Math.min(i + USER_BATCH_SIZE, userUuids.size())));
+
+			try {
+				batchTx.executeWithoutResult(_ -> {
+					for (User user : userService.getAllByUuidIn(batch)) {
+						action.accept(user);
+					}
+				});
+			}
+			catch (RuntimeException ex) {
+				log.error("{}: failed for batch of {} users", jobName, batch.size(), ex);
 			}
 		}
+	}
 
-		SecurityUtil.logoutSystemAccount();
+	public void updateOrgUnitOnRoleAssignments() {
+		final int USER_BATCH_SIZE = 500;
+		
+		try {
+			TransactionTemplate batchTx = new TransactionTemplate(transactionManager);
+			batchTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+ 
+			// Only IDs are held for the whole run - a few MB even for very large user counts
+			List<String> userUuids = userService.getAllUuids();
+			log.info("Checking OU on role assignments for {} users", userUuids.size());
+ 
+			for (int i = 0; i < userUuids.size(); i += USER_BATCH_SIZE) {
+				List<String> batch = userUuids.subList(i, Math.min(i + USER_BATCH_SIZE, userUuids.size()));
+				processBatch(batchTx, new HashSet<>(batch));
+			}
+		}
+		finally {
+			SecurityUtil.logoutSystemAccount();
+		}
+	}
+ 
+	private void processBatch(TransactionTemplate batchTx, Set<String> userUuids) {
+		try {
+			batchTx.executeWithoutResult(_ -> {
+				for (User user : userService.getAllByUuidIn(userUuids)) {
+					reassignOrgUnitsForUser(user);
+				}
+			});
+		}
+		catch (RuntimeException ex) {
+			log.error("Failed to update OU on role assignments for batch of {} users", userUuids.size(), ex);
+		}
+	}
+ 
+	private void reassignOrgUnitsForUser(User user) {
+		List<OrgUnit> orgUnits = getOrgUnitsForUser(user);
+		if (orgUnits.isEmpty()) {
+			return;
+		}
+ 
+		Set<String> validOrgUnitUuids = orgUnits.stream()
+				.map(OrgUnit::getUuid)
+				.collect(Collectors.toSet());
+
+		OrgUnit fallback = orgUnits.getFirst();
+		boolean changes = false;
+ 
+		for (UserUserRoleAssignment assignment : user.getUserRoleAssignments()) {
+			if (assignment.getOrgUnit() != null && !validOrgUnitUuids.contains(assignment.getOrgUnit().getUuid())) {
+				log.debug("Changing OU for userRoleAssignment: {}", assignment.getId());
+				assignment.setOrgUnit(fallback);
+				changes = true;
+			}
+		}
+ 
+		for (UserRoleGroupAssignment assignment : user.getRoleGroupAssignments()) {
+			if (assignment.getOrgUnit() != null && !validOrgUnitUuids.contains(assignment.getOrgUnit().getUuid())) {
+				log.debug("Changing OU for roleGroupAssignment: {}", assignment.getId());
+				assignment.setOrgUnit(fallback);
+				changes = true;
+			}
+		}
+ 
+		if (changes) {
+			userService.save(user);
+		}
 	}
 
 	public List<OrgUnit> getOrgUnitsForUser(User user) {
@@ -1631,7 +1723,7 @@ public class OrgUnitService {
 
 	// TODO - refactoring target - should not make a db call every time it is called in a loop. move set of strings to parameters
 	private boolean isExcluded(OrgUnit orgUnit) {
-		Set<String> excludedOUUuids = settingsService.getExcludedOUs();
+		Set<String> excludedOUUuids = settingsService.getExcludedOUsCached();
 		if (excludedOUUuids.contains(orgUnit.getUuid())) {
 			return true;
 		} else {
@@ -1643,6 +1735,7 @@ public class OrgUnitService {
 				}
 			}
 		}
+
 		return false;
 	}
 
@@ -1680,24 +1773,66 @@ public class OrgUnitService {
 		return orgUnitDao.findWithAllAncestors(uuid);
 	}
 
-	public List<OrgUnitUuidAndName> getAllDescendantsOfOu(OrgUnit orgUnit) {
-		return orgUnitDao.findDescendantUuidsAndNames(orgUnit.getUuid());
+	public List<String> findAncestorUuidsIncludingSelf(String uuid) {
+		return orgUnitDao.findAllAncestorUuids(uuid);
 	}
 
 
+	/** An assignment starting today has no start date - add and update must agree, or every save looks changed. */
+	private static LocalDate normalizeStartDate(LocalDate startDate) {
+		return startDate == null || LocalDate.now().equals(startDate) ? null : startDate;
+	}
+
+	private List<OrgUnit> resolveExceptedOus(List<String> exceptedOuUuids) {
+		return orgUnitDao.findByUuidIn(exceptedOuUuids != null ? exceptedOuUuids : List.of());
+	}
+
+	private static boolean exceptedOusChanged(OrgUnitAssignment assignment, List<OrgUnit> exceptedOus) {
+		Set<String> current = assignment.getExceptedOus() == null
+			? Set.of()
+			: assignment.getExceptedOus().stream().map(OrgUnit::getUuid).collect(Collectors.toSet());
+		return !current.equals(exceptedOus.stream().map(OrgUnit::getUuid).collect(Collectors.toSet()));
+	}
+
+	private static boolean datesChanged(OrgUnitAssignment assignment, LocalDate normalizedStartDate, LocalDate stopDate) {
+		return !Objects.equals(assignment.getStartDate(), normalizedStartDate)
+			|| !Objects.equals(assignment.getStopDate(), stopDate);
+	}
+
+	private static boolean exceptedOusAssignmentChanged(OrgUnitAssignment assignment, LocalDate startDate, LocalDate stopDate, List<OrgUnit> exceptedOus) {
+		return datesChanged(assignment, normalizeStartDate(startDate), stopDate)
+			|| exceptedOusChanged(assignment, exceptedOus);
+	}
+
+	/**
+	 * Entry point for the two update methods below: their edit hooks fire on the method itself, so an
+	 * unchanged save would close and reopen the historic interval and requeue the whole subtree for nothing.
+	 */
+	public boolean saveUserRoleWithInheritAndExceptedOus(OrgUnitUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids) {
+		List<OrgUnit> exceptedOus = resolveExceptedOus(exceptedOuUuids);
+		return exceptedOusAssignmentChanged(assignment, startDate, stopDate, exceptedOus)
+			&& self.updateUserRoleWithInheritAndExceptedOus(assignment, startDate, stopDate, exceptedOus);
+	}
+
+	public boolean saveRoleGroupWithInheritAndExceptedOus(OrgUnitRoleGroupAssignment assignment, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids) {
+		List<OrgUnit> exceptedOus = resolveExceptedOus(exceptedOuUuids);
+		return exceptedOusAssignmentChanged(assignment, startDate, stopDate, exceptedOus)
+			&& self.updateRoleGroupWithInheritAndExceptedOus(assignment, startDate, stopDate, exceptedOus);
+	}
+
 	@AuditLogIntercepted
 	@Transactional
-	public void addUserRoleWithInheritAndExceptedOus(OrgUnit ou, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids, String caseNumber) {
+	public OrgUnitUserRoleAssignment addUserRoleWithInheritAndExceptedOus(OrgUnit ou, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids, String caseNumber) {
 		OrgUnitUserRoleAssignment assignment = new OrgUnitUserRoleAssignment();
 		assignment.setUserRole(userRole);
 		assignment.setOrgUnit(ou);
 		assignment.setInherit(true);
-		assignment.setStartDate(startDate == null || LocalDate.now().equals(startDate) ? null : startDate);
+		assignment.setStartDate(normalizeStartDate(startDate));
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 		assignment.setCaseNumber(caseNumber);
 
-		List<OrgUnit> exceptedOus = orgUnitDao.findByUuidIn(exceptedOuUuids != null ? exceptedOuUuids : List.of());
+		List<OrgUnit> exceptedOus = resolveExceptedOus(exceptedOuUuids);
 		assignment.setExceptedOus(exceptedOus);
 		assignment.setContainsExceptedOus(!exceptedOus.isEmpty());
 
@@ -1711,23 +1846,26 @@ public class OrgUnitService {
 
 		AuditLogContextHolder.getContext().addArgument("Sagsnummer", assignment.getCaseNumber());
 
-		orgUnitUserRoleAssignmentDao.save(assignment);
+		OrgUnitUserRoleAssignment saved = orgUnitUserRoleAssignmentDao.save(assignment);
 		save(ou);
+
+		return saved;
 	}
 
 	@AuditLogIntercepted
-	public boolean updateUserRoleWithInheritAndExceptedOus(OrgUnitUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids) {
+	public boolean updateUserRoleWithInheritAndExceptedOus(OrgUnitUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate, List<OrgUnit> exceptedOus) {
 		boolean modified = false;
 
-		if (!Objects.equals(assignment.getStartDate(), startDate) || !Objects.equals(assignment.getStopDate(), stopDate)) {
-			assignment.setStartDate(startDate);
+		LocalDate normalizedStartDate = normalizeStartDate(startDate);
+		if (datesChanged(assignment, normalizedStartDate, stopDate)) {
+			assignment.setStartDate(normalizedStartDate);
 			assignment.setStopDate(stopDate);
-			assignment.setInactive(startDate != null && startDate.isAfter(LocalDate.now()));
+			assignment.setInactive(normalizedStartDate != null && normalizedStartDate.isAfter(LocalDate.now()));
 			assignment.setStopDateUser(SecurityUtil.getUserId());
 			modified = true;
 		}
 
-		if (updateExceptedOus(assignment, exceptedOuUuids)) {
+		if (updateExceptedOus(assignment, exceptedOus)) {
 			modified = true;
 		}
 
@@ -1738,18 +1876,19 @@ public class OrgUnitService {
 	}
 
 	@AuditLogIntercepted
-	public boolean updateRoleGroupWithInheritAndExceptedOus(OrgUnitRoleGroupAssignment assignment, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids) {
+	public boolean updateRoleGroupWithInheritAndExceptedOus(OrgUnitRoleGroupAssignment assignment, LocalDate startDate, LocalDate stopDate, List<OrgUnit> exceptedOus) {
 		boolean modified = false;
 
-		if (!Objects.equals(assignment.getStartDate(), startDate) || !Objects.equals(assignment.getStopDate(), stopDate)) {
-			assignment.setStartDate(startDate);
+		LocalDate normalizedStartDate = normalizeStartDate(startDate);
+		if (datesChanged(assignment, normalizedStartDate, stopDate)) {
+			assignment.setStartDate(normalizedStartDate);
 			assignment.setStopDate(stopDate);
-			assignment.setInactive(startDate != null && startDate.isAfter(LocalDate.now()));
+			assignment.setInactive(normalizedStartDate != null && normalizedStartDate.isAfter(LocalDate.now()));
 			assignment.setStopDateUser(SecurityUtil.getUserId());
 			modified = true;
 		}
 
-		if (updateExceptedOus(assignment, exceptedOuUuids)) {
+		if (updateExceptedOus(assignment, exceptedOus)) {
 			modified = true;
 		}
 
@@ -1759,9 +1898,8 @@ public class OrgUnitService {
 		return modified;
 	}
 
-	private boolean updateExceptedOus(OrgUnitAssignment assignment, List<String> exceptedOuUuids) {
-		List<OrgUnit> exceptedOus = orgUnitDao.findByUuidIn(exceptedOuUuids != null ? exceptedOuUuids : List.of());
-		if (!exceptedOus.equals(assignment.getExceptedOus())) {
+	private static boolean updateExceptedOus(OrgUnitAssignment assignment, List<OrgUnit> exceptedOus) {
+		if (exceptedOusChanged(assignment, exceptedOus)) {
 			assignment.setExceptedOus(exceptedOus);
 			assignment.setContainsExceptedOus(!exceptedOus.isEmpty());
 			return true;
@@ -1775,12 +1913,12 @@ public class OrgUnitService {
 		assignment.setRoleGroup(roleGroup);
 		assignment.setOrgUnit(ou);
 		assignment.setInherit(true);
-		assignment.setStartDate(startDate == null || LocalDate.now().equals(startDate) ? null : startDate);
+		assignment.setStartDate(normalizeStartDate(startDate));
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 		assignment.setCaseNumber(caseNumber);
 
-		List<OrgUnit> exceptedOus = orgUnitDao.findByUuidIn(exceptedOuUuids != null ? exceptedOuUuids : List.of());
+		List<OrgUnit> exceptedOus = resolveExceptedOus(exceptedOuUuids);
 		assignment.setExceptedOus(exceptedOus);
 		assignment.setContainsExceptedOus(!exceptedOus.isEmpty());
 
@@ -1795,5 +1933,13 @@ public class OrgUnitService {
 		AuditLogContextHolder.getContext().addArgument("Sagsnummer", assignment.getCaseNumber());
 
 		return orgUnitRoleGroupAssignmentDao.save(assignment);
+	}
+
+	public <T> Set<T> findProjectionByUuid(String uuid, Class<T> projectionType) {
+		return orgUnitDao.findByUuid(uuid, projectionType);
+	}
+
+	public <T> List<T> findProjectionByUuidIn(Collection<String> uuids, Class<T> projectionType) {
+		return orgUnitDao.findByUuidIn(uuids, projectionType);
 	}
 }

@@ -10,4 +10,7 @@ public interface OrgUnitUserRoleCacheDao extends CrudRepository<OrgUnitUserRoleC
 	void deleteByOrgUnit(OrgUnit orgUnit);
 
 	List<OrgUnitUserRoleCache> getByOrgUnit(OrgUnit orgUnit);
+	List<OrgUnitUserRoleCache> findAll();
+
+	void deleteByIdIn(List<Long> userRoleCacheIdsToDelete);
 }

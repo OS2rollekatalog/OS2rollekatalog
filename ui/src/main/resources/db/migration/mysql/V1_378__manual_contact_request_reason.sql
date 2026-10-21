@@ -1,0 +1,8 @@
+ALTER TABLE user_roles_mapping
+    ADD COLUMN IF NOT EXISTS request_reason VARCHAR(768) NULL, ALGORITHM=INSTANT;
+ALTER TABLE user_rolegroups
+    ADD COLUMN IF NOT EXISTS request_reason VARCHAR(768) NULL, ALGORITHM=INSTANT;
+ALTER TABLE current_assignment
+    ADD COLUMN IF NOT EXISTS request_reason VARCHAR(768) NULL, ALGORITHM=INSTANT;
+ALTER TABLE manual_assignment_notification_map
+    ADD COLUMN IF NOT EXISTS removal_reason VARCHAR(768) NULL, ALGORITHM=INSTANT;

@@ -14,7 +14,7 @@
 				</a>
 			</div>
 
-			<h3 th:text="${template.templateTypeName}"></h3>
+			<div th:replace="~{fragments/saveHeader :: saveHeader(title=${template.templateTypeName}, formId=null)}"></div>
 
 			<div class="panel panel-default">
 				<div class="panel-heading"></div>
@@ -103,7 +103,6 @@
 
 								<div class="form-group">
 									<div class="col-sm-offset-2 col-sm-10">
-										<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2" id="buttonSubmit" th:text="#{html.control.button.save}"></button>
 										<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-warning col-xs-2" id="buttonTest" th:text="#{html.page.email_template.test}"></button>
 									</div>
 								</div>

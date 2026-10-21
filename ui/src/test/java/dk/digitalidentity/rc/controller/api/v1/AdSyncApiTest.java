@@ -95,7 +95,7 @@ public class AdSyncApiTest extends AbstractApiTest {
 
 
 		when(pendingADUpdateService.find100Operations(domain)).thenReturn(List.of(operation));
-		when(pendingADUpdateService.find100(any(Domain.class))).thenReturn(List.of(dirtyGroup));
+		when(pendingADUpdateService.find30(any(Domain.class))).thenReturn(List.of(dirtyGroup));
 		when(pendingADUpdateService.findMaxHead()).thenReturn(0L);
 		doNothing().when(pendingADUpdateService).deleteByIdLessThan(anyLong(), anyLong(), any(Domain.class));
 		doNothing().when(pendingADUpdateService).deleteOperationsByIdLessThan(anyLong(), any(Domain.class));

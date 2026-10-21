@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+	<h3 th:fragment="saveHeader(title, formId)" class="page-header-bar js-save-header">
+		<span th:text="${title}"></span>
+		<span class="save-header-actions pull-right">
+			<span class="unsaved-indicator">
+				<span class="dot"></span>
+				<span th:text="#{html.control.unsavedchanges}"></span>
+			</span>
+			<button type="button" class="btn btn-danger js-page-cancel" th:text="#{html.control.button.cancel}"></button>
+			<button th:type="${formId != null} ? 'submit' : 'button'"
+					th:attr="form=${formId}"
+					class="btn btn-primary js-page-save"
+					th:text="#{html.control.button.save}"></button>
+		</span>
+	</h3>
+</body>
+</html>

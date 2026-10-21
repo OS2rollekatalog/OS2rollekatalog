@@ -23,6 +23,8 @@ $(document).ready(function () {
     const simpleModalValueLabelAttribute = config.modalValueLabelAttribute;
     const simpleModalValueLabelFilter = config.modalValueLabelFilter;
 
+    const expandedSectionStorageKey = "adsync-expanded-section-" + clientId;
+
     let membershipSyncFeatureAttributeMap = [];
     let membershipSyncFeatureFilterMap = [];
     let backSyncFeatureOUs = [];
@@ -93,6 +95,7 @@ $(document).ready(function () {
             }
 
             settingService.addListeners();
+            window.unsavedChangesService.setChangesMade();
             $("#simpleModal").modal("hide");
         },
 
@@ -116,6 +119,7 @@ $(document).ready(function () {
                 }
 
                 settingService.addListeners();
+                window.unsavedChangesService.setChangesMade();
                 $("#itSystemModal").modal("hide");
             }
         },
@@ -151,6 +155,7 @@ $(document).ready(function () {
             }
 
             settingService.updateMappingsTable();
+            window.unsavedChangesService.setChangesMade();
             $("#systemAndUserRoleModal").modal("hide");
         }
     };
@@ -192,13 +197,39 @@ $(document).ready(function () {
             this.refreshBackSyncOUTable();
             this.refreshReadonlySystemMapTable();
             this.updateMappingsTable();
+            this.restoreExpandedSection();
+        },
+
+        restoreExpandedSection: function () {
+            const accordion = $("#accordion");
+            if (!accordion.length) {
+                return;
+            }
+
+            accordion.on("shown.bs.collapse hidden.bs.collapse", ".panel-collapse", function (event) {
+                const panel = $(this);
+                const icon = panel.closest(".panel").find(".caretIcon").first();
+                const expanded = event.type === "shown";
+
+                icon.toggleClass("fa-caret-down", expanded);
+                icon.toggleClass("fa-caret-right", !expanded);
+
+                if (expanded) {
+                    sessionStorage.setItem(expandedSectionStorageKey, panel.attr("id"));
+                } else if (sessionStorage.getItem(expandedSectionStorageKey) === panel.attr("id")) {
+                    sessionStorage.removeItem(expandedSectionStorageKey);
+                }
+            });
+
+            const savedSectionId = sessionStorage.getItem(expandedSectionStorageKey);
+            const savedSection = savedSectionId ? document.getElementById(savedSectionId) : null;
+            if (savedSection) {
+                $(savedSection).collapse({ parent: "#accordion" });
+            }
         },
 
         updateMappingsTable: function () {
-            const tableBody = $("#mappingsTableBody");
-            tableBody.empty();
-
-            itSystemGroupFeatureSystemMap.forEach(function (mapping) {
+            const systemEntries = itSystemGroupFeatureSystemMap.map(function (mapping) {
                 const parts = mapping.split(";");
                 const itSystemId = parts[0];
                 const adGroupDN = parts[1];
@@ -208,29 +239,26 @@ $(document).ready(function () {
                     itSystemText = "IT-system (ID: " + itSystemId + ")";
                 }
 
-                const adGroupName = extractCNFromDN(adGroupDN);
-
-                const row = settingService.createMappingRow({
+                return {
                     itSystemName: itSystemText,
                     roleName: "<em>&lt;alle&gt;</em>",
-                    adGroupName: adGroupName,
+                    adGroupName: extractCNFromDN(adGroupDN),
                     adGroupDN: adGroupDN,
                     type: "system",
                     mapping: mapping
-                });
-
-                tableBody.append(row);
+                };
             });
 
             if (itSystemGroupFeatureRoleMap.length > 0) {
-                this.loadRoleMappingsWithNames();
+                this.loadRoleMappingEntries().then(function (roleEntries) {
+                    settingService.renderMappingsTable(systemEntries.concat(roleEntries));
+                });
             } else {
-                this.addListeners();
+                this.renderMappingsTable(systemEntries);
             }
         },
 
-        loadRoleMappingsWithNames: function () {
-            const tableBody = $("#mappingsTableBody");
+        loadRoleMappingEntries: function () {
             const rolePromises = [];
 
             itSystemGroupFeatureRoleMap.forEach(function (mapping) {
@@ -271,42 +299,39 @@ $(document).ready(function () {
                 rolePromises.push(rolePromise);
             });
 
-            Promise.all(rolePromises).then(function (roleDataArray) {
+            return Promise.all(rolePromises).then(function (roleDataArray) {
                 let hasFailures = false;
 
-                roleDataArray.forEach(function (roleData) {
+                const entries = roleDataArray.map(function (roleData) {
                     const adGroupName = extractCNFromDN(roleData.adGroupDN);
-                    let row;
 
                     if (roleData.loaded) {
-                        row = settingService.createMappingRow({
-                            itSystemName: roleData.itSystemName + " (id: " + roleData.itSystemId + ")",
-                            roleName: roleData.roleName + " (id: " + roleData.roleId + ")",
-                            adGroupName: adGroupName,
-                            adGroupDN: roleData.adGroupDN,
-                            type: "role",
-                            mapping: roleData.mapping
-                        });
-
                         if (!window.roleMappingToItSystem) {
                             window.roleMappingToItSystem = {};
                         }
                         if (roleData.itSystemId) {
                             window.roleMappingToItSystem[roleData.mapping] = roleData.itSystemId;
                         }
-                    } else {
-                        hasFailures = true;
-                        row = settingService.createMappingRow({
-                            itSystemName: "ukendt",
-                            roleName: "<em>&lt;slettet rolle (id: " + roleData.roleId + ")&gt;</em>",
+
+                        return {
+                            itSystemName: roleData.itSystemName + " (id: " + roleData.itSystemId + ")",
+                            roleName: roleData.roleName + " (id: " + roleData.roleId + ")",
                             adGroupName: adGroupName,
                             adGroupDN: roleData.adGroupDN,
                             type: "role",
                             mapping: roleData.mapping
-                        });
+                        };
                     }
 
-                    tableBody.append(row);
+                    hasFailures = true;
+                    return {
+                        itSystemName: "ukendt",
+                        roleName: "<em>&lt;slettet rolle (id: " + roleData.roleId + ")&gt;</em>",
+                        adGroupName: adGroupName,
+                        adGroupDN: roleData.adGroupDN,
+                        type: "role",
+                        mapping: roleData.mapping
+                    };
                 });
 
                 if (hasFailures) {
@@ -317,8 +342,22 @@ $(document).ready(function () {
                     });
                 }
 
-                settingService.addListeners();
+                return entries;
             });
+        },
+
+        renderMappingsTable: function (entries) {
+            const tableBody = $("#mappingsTableBody");
+            tableBody.empty();
+
+            entries
+                .slice()
+                .sort(function (a, b) { return a.itSystemName.toLowerCase().localeCompare(b.itSystemName.toLowerCase()); })
+                .forEach(function (entry) {
+                    tableBody.append(settingService.createMappingRow(entry));
+                });
+
+            settingService.addListeners();
         },
 
         createMappingRow: function (data) {
@@ -404,6 +443,8 @@ $(document).ready(function () {
                 const type = $(this).data("type");
                 const value = $(this).data("val");
 
+                window.unsavedChangesService.setChangesMade();
+
                 switch (type) {
                     case "attribute":
                         settingService.removeFromList("", value, membershipSyncFeatureAttributeMap);
@@ -433,12 +474,6 @@ $(document).ready(function () {
                         settingService.updateMappingsTable();
                         break;
                 }
-            });
-
-            $(".caretLink").off("click").on("click", function () {
-                const icon = $(this).find(".caretIcon");
-                icon.toggleClass("fa-caret-down");
-                icon.toggleClass("fa-caret-right");
             });
         },
 
@@ -520,11 +555,28 @@ $(document).ready(function () {
             return $row;
         },
 
+        sortByFirstField: function (list) {
+            return list.slice().sort(function (a, b) {
+                return a.split(";")[0].toLowerCase().localeCompare(b.split(";")[0].toLowerCase());
+            });
+        },
+
+        sortByItSystemName: function (list, selectId) {
+            return list
+                .map(function (item) {
+                    const itSystemId = item.split(";")[0];
+                    const name = $("#" + selectId + " option[value='" + itSystemId + "']").text();
+                    return { item: item, name: name || "" };
+                })
+                .sort(function (a, b) { return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); })
+                .map(function (entry) { return entry.item; });
+        },
+
         refreshAttributeMapTable: function () {
             const tableBody = $("#membershipSyncFeatureAttributeMapList");
             tableBody.empty();
 
-            membershipSyncFeatureAttributeMap.forEach(function (item) {
+            settingService.sortByFirstField(membershipSyncFeatureAttributeMap).forEach(function (item) {
                 const row = settingService.createAttributeMapRow(item);
                 tableBody.append(row);
             });
@@ -536,7 +588,7 @@ $(document).ready(function () {
             const tableBody = $("#membershipSyncFeatureFilterMapList");
             tableBody.empty();
 
-            membershipSyncFeatureFilterMap.forEach(function (item) {
+            settingService.sortByFirstField(membershipSyncFeatureFilterMap).forEach(function (item) {
                 const row = settingService.createFilterMapRow(item);
                 tableBody.append(row);
             });
@@ -548,7 +600,7 @@ $(document).ready(function () {
             const tableBody = $("#backSyncFeatureOUsList");
             tableBody.empty();
 
-            backSyncFeatureOUs.forEach(function (item) {
+            settingService.sortByItSystemName(backSyncFeatureOUs, "itSystemModalItSystem").forEach(function (item) {
                 const row = settingService.createBackSyncOURow(item);
                 tableBody.append(row);
             });
@@ -560,7 +612,7 @@ $(document).ready(function () {
             const tableBody = $("#readonlyItSystemFeatureSystemMapList");
             tableBody.empty();
 
-            readonlyItSystemFeatureSystemMap.forEach(function (item) {
+            settingService.sortByItSystemName(readonlyItSystemFeatureSystemMap, "itSystemModalItSystem").forEach(function (item) {
                 const row = settingService.createReadonlySystemMapRow(item);
                 tableBody.append(row);
             });
@@ -639,6 +691,7 @@ $(document).ready(function () {
                                 timeout: 2000
                             });
 
+                            window.unsavedChangesService.reset();
                             window.location.reload();
                         }
                     });
@@ -681,12 +734,8 @@ $(document).ready(function () {
         modalService.addFromSystemAndUserRoleModal();
     });
 
-    $(document).on("click", ".js-save-settings", function () {
+    $(document).on("click", ".js-page-save", function () {
         settingService.save();
-    });
-
-    $(document).on("click", ".js-cancel", function () {
-        window.location.reload();
     });
 
     // ── Initialize ──────────────────────────────────────────────────────

@@ -66,7 +66,7 @@
 								<h2 th:text="#{requestmodule.html.request.wizard.reason.title}"></h2>
 								<section>
 									<h3 th:text="#{requestmodule.html.request.wizard.reason.subtitle}"></h3>
-									<textarea class="form-control" rows="10" id="reason"
+									<textarea class="form-control" rows="10" id="reason" th:maxlength="${T(dk.digitalidentity.rc.rolerequest.RequestConstants).REASON_MAX_LENGTH}"
 											  th:disabled="${reasonSetting == T(dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption).NONE}"></textarea>
 									<div class="row mt-2">
 										<div class="col-sm-6">

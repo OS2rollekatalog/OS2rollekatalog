@@ -4,9 +4,9 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.cics.KspCicsService;
 import lombok.AllArgsConstructor;
@@ -16,17 +16,15 @@ import lombok.AllArgsConstructor;
 public class KspCicsHookHandler implements AssignmentHookHandler {
 	private final KspCicsService kspCicsService;
 	private final UserService userService;
-	private final UserRoleService userRoleService;
+	private final ItSystemService itSystemService;
 
 	@Override
 	public void handleEvent(HookEvent hookEvent) {
-		UserRole userRole = userRoleService.getById(hookEvent.getUserRoleId());
-		if (userRole != null) {
-			if (Objects.equals(userRole.getItSystem().getIdentifier(), "KSPCICS")) {
-				User user = userService.getByUuid(hookEvent.getUserUuid());
-				if (user != null) {
-					kspCicsService.addUserToQueue(user);
-				}
+		ItSystem itSystem = itSystemService.getById(hookEvent.getItSystemId());
+		if (itSystem != null && Objects.equals(itSystem.getIdentifier(), "KSPCICS")) {
+			User user = userService.getByUuid(hookEvent.getUserUuid());
+			if (user != null) {
+				kspCicsService.addUserToQueue(user);
 			}
 		}
 	}

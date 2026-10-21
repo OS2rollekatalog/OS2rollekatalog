@@ -1,23 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
@@ -60,6 +42,24 @@ import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -117,21 +117,9 @@ public class UserController {
 		model.addAttribute("editable", editable && assignerRoleConstraint.isUserAccessable(user, true));
 		model.addAttribute("canAssign", isAssigner);
 
-		//kle
-		List<Kle> kles = kleService.findAll();
+		model.addAttribute("viewOnly", false);
 
-		List<KleDTO> kleDTOS = new ArrayList<>();
-		for (Kle kle : kles) {
-			KleDTO kleDTO = new KleDTO();
-			kleDTO.setId(kle.getCode());
-			kleDTO.setParent(kle.getParent().equals("0") ? "#" : kle.getParent());
-			kleDTO.setText(kle.isActive() ? kle.getCode() + " " + kle.getName() : kle.getCode() + " " + kle.getName() + " [UDGÅET]");
-			kleDTOS.add(kleDTO);
-		}
-
-		kleDTOS.sort(Comparator.comparing(KleDTO::getText));
-		model.addAttribute("allKles", kleDTOS);
-
+		model.addAttribute("allKles", getAllKleDTOs());
 		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 		model.addAttribute("canEditKle", isAssigner || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		model.addAttribute("roleAssignmentOrgUnits", orgUnitService.getOrgUnitsForUser(user).stream().map(o -> new SelectOUDTO(o)).collect(Collectors.toList()));
@@ -139,6 +127,7 @@ public class UserController {
 		model.addAttribute("itSystemList", select2Service.getItSystemList());
 		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 		model.addAttribute("stale", userService.isUserStale(user.getUuid()));
+		model.addAttribute("preventDuplicates", settingsService.isPreventDuplicateRoles());
 
 		// TODO: refactor at some point, so we can use the above KLE list instead of this one...
 		userService.addPostponedListsToModel(model);
@@ -155,22 +144,19 @@ public class UserController {
 		}
 		User user = optionalUser.get();
 
-		// Get excepted assignments from CurrentExceptedAssignment
 		Set<CurrentExceptedAssignment> exceptedAssignments = assignmentService.getExceptedByUser(user);
 		List<UserRoleNotAssignedDTO> exceptedAssignmentDTOs = convertExceptedAssignmentsToDTO(exceptedAssignments);
 
 		Collection<OrgUnit> userOrgUnits = orgUnitService.getOrgUnitsForUser(user);
 
-		boolean isAssigner = userPermissionContext.hasPermission(Section.USER, Permission.ASSIGN);
-
 		model.addAttribute("user", user);
 		model.addAttribute("exceptedAssignments", exceptedAssignmentDTOs);
+		model.addAttribute("viewOnly", true);
 		model.addAttribute("editable", false);
-		model.addAttribute("canAssign", isAssigner);
+		model.addAttribute("canAssign", false);
 
-		model.addAttribute("allKles", List.of());
-
-		model.addAttribute("kleUiEnabled", false);
+		model.addAttribute("allKles", getAllKleDTOs());
+		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 		model.addAttribute("canEditKle", false);
 		model.addAttribute("roleAssignmentOrgUnits", userOrgUnits.stream().map(o -> new SelectOUDTO(o)).collect(Collectors.toList()));
 		model.addAttribute("orgUnitList", select2Service.getOrgUnitList());
@@ -182,6 +168,21 @@ public class UserController {
 		userService.addPostponedListsToModel(model);
 
 		return "users/manage";
+	}
+
+	private List<KleDTO> getAllKleDTOs() {
+		List<KleDTO> kleDTOS = new ArrayList<>();
+		for (Kle kle : kleService.findAll()) {
+			KleDTO kleDTO = new KleDTO();
+			kleDTO.setId(kle.getCode());
+			kleDTO.setParent(kle.getParent().equals("0") ? "#" : kle.getParent());
+			kleDTO.setText(kle.isActive() ? kle.getCode() + " " + kle.getName() : kle.getCode() + " " + kle.getName() + " [UDGÅET]");
+			kleDTOS.add(kleDTO);
+		}
+
+		kleDTOS.sort(Comparator.comparing(KleDTO::getText));
+
+		return kleDTOS;
 	}
 
 	private List<UserRoleNotAssignedDTO> convertExceptedAssignmentsToDTO(Set<CurrentExceptedAssignment> exceptedAssignments) {
@@ -215,20 +216,24 @@ public class UserController {
 	@Transactional(readOnly = true)
 	@RequirePermission(section = Section.USER, permission = Permission.READ)
 	@RequestMapping(value = "/ui/users/manage/{uuid}/roles")
-	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
+	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid, @RequestParam(name = "viewOnly", defaultValue = "false") boolean viewOnly) {
 		Optional<User> optionalUser = userService.getOptionalByUuid(uuid);
 		if (optionalUser.isEmpty()) {
 			return "redirect:../list";
 		}
 		User user = optionalUser.get();
 
-		boolean isAssigner = userPermissionContext.hasPermission(Section.USER, Permission.ASSIGN);
+		boolean isAssigner = !viewOnly && userPermissionContext.hasPermission(Section.USER, Permission.ASSIGN);
 		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.USER, Permission.ASSIGN);
 
 		// loads current assignments with userroles and their it systems eagerly fetched
 		Set<CurrentAssignment> currentAssignments = assignmentService.getByUserWithEagerRolesAndSystemsIncludingInactive(user);
 		List<RoleAssignedToUserDTO> assignmentDTOs = assignmentService.getAssignmentsForUser(user, currentAssignments);
 		userRoleService.enrichAssignments(assignmentDTOs, user, assignConstraint, currentAssignments, isAssigner);
+
+		if (viewOnly) {
+			assignmentDTOs.forEach(assignment -> assignment.setCanEdit(false));
+		}
 
 		model.addAttribute("assignments", assignmentDTOs);
 		model.addAttribute("editable", isAssigner);
@@ -259,6 +264,8 @@ public class UserController {
 		List<AvailableRoleGroupDTO> roleGroups = helper.getAvailableRoleGroups(user);
 
 		model.addAttribute("roleGroups", roleGroups);
+		model.addAttribute("preventDuplicates", settingsService.isPreventDuplicateRoles());
+
 		return "users/fragments/manage_add_rolegroup :: addRoleGroup";
 	}
 

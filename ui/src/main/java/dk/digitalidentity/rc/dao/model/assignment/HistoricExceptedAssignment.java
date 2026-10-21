@@ -71,6 +71,9 @@ public class HistoricExceptedAssignment {
 	 */
 	private LocalDateTime validTo;
 
+	/** When the org unit assignment was made. Null on closed versions, where consumers fall back to validFrom. */
+	private LocalDateTime assignedWhen;
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;

@@ -40,7 +40,9 @@ public class RoleAssignmentReportRowDTO {
 	private String verifiedByName;
 	private String verifiedByUserId;
 	private String remark;
+	/** Set when an attestation covered this assignment, whether or not anyone has decided on it yet. */
 	private LocalDate attestationCreatedAt;
+	private boolean attestationInProgress;
 	private LocalDate validFrom;
 	private LocalDate validTo;
 }

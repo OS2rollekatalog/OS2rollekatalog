@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -140,13 +142,7 @@ public class RolegroupRestController {
 			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
 		}
 
-		if (requesterChangeRequest.requesterPermission == null) {
-			role.setRequesterPermission(List.of(RequestableBy.INHERIT));
-		} else if (requesterChangeRequest.requesterPermission.isEmpty()) {
-			role.setRequesterPermission(List.of(RequestableBy.NONE));
-		} else {
-			role.setRequesterPermission(requesterChangeRequest.requesterPermission);
-		}
+		role.setRequesterPermission(RequesterPermission.of(requesterChangeRequest.requesterPermission()));
 
 		roleGroupService.save(role);
 
@@ -162,11 +158,7 @@ public class RolegroupRestController {
 			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
 		}
 
-		if (approverChangeRequest.approverPermission == null ) {
-			role.setApproverPermission(List.of(ApprovableBy.INHERIT));
-		} else {
-			role.setApproverPermission(approverChangeRequest.approverPermission);
-		}
+		role.setApproverPermission(ApproverPermission.of(approverChangeRequest.approverPermission()));
 
 		roleGroupService.save(role);
 

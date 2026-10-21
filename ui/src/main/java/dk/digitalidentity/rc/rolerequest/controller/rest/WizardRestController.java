@@ -1,8 +1,10 @@
 package dk.digitalidentity.rc.rolerequest.controller.rest;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,9 +38,10 @@ import dk.digitalidentity.rc.rolerequest.model.entity.OrgUnitUserRoleCache;
 import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.rolerequest.service.OrgUnitRoleCacheService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
+import dk.digitalidentity.rc.rolerequest.service.permission.RequestableRoleService;
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.RequireNoRole;
-import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
@@ -52,9 +55,10 @@ import lombok.extern.slf4j.Slf4j;
 public class WizardRestController {
 	private final UserService userService;
 	private final RequestService rolerequestService;
+	private final RequestableRoleService requestableRoleService;
+	private final ResolvedPermissionService resolvedPermissionService;
 	private final ApproverOptionService approverOptionService;
 	private final OrgUnitRoleCacheService orgUnitRoleCacheService;
-	private final SettingsService settingsService;
 	private final UserRoleService userRoleService;
 	private final AssignmentService assignmentService;
 
@@ -72,6 +76,8 @@ public class WizardRestController {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
 
 		final Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(requestForUser);
+		final Map<Long, String> roleGroupApprovers = roleGroupApproverTexts(assignments.stream().filter(a -> a.getRoleGroup() != null).map(a -> a.getRoleGroup().getId()).toList());
+		final Map<Long, String> userRoleApprovers = userRoleApproverTexts(assignments.stream().filter(a -> a.getUserRole() != null).map(a -> a.getUserRole().getId()).toList());
 
 		final List<CombinedRoleDTO> result = new ArrayList<>();
 		final Set<Long> userRoleIdsInRoleGroups = new HashSet<>();
@@ -106,7 +112,7 @@ public class WizardRestController {
 				null,
 				roleGroup.getName(),
 				roleGroup.getDescription(),
-				approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(roleGroup)),
+				roleGroupApprovers.get(roleGroup.getId()),
 				true,
 				false,
 				roleWithinRoleGroup
@@ -130,7 +136,7 @@ public class WizardRestController {
 				userRole.getItSystem().getName(),
 				userRole.getName(),
 				userRole.getDescription(),
-				approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(userRole)),
+				userRoleApprovers.get(userRole.getId()),
 				true,
 				hasPostponedConstraints(userRole.getId()),
 				""
@@ -156,13 +162,18 @@ public class WizardRestController {
 			.map(a -> a.getRoleGroup().getId())
 			.collect(Collectors.toSet());
 
+		final User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
+		final Set<Long> requestableRoleGroupIds = requestableRoleService.requestableRoleGroupIds(loggedInUser, requestForUser, orgUnit,
+			recommendedRoleGroups.stream().map(cache -> cache.getRoleGroup().getId()).toList());
+
+		final Map<Long, String> roleGroupApprovers = roleGroupApproverTexts(recommendedRoleGroups.stream().map(cache -> cache.getRoleGroup().getId()).toList());
 		List<RoleGroupDTO> recommendedRoleGroupDTOs = new ArrayList<>();
 		for (OrgUnitRoleGroupCache recommendedRoleGroup : recommendedRoleGroups) {
 			RoleGroup currentRoleGroup = recommendedRoleGroup.getRoleGroup();
 			if (!(hideAlreadyAssigned && assignedRoleGroupIds.contains(currentRoleGroup.getId()))
-				&& rolerequestService.canRequest(requestForUser, currentRoleGroup, requestForUser, orgUnit)) {
+				&& requestableRoleGroupIds.contains(currentRoleGroup.getId())) {
 				recommendedRoleGroupDTOs.add(new RoleGroupDTO(currentRoleGroup.getId(), currentRoleGroup.getName(), currentRoleGroup.getDescription(),
-					approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentRoleGroup)), assignedRoleGroupIds.contains(currentRoleGroup.getId())));
+					roleGroupApprovers.get(currentRoleGroup.getId()), assignedRoleGroupIds.contains(currentRoleGroup.getId())));
 			}
 		}
 
@@ -189,18 +200,21 @@ public class WizardRestController {
 			.map(a -> a.getUserRole().getId())
 			.collect(Collectors.toSet());
 
+		final Set<Long> requestableUserRoleIds = requestableRoleService.requestableUserRoleIds(loggedInUser, requestForUser, orgUnit,
+			recommendedUserRoles.stream().map(cache -> cache.getUserRole().getId()).toList());
+		final Map<Long, String> userRoleApprovers = userRoleApproverTexts(recommendedUserRoles.stream().map(cache -> cache.getUserRole().getId()).toList());
 		final List<UserRoleDTO> recommendedUserRolesDTOs = new ArrayList<>();
 		for (OrgUnitUserRoleCache recommendedUserRole : recommendedUserRoles) {
 			final UserRole currentUserRole = recommendedUserRole.getUserRole();
 			if (!(hideAlreadyAssigned && assignedUserRoleIds.contains(currentUserRole.getId()))
-				&& rolerequestService.canRequest(loggedInUser, currentUserRole, requestForUser, orgUnit, settingsService.getRolerequestRequester())) {
+				&& requestableUserRoleIds.contains(currentUserRole.getId())) {
 				recommendedUserRolesDTOs.add(
 					new UserRoleDTO(
 						currentUserRole.getId(),
 						currentUserRole.getItSystem().getName(),
 						currentUserRole.getName(),
 						currentUserRole.getDescription(),
-						approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentUserRole)),
+						userRoleApprovers.get(currentUserRole.getId()),
 						assignedUserRoleIds.contains(currentUserRole.getId()),
 						hasPostponedConstraints(currentUserRole.getId())
 					)
@@ -344,6 +358,9 @@ public class WizardRestController {
 
 		final List<OrgUnitRoleGroupCache> recommendedRoleGroups = orgUnitRoleCacheService.getRoleGroups(orgUnit);
 		final Set<Long> userRoleIdsInRoleGroups = new HashSet<>();
+		final Set<Long> requestableRoleGroupIds = requestableRoleService.requestableRoleGroupIds(requestingUser, requestForUser, orgUnit,
+			recommendedRoleGroups.stream().map(cache -> cache.getRoleGroup().getId()).toList());
+		final Map<Long, String> roleGroupApprovers = roleGroupApproverTexts(recommendedRoleGroups.stream().map(cache -> cache.getRoleGroup().getId()).toList());
 
 		for (OrgUnitRoleGroupCache recommendedRoleGroup : recommendedRoleGroups) {
 			final RoleGroup currentRoleGroup = recommendedRoleGroup.getRoleGroup();
@@ -363,7 +380,7 @@ public class WizardRestController {
 			boolean isAlreadyAssigned = assignedRoleGroupIds.contains(currentRoleGroup.getId());
 
 			if (!(hideAlreadyAssigned && isAlreadyAssigned)
-				&& rolerequestService.canRequest(requestingUser, currentRoleGroup, requestForUser, orgUnit)) {
+				&& requestableRoleGroupIds.contains(currentRoleGroup.getId())) {
 				combinedRoles.add(
 					new CombinedRoleDTO(
 						currentRoleGroup.getId(),
@@ -371,7 +388,7 @@ public class WizardRestController {
 						null,
 						currentRoleGroup.getName(),
 						currentRoleGroup.getDescription(),
-						approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentRoleGroup)),
+						roleGroupApprovers.get(currentRoleGroup.getId()),
 						isAlreadyAssigned,
 						false,
 						roleGroupUserRoles
@@ -381,6 +398,9 @@ public class WizardRestController {
 		}
 
 		final List<OrgUnitUserRoleCache> recommendedUserRoles = orgUnitRoleCacheService.getUserRoles(orgUnit);
+		final Set<Long> requestableUserRoleIds = requestableRoleService.requestableUserRoleIds(requestingUser, requestForUser, orgUnit,
+			recommendedUserRoles.stream().map(cache -> cache.getUserRole().getId()).toList());
+		final Map<Long, String> userRoleApprovers = userRoleApproverTexts(recommendedUserRoles.stream().map(cache -> cache.getUserRole().getId()).toList());
 		for (OrgUnitUserRoleCache recommendedUserRole : recommendedUserRoles) {
 			final UserRole currentUserRole = recommendedUserRole.getUserRole();
 
@@ -392,7 +412,7 @@ public class WizardRestController {
 			boolean isAlreadyAssigned = assignedUserRoleIds.contains(currentUserRole.getId());
 
 			if (!(hideAlreadyAssigned && isAlreadyAssigned)
-				&& rolerequestService.canRequest(requestingUser, currentUserRole, requestForUser, orgUnit, settingsService.getRolerequestRequester())) {
+				&& requestableUserRoleIds.contains(currentUserRole.getId())) {
 				combinedRoles.add(
 					new CombinedRoleDTO(
 						currentUserRole.getId(),
@@ -400,7 +420,7 @@ public class WizardRestController {
 						currentUserRole.getItSystem().getName(),
 						currentUserRole.getName(),
 						currentUserRole.getDescription(),
-						approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentUserRole)),
+						userRoleApprovers.get(currentUserRole.getId()),
 						isAlreadyAssigned,
 						hasPostponedConstraints(currentUserRole.getId()),
 						""
@@ -431,13 +451,13 @@ public class WizardRestController {
 			.map(a -> a.getRoleGroup().getId())
 			.toList();
 		List<RoleGroup> rolegroupOutput = rolerequestService.getRequestableRoleGroupsAsDatatable(loggedInUser, receiver, matchPosition.getOrgUnit());
+		final Map<Long, String> roleGroupApprovers = roleGroupApproverTexts(rolegroupOutput.stream().map(RoleGroup::getId).toList());
 		List<RoleGroupDTO> allRoleGroupDTOs = rolegroupOutput.stream()
-			.filter(role -> rolerequestService.canRequest(loggedInUser, role, receiver, matchPosition.getOrgUnit()))
 			.map(roleGroup -> new RoleGroupDTO(
 				roleGroup.getId(),
 				roleGroup.getName(),
 				roleGroup.getDescription(),
-				approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(roleGroup)),
+				roleGroupApprovers.get(roleGroup.getId()),
 				assignedRoleGroupIds.contains(roleGroup.getId())
 			))
 			.toList();
@@ -462,4 +482,14 @@ public class WizardRestController {
 		return hasPostponedConstraints;
 	}
 
+
+	private Map<Long, String> userRoleApproverTexts(Collection<Long> userRoleIds) {
+		return resolvedPermissionService.userRoleApproverPermissions(userRoleIds).entrySet().stream()
+			.collect(Collectors.toMap(Map.Entry::getKey, entry -> approverOptionService.getApproverOptionsAsString(entry.getValue())));
+	}
+
+	private Map<Long, String> roleGroupApproverTexts(Collection<Long> roleGroupIds) {
+		return resolvedPermissionService.roleGroupApproverPermissions(roleGroupIds).entrySet().stream()
+			.collect(Collectors.toMap(Map.Entry::getKey, entry -> approverOptionService.getApproverOptionsAsString(entry.getValue())));
+	}
 }

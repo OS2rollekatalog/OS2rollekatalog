@@ -5,11 +5,13 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.event.OrganisationHierarchyChangedEvent;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +33,7 @@ public class DevSeedUsers {
 	private final UserDao userDao;
 	private final OrgUnitService orgUnitService;
 	private final DomainService domainService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public void seed(Map<String, String> orgUnitUuidsByName, List<Title> titles) {
 		log.info("Seeding users...");
@@ -82,6 +85,7 @@ public class DevSeedUsers {
 				orgUnitService.save(ou);
 			}
 		}
+		eventPublisher.publishEvent(new OrganisationHierarchyChangedEvent());
 	}
 
 	private Position buildPosition(DevDataDefinitions.PositionDef def, Map<String, String> orgUnitUuidsByName,

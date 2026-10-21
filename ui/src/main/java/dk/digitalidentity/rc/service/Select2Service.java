@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import dk.digitalidentity.rc.dao.model.KitosITSystem;
 import dk.digitalidentity.rc.dao.UserRoleSelect2Dao;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -167,6 +168,7 @@ public class Select2Service {
 
 	// 4 hour cache
 	@Scheduled(fixedDelay = 4 * 60 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 5 * 1000)
 	public void resetCache() {
 		self.clearCache();
 	}

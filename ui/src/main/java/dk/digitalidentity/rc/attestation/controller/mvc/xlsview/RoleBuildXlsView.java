@@ -74,6 +74,7 @@ public class RoleBuildXlsView extends AttestationXlsView {
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.rolebuild.status", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.rolebuild.date", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.rolebuild.performedBy", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.rolebuild.remark", null, locale));
 
 		createHeaderRow(sheet, headers);
 
@@ -90,6 +91,7 @@ public class RoleBuildXlsView extends AttestationXlsView {
 			createCell(dataRow, column++, messageSource.getMessage(status.getMessage(), null, locale), null);
 			createCell(dataRow, column++, entry.getAttestationDate() == null ? "" : entry.getAttestationDate().toString(), null);
 			createCell(dataRow, column++, entry.getPerformedBy(), null);
+			createCell(dataRow, column++, entry.getRemark(), null);
 		}
 
 		sheet.setColumnWidth(0, 45 * 256);
@@ -99,6 +101,7 @@ public class RoleBuildXlsView extends AttestationXlsView {
 		sheet.setColumnWidth(4, 45 * 256);
 		sheet.setColumnWidth(5, 20 * 256);
 		sheet.setColumnWidth(6, 20 * 256);
+		sheet.setColumnWidth(7, 60 * 256);
 	}
 
 	private static String join(final String separator, final List<String> values) {

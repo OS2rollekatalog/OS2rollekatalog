@@ -7,6 +7,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
+
 import java.util.Objects;
 
 import static dk.digitalidentity.rc.rolerequest.RequestConstants.CACHE_PREFIX;
@@ -19,6 +21,7 @@ public class RequestCacheTTLTask {
     private CacheManager cacheManager;
 
     @Scheduled(cron = "${rc.request.request_cache_ttl_cron:0 0 * * * *}")
+    @WarnIfSlowerThan(millis = 5 * 1000)
     public void clearCache() {
         cacheManager.getCacheNames().stream()
                 .filter(name -> name.startsWith(CACHE_PREFIX))

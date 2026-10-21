@@ -1,0 +1,41 @@
+<!-- Two reusable fragments, not nested in a shared wrapper:
+     - columnToggle: the "Vælg/Skjul kolonner" link next to a content-type checkbox in configure.html.
+       Keyed by panelId - one toggle can open a panel covering more than one sheet (e.g. "Brugere"
+       covers both Users and User-KLE; "Enheder" covers both OU-Roles and OU-KLE).
+     - columnGroup: one sheet's column checklist, with its own "Vælg alle"/"Fravælg alle"/"Standard"
+       actions, keyed by its own contentTypeKey. A panel body in configure.html is a plain
+       <div class="column-panel"> containing one columnGroup call per sheet it covers. -->
+
+<span th:fragment="columnToggle(panelId)" class="column-panel-toggle" th:attr="data-panel-id=${panelId}">
+	<span class="js-column-count-tag column-count-tag"></span>
+	<a href="#" class="js-toggle-column-panel" th:text="#{html.page.report.column.selectColumns}"
+		th:attr="data-panel-id=${panelId},data-select-text=#{html.page.report.column.selectColumns},data-hide-text=#{html.page.report.column.hideColumns}"></a>
+</span>
+
+<div th:fragment="columnGroup(contentTypeKey, groupLabel, columns)"
+	th:with="selectedList=${reportForm.selectedColumns != null ? reportForm.selectedColumns.get(contentTypeKey) : null}"
+	class="column-panel-group">
+
+	<div class="column-panel-header">
+		<span class="column-panel-title" th:text="#{html.page.report.column.panelTitle(${groupLabel})}"></span>
+		<div class="column-panel-actions">
+			<a href="#" class="js-select-all-columns" th:attr="data-content-type=${contentTypeKey}" th:text="#{html.page.report.column.selectAll}"></a>
+			<span>&middot;</span>
+			<a href="#" class="js-deselect-all-columns" th:attr="data-content-type=${contentTypeKey}" th:text="#{html.page.report.column.deselectAll}"></a>
+			<span>&middot;</span>
+			<a href="#" class="js-reset-default-columns" th:attr="data-content-type=${contentTypeKey}" th:text="#{html.page.report.column.default}"></a>
+		</div>
+	</div>
+
+	<div class="column-panel-item" th:each="column : ${columns}">
+		<div class="checkbox c-checkbox column-panel-checkbox">
+			<label>
+				<input type="checkbox" class="js-column-detail-checkbox" th:id="|col-${contentTypeKey}-${column.key()}|"
+					th:attr="data-content-type=${contentTypeKey},data-column-key=${column.key()},data-default-selected=${column.defaultSelected()},
+					checked=${selectedList == null ? column.defaultSelected() : selectedList.contains(column.key())}"/>
+				<span class="fa fa-check"></span>
+			</label>
+		</div>
+		<label class="column-panel-label" th:for="|col-${contentTypeKey}-${column.key()}|" th:text="#{${column.messageKey()}}"></label>
+	</div>
+</div>

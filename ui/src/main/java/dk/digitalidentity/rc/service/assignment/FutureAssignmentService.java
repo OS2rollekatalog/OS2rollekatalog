@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 import dk.digitalidentity.rc.dao.assignment.FutureAssignmentDao;
@@ -20,10 +21,10 @@ public class FutureAssignmentService {
 	}
 	
 	public void deleteAll(Collection<FutureAssignment> futureAssignments) {
-		futureAssignmentDao.deleteAll(futureAssignments);
+		futureAssignmentDao.deleteAllInBatch(futureAssignments);
 	}
 	
 	public List<FutureAssignment> getPending() {
-		return futureAssignmentDao.findTop5000ByStartDateAfter(LocalDate.now().minusDays(1));
+		return futureAssignmentDao.findPublishable(LocalDate.now(), Limit.of(5000));
 	}
 }

@@ -47,6 +47,10 @@ document.addEventListener("DOMContentLoaded", () => {
         $("#allowSelfApproval").val(this.checked);
     });
 
+    $("#auto-approve-removal-checkbox").on("change", function () {
+        $("#autoApproveRemoval").val(this.checked);
+    });
+
     $(".requesterSetting").on("change", function () {
         onRequesterCheckBoxClick(this);
     });
@@ -83,7 +87,7 @@ function enforceAtLeastOneTabSelected() {
         document.getElementById("showExistingTabCheckbox")
     ];
     const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
-    const saveButton = document.querySelector("#setting-form button[type='submit']");
+    const saveButton = document.querySelector(".js-page-save");
     saveButton.disabled = checkedCount === 0;
 }
 

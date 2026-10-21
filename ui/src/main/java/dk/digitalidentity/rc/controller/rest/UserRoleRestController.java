@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,11 +69,15 @@ import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
+import dk.digitalidentity.rc.service.ADConfigurationService;
 import dk.digitalidentity.rc.service.ADGroupMappingService;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.RoleHolderService;
+import dk.digitalidentity.rc.service.model.RoleHolderDTO;
+import dk.digitalidentity.rc.util.Failure;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleCleanupService;
@@ -98,10 +104,12 @@ public class UserRoleRestController {
     private final UserRoleViewDao userRoleViewDao;
 	private final Select2Service select2Service;
 	private final ADGroupMappingService adGroupMappingService;
+	private final ADConfigurationService adConfigurationService;
 	private final UserPermissionContext userPermissionContext;
 	private final AssignmentService assignmentService;
 	private final UserRoleCleanupService userRoleCleanupService;
 	private final ItSystemService itSystemService;
+	private final RoleHolderService roleHolderService;
 
 	@InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
@@ -181,13 +189,7 @@ public class UserRoleRestController {
 			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
 		}
 
-		if (requesterChangeRequest.requesterPermission == null) {
-			role.setRequesterPermission(List.of(RequestableBy.INHERIT));
-		} else if (requesterChangeRequest.requesterPermission.isEmpty()) {
-			role.setRequesterPermission(List.of(RequestableBy.NONE));
-		} else {
-			role.setRequesterPermission(requesterChangeRequest.requesterPermission);
-		}
+		role.setRequesterPermission(RequesterPermission.of(requesterChangeRequest.requesterPermission()));
 
 		userRoleService.save(role);
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -203,11 +205,7 @@ public class UserRoleRestController {
 			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
 		}
 
-		if (approverChangeRequest.approverPermission == null ) {
-			role.setApproverPermission(List.of(ApprovableBy.INHERIT));
-		} else {
-			role.setApproverPermission(approverChangeRequest.approverPermission);
-		}
+		role.setApproverPermission(ApproverPermission.of(approverChangeRequest.approverPermission()));
 
 		userRoleService.save(role);
 
@@ -405,20 +403,25 @@ public class UserRoleRestController {
         }
 
 
-		switch (role.getSystemRoleLinkType()) {
-			case NONE:
-				role.setName(userRoleForm.getName());
-				role.setDescription(userRoleForm.getDescription());
-				break;
-			case NAME_ONLY: {
-				role.setDescription(userRoleForm.getDescription());
-				break;
+		// name and description of BackSync-created roles are overwritten from AD, so it's not editable here
+		boolean maintainedByBackSync = adConfigurationService.isNameAndDescriptionMaintainedByBackSync(role);
+
+		if (!maintainedByBackSync) {
+			switch (role.getSystemRoleLinkType()) {
+				case NONE:
+					role.setName(userRoleForm.getName());
+					role.setDescription(userRoleForm.getDescription());
+					break;
+				case NAME_ONLY: {
+					role.setDescription(userRoleForm.getDescription());
+					break;
+				}
+				case NAME_AND_DESCRIPTION:
+					// do not update name/description
+					break;
+				default:
+					log.error("Unexpected SystemRoleLinkType: " + role.getSystemRoleLinkType());
 			}
-			case NAME_AND_DESCRIPTION:
-				// do not update name/description
-				break;
-			default:
-				log.error("Unexpected SystemRoleLinkType: " + role.getSystemRoleLinkType());
 		}
 
 		// contact emails are not link-managed fields, so they are editable regardless of link type
@@ -491,6 +494,12 @@ public class UserRoleRestController {
                 status.setRoleGroups(status.getRoleGroups() + 1);
             	status.setSuccess(false);
             }
+        }
+
+        List<String> adGroups = adGroupMappingService.getRoleToADGroupsMap().getOrDefault(id, List.of()).stream().distinct().toList();
+        if (!adGroups.isEmpty()) {
+            status.setAdGroups(adGroups);
+            status.setSuccess(false);
         }
 
         return new ResponseEntity<>(status, HttpStatus.OK);
@@ -586,6 +595,18 @@ public class UserRoleRestController {
 		return ResponseEntity.ok(dto);
 	}
 
+	@GetMapping("/rest/userroles/{id}/holders")
+	public List<RoleHolderDTO> getHolders(@PathVariable("id") long id) {
+		UserRole userRole = userRoleService.getById(id);
+		if (userRole == null) {
+			throw Failure.notFound(log, "User role {} not found", id);
+		}
+
+		return roleHolderService.findHolders(userRole,
+			userPermissionContext.getConstraint(Section.USER, Permission.READ),
+			userPermissionContext.getConstraint(Section.USER, Permission.ASSIGN));
+	}
+
 	private static OptionalLong tryParseLong(String s) {
 		try { return OptionalLong.of(Long.parseLong(s)); }
 		catch (NumberFormatException e) { return OptionalLong.empty(); }
@@ -596,6 +617,10 @@ public class UserRoleRestController {
 			return "";
 		}
 		List<String> parts = Arrays.stream(value.split(",")).map(String::trim).toList();
+
+		// remove duplicates
+		parts = parts.stream().distinct().collect(Collectors.toList());
+
 		String entityId = constraintType.getEntityId();
 		if (Constants.OU_CONSTRAINT_ENTITY_ID.equals(entityId) || Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID.equals(entityId)) {
 			return resolveOuConstraintLabel(parts);

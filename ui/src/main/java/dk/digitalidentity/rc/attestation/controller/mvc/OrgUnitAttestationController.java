@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.util.ManagerSubstituteUtil;
 import io.micrometer.core.annotation.Timed;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,7 @@ public class OrgUnitAttestationController {
 	@Autowired
 	private SettingsService settingsService;
 
+	@SuppressWarnings("removal")
 	@GetMapping(value = "/ui/attestation/v2/orgunits/{uuid}")
 	@Timed("attestation.controller.mvc.org_unit_attestation_controller.index.timer")
 	public String index(Model model, @PathVariable String uuid, HttpServletRequest request) {
@@ -51,7 +53,7 @@ public class OrgUnitAttestationController {
 		}
 
 		Set<String> managedOrgUnitUuids = orgUnitService.getByManagerMatchingUser(user).stream().map(OrgUnit::getUuid).collect(Collectors.toSet());
-		managedOrgUnitUuids.addAll(user.getSubstituteFor().stream().map(o -> o.getOrgUnit().getUuid()).collect(Collectors.toSet()));
+		managedOrgUnitUuids.addAll(user.getSubstituteFor().stream().filter(ManagerSubstituteUtil::isActive).map(o -> o.getOrgUnit().getUuid()).collect(Collectors.toSet()));
 		if (!managedOrgUnitUuids.contains(uuid) && !SecurityUtil.isAttestationAdminOrAdmin()) {
 			return "attestationmodule/error";
 		}

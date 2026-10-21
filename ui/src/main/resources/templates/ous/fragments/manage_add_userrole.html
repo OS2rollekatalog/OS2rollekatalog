@@ -25,10 +25,10 @@
 							<td class="preformat" th:text="${role.description}"></td>
 							<td>
 								<a
-									th:if="${role.assignable}"
+									th:if="${(preventDuplicates == false or role.alreadyAssigned == false) and role.assignable == true}"
 									href="#"
 									class="js-add-role-assignment"
-									th:attr="data-roleid=${role.id}, data-objtype='role', data-name=${role.name}">
+									th:attr="data-roleid=${role.id}, data-objtype='userrole', data-name=${role.name}">
 									<em class="fa fa-plus"></em>
 								</a>
 							</td>

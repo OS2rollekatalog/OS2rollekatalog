@@ -2,16 +2,19 @@ package dk.digitalidentity.rc.rolerequest.service;
 
 import static dk.digitalidentity.rc.config.Constants.ROLE_REQUESTAUTHORIZED;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
@@ -31,18 +34,15 @@ import org.springframework.transaction.annotation.Transactional;
 import dk.digitalidentity.rc.TestContainersConfiguration;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
-import dk.digitalidentity.rc.dao.model.ConstraintType;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.PostponedConstraint;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.PostponedConstraintDao;
+import dk.digitalidentity.rc.dao.assignment.CurrentAssignmentDao;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.dao.projections.PostponedConstraintValue;
+import dk.digitalidentity.rc.dao.projections.SystemRoleConstraint;
+import dk.digitalidentity.rc.rolerequest.service.scope.LimitedToType;
+import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
 import dk.digitalidentity.saml.service.model.TokenUser;
 
@@ -53,58 +53,71 @@ import dk.digitalidentity.saml.service.model.TokenUser;
 @Transactional(rollbackFor = Exception.class)
 @Import({TestContainersConfiguration.class, TestInterceptorConfiguration.class})
 public class RequestAuthorizedRoleServiceTest {
+	private static final String USER_UUID = "user-uuid";
+	private static final String OTHER_USER_UUID = "other-user-uuid";
+	private static final long USER_ROLE_ID = 1L;
+	private static final long OTHER_USER_ROLE_ID = 2L;
+
 	@Autowired
 	private RequestAuthorizedRoleService requestAuthorizedRoleService;
 	@MockitoBean
-	private ItSystemService itSystemServiceMock;
+	private CurrentAssignmentDao currentAssignmentDao;
 	@MockitoBean
-	private AssignmentService assignmentService;
-
-	@BeforeEach
-	public void setup() {
-		doReturn(Collections.singletonList(new ItSystem())).when(itSystemServiceMock).findByAnyIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-	}
+	private PostponedConstraintDao postponedConstraintDao;
 
 	@Test
 	public void userDoesNotHaveAuthorizedRole() {
 		// Given
-		mockSecurityContext(false);
-		final var user = userWithNoDirectAssignments();
+		mockSecurityContext(false, OTHER_USER_UUID);
+		final var user = user();
 		// When
 		final var limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(user);
 		// Then
-		assertThat(limitedToOrgUnits.type()).isEqualTo(RequestAuthorizedRoleService.LimitedToType.NONE);
+		assertThat(limitedToOrgUnits.type()).isEqualTo(LimitedToType.NONE);
+	}
+
+	@Test
+	public void loggedInUserWithoutSessionAuthorityIsNotLookedUp() {
+		// Given
+		mockSecurityContext(false, USER_UUID);
+		final var user = user();
+		// When
+		final var limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(user);
+		// Then
+		assertThat(limitedToOrgUnits.type()).isEqualTo(LimitedToType.NONE);
+		verify(currentAssignmentDao, never()).findActiveSystemRoleConstraints(anyString(), anyString(), anyString(), any());
 	}
 
 	@Test
 	public void userIsAuthorizedToOneOrgUnit() {
 		// Given
-		mockSecurityContext(true);
-		final var user = userWithNoDirectAssignments();
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
 		final var ouUuid = UUID.randomUUID().toString();
-		doReturn(Set.of(constrainedUserRole(Set.of(ouUuid)))).when(assignmentService).getUserRolesByUserAndSystems(eq(user), anyList());
+		mockConstraints(ouConstraint(ouUuid));
 
 		// When
 		final var limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(user);
 
 		// Then
-		assertThat(limitedToOrgUnits.type()).isEqualTo(RequestAuthorizedRoleService.LimitedToType.CONSTRAINED);
+		assertThat(limitedToOrgUnits.type()).isEqualTo(LimitedToType.CONSTRAINED);
 		assertThat(limitedToOrgUnits.orgUnits()).hasSize(1).allMatch(p -> p.equals(ouUuid));
 	}
+
 	@Test
 	public void userIsAuthorizedWithDirectAssignmentNoPostponedRoles() {
 		// Given
-		mockSecurityContext(true);
+		mockSecurityContext(true, USER_UUID);
 		final var ouUuid = UUID.randomUUID().toString();
-		final var userRole = constrainedUserRole(Set.of(ouUuid));
-		final var user = userWithDirectAssignments(Collections.singletonList(directAssignment(userRole)));
-		doReturn(Set.of(userRole)).when(assignmentService).getUserRolesByUserAndSystems(eq(user), anyList());
+		final var user = user();
+		mockConstraints(ouConstraint(ouUuid));
+		mockPostponed();
 
 		// When
 		final var limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(user);
 
 		// Then
-		assertThat(limitedToOrgUnits.type()).isEqualTo(RequestAuthorizedRoleService.LimitedToType.CONSTRAINED);
+		assertThat(limitedToOrgUnits.type()).isEqualTo(LimitedToType.CONSTRAINED);
 		assertThat(limitedToOrgUnits.orgUnits()).hasSize(1).allMatch(p -> p.equals(ouUuid));
 	}
 
@@ -113,127 +126,237 @@ public class RequestAuthorizedRoleServiceTest {
 	@Test
 	public void valueItSystemConstraintLimitsToThatItSystem() {
 		// Given an authorized role limited to it-system 100 via a concrete VALUE constraint
-		mockSecurityContext(true);
-		final var role = itSystemConstrainedUserRole(Set.of(100L));
-		final var user = userWithDirectAssignments(Collections.singletonList(directAssignment(role)));
-		doReturn(Set.of(role)).when(assignmentService).getUserRolesByUserAndSystems(eq(user), anyList());
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		mockConstraints(itSystemConstraint(USER_ROLE_ID, ConstraintValueType.VALUE, "100"));
 
 		// When
-		final var result = requestAuthorizedRoleService.accessibleItsSystems(user);
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit());
 
 		// Then the user is constrained to exactly that it-system
-		assertThat(result.type()).isEqualTo(RequestAuthorizedRoleService.LimitedToType.CONSTRAINED);
+		assertThat(result.type()).isEqualTo(LimitedToType.CONSTRAINED);
 		assertThat(result.itSystems()).containsExactly(100L);
 	}
 
 	@Test
-	public void itSystemConstraintResolvingToNoConcreteItSystemGrantsAllItSystems() {
-		// Given an authorized role whose it-system constraint resolves to no concrete it-system
-		// (here a POSTPONED constraint with no value chosen). Per the domain rule an empty
-		// constraint means "all it-systems".
-		mockSecurityContext(true);
-		final var role = itSystemPostponedOnlyUserRole();
-		final var user = userWithDirectAssignments(Collections.singletonList(directAssignment(role)));
-		doReturn(Set.of(role)).when(assignmentService).getUserRolesByUserAndSystems(eq(user), anyList());
+	public void postponedItSystemConstraintWithoutValueDoesNotGrantAllItSystems() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		mockConstraints(itSystemConstraint(USER_ROLE_ID, ConstraintValueType.POSTPONED, null));
 
 		// When
-		final var result = requestAuthorizedRoleService.accessibleItsSystems(user);
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit());
 
-		// Then the user has access to all it-systems.
-		assertThat(result.type()).isEqualTo(RequestAuthorizedRoleService.LimitedToType.ALL);
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.NONE);
 	}
 
 	@Test
-	public void valueItSystemConstraintMustNotBeDroppedByUnrelatedPostponedConstraint() {
-		// Given a user authorized for it-system 100 via a VALUE constraint, who also carries a
-		// postponed it-system constraint resolving to it-system 200 (e.g. from another assignment).
-		mockSecurityContext(true);
-		final var valueRole = itSystemConstrainedUserRole(Set.of(100L));
-		final var user = userWithDirectAssignments(
-			Collections.singletonList(assignmentWithPostponedItSystem(valueRole, 200L)));
-		doReturn(Set.of(valueRole)).when(assignmentService).getUserRolesByUserAndSystems(eq(user), anyList());
+	public void valueItSystemConstraintMustNotBeDroppedByPostponedConstraintOfAnotherRole() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		mockConstraints(
+			itSystemConstraint(USER_ROLE_ID, ConstraintValueType.VALUE, "100"),
+			itSystemConstraint(OTHER_USER_ROLE_ID, ConstraintValueType.POSTPONED, null));
+		mockPostponed(postponed(OTHER_USER_ROLE_ID, Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID, "200"));
 
 		// When
-		final var result = requestAuthorizedRoleService.accessibleItsSystems(user);
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit());
 
-		// Then both it-systems must be accessible — the postponed value must not shadow the VALUE one.
-		assertThat(result.type()).isEqualTo(RequestAuthorizedRoleService.LimitedToType.CONSTRAINED);
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.CONSTRAINED);
 		assertThat(result.itSystems()).containsExactlyInAnyOrder(100L, 200L);
 	}
 
-	private UserRole itSystemConstrainedUserRole(final Set<Long> itSystemIds) {
-		final var value = itSystemIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
-		return authorizedRoleWithItSystemConstraint(ConstraintValueType.VALUE, value);
+	// --- OU and it-system pairing ---
+
+	@Test
+	public void multipleRolesDoNotCrossProductOuAndItSystemScopes() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		final var ouLimitedRoleOu = orgUnit();
+		final var otherOu = orgUnit();
+		mockConstraints(
+			ouConstraint(USER_ROLE_ID, ouLimitedRoleOu.getUuid()),
+			itSystemConstraint(OTHER_USER_ROLE_ID, ConstraintValueType.VALUE, "100"));
+
+		// When
+		final var forOtherOu = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, otherOu);
+		final var forOuLimitedRoleOu = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, ouLimitedRoleOu);
+
+		// Then
+		assertThat(forOtherOu.type()).isEqualTo(LimitedToType.CONSTRAINED);
+		assertThat(forOtherOu.itSystems()).containsExactly(100L);
+		assertThat(forOuLimitedRoleOu.type()).isEqualTo(LimitedToType.ALL);
 	}
 
-	private UserRole itSystemPostponedOnlyUserRole() {
-		return authorizedRoleWithItSystemConstraint(ConstraintValueType.POSTPONED, null);
+	@Test
+	public void ouOnlyUnionStillCoversEveryRole() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		mockConstraints(
+			ouConstraint(USER_ROLE_ID, orgUnit().getUuid()),
+			itSystemConstraint(OTHER_USER_ROLE_ID, ConstraintValueType.VALUE, "100"));
+
+		// When
+		final var result = requestAuthorizedRoleService.accessibleOrgUnits(user);
+
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.ALL);
 	}
 
-	private UserRole authorizedRoleWithItSystemConstraint(final ConstraintValueType valueType, final String value) {
-		final var systemRole = new SystemRole();
-		systemRole.setIdentifier(Constants.ROLE_REQUESTAUTHORIZED);
+	@Test
+	public void valueOuConstraintCoversPostponedItSystemConstraintOnSameRole() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		final var orgUnit = orgUnit();
+		mockConstraints(
+			ouConstraint(USER_ROLE_ID, orgUnit.getUuid()),
+			itSystemConstraint(USER_ROLE_ID, ConstraintValueType.POSTPONED, null));
+		mockPostponed(postponed(USER_ROLE_ID, Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID, "100"));
 
-		final var constraintType = new ConstraintType();
-		constraintType.setEntityId(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID);
+		// When
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit);
 
-		final var constraintValue = new SystemRoleAssignmentConstraintValue();
-		constraintValue.setConstraintType(constraintType);
-		constraintValue.setConstraintValueType(valueType);
-		constraintValue.setConstraintValue(value);
-
-		final var systemRoleAssignment = new SystemRoleAssignment();
-		systemRoleAssignment.setSystemRole(systemRole);
-		systemRoleAssignment.setConstraintValues(Collections.singletonList(constraintValue));
-
-		final var userRole = new UserRole();
-		userRole.setIdentifier("dummy-itsystem");
-		userRole.setSystemRoleAssignments(Collections.singletonList(systemRoleAssignment));
-		return userRole;
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.CONSTRAINED);
+		assertThat(result.itSystems()).containsExactly(100L);
 	}
 
-	private static UserUserRoleAssignment assignmentWithPostponedItSystem(final UserRole userRole, final Long itSystemId) {
-		final var systemRole = new SystemRole();
-		systemRole.setIdentifier(Constants.ROLE_REQUESTAUTHORIZED);
+	@Test
+	public void postponedOuConstraintWithoutPostponedItSystemConstraintDoesNotGrantAllItSystems() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		final var orgUnit = orgUnit();
+		mockConstraints(
+			ouPostponedConstraint(USER_ROLE_ID),
+			itSystemConstraint(USER_ROLE_ID, ConstraintValueType.POSTPONED, null));
+		mockPostponed(postponed(USER_ROLE_ID, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID, orgUnit.getUuid()));
 
-		final var constraintType = new ConstraintType();
-		constraintType.setEntityId(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID);
+		// When
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit);
 
-		final var postponedConstraint = new PostponedConstraint();
-		postponedConstraint.setSystemRole(systemRole);
-		postponedConstraint.setConstraintType(constraintType);
-		postponedConstraint.setValue(String.valueOf(itSystemId));
-
-		final var assignment = new UserUserRoleAssignment();
-		assignment.setUserRole(userRole);
-		assignment.setPostponedConstraints(Collections.singletonList(postponedConstraint));
-		return assignment;
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.NONE);
 	}
 
-	private UserRole constrainedUserRole(final Set<String> constrainedTo) {
-		final var systemRole = new SystemRole();
-		systemRole.setIdentifier(Constants.ROLE_REQUESTAUTHORIZED);
+	@Test
+	public void postponedItSystemConstraintWithBlankValueDoesNotGrantAllItSystems() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		final var orgUnit = orgUnit();
+		mockConstraints(
+			ouPostponedConstraint(USER_ROLE_ID),
+			itSystemConstraint(USER_ROLE_ID, ConstraintValueType.POSTPONED, null));
+		mockPostponed(
+			postponed(USER_ROLE_ID, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID, orgUnit.getUuid()),
+			postponed(USER_ROLE_ID, Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID, ""));
 
-		final var constraintType = new ConstraintType();
-		constraintType.setEntityId(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID);
+		// When
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit);
 
-		final var roleAssignmentConstraintValue = new SystemRoleAssignmentConstraintValue();
-		roleAssignmentConstraintValue.setConstraintType(constraintType);
-		roleAssignmentConstraintValue.setConstraintValueType(ConstraintValueType.VALUE);
-		roleAssignmentConstraintValue.setConstraintValue(String.join(",", constrainedTo));
-
-		final var systemRoleAssignment = new SystemRoleAssignment();
-		systemRoleAssignment.setSystemRole(systemRole);
-		systemRoleAssignment.setConstraintValues(Collections.singletonList(roleAssignmentConstraintValue));
-
-		final var userRole = new UserRole();
-		userRole.setIdentifier("dummy");
-		userRole.setSystemRoleAssignments(Collections.singletonList(systemRoleAssignment));
-
-		return userRole;
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.NONE);
 	}
 
-	private static void mockSecurityContext(boolean hasAuthorizedRole) {
+	@Test
+	public void postponedOuConstraintAppliesRoleValueItSystemConstraint() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		final var orgUnit = orgUnit();
+		mockConstraints(
+			ouPostponedConstraint(USER_ROLE_ID),
+			itSystemConstraint(USER_ROLE_ID, ConstraintValueType.VALUE, "100"));
+		mockPostponed(postponed(USER_ROLE_ID, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID, orgUnit.getUuid()));
+
+		// When
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit);
+		final var otherResult = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit());
+
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.CONSTRAINED);
+		assertThat(result.itSystems()).containsExactly(100L);
+		assertThat(otherResult.type()).isEqualTo(LimitedToType.NONE);
+	}
+
+	@Test
+	public void postponedOuConstraintWithoutItSystemConstraintGrantsAllItSystems() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		final var orgUnit = orgUnit();
+		mockConstraints(ouPostponedConstraint(USER_ROLE_ID));
+		mockPostponed(postponed(USER_ROLE_ID, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID, orgUnit.getUuid()));
+
+		// When
+		final var result = requestAuthorizedRoleService.accessibleItSystemsForOrgUnit(user, orgUnit);
+
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.ALL);
+	}
+
+	@Test
+	public void postponedOuConstraintLimitsOuUnionToAssignedOus() {
+		// Given
+		mockSecurityContext(true, USER_UUID);
+		final var user = user();
+		final var orgUnit = orgUnit();
+		mockConstraints(ouPostponedConstraint(USER_ROLE_ID));
+		mockPostponed(postponed(USER_ROLE_ID, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID, orgUnit.getUuid()));
+
+		// When
+		final var result = requestAuthorizedRoleService.accessibleOrgUnits(user);
+
+		// Then
+		assertThat(result.type()).isEqualTo(LimitedToType.CONSTRAINED);
+		assertThat(result.orgUnits()).containsExactly(orgUnit.getUuid());
+	}
+
+	private void mockConstraints(final SystemRoleConstraint... constraints) {
+		doReturn(List.of(constraints)).when(currentAssignmentDao).findActiveSystemRoleConstraints(
+			eq(USER_UUID), eq(Constants.ROLE_CATALOGUE_IDENTIFIER), eq(ROLE_REQUESTAUTHORIZED), any());
+	}
+
+	private void mockPostponed(final PostponedConstraintValue... postponed) {
+		doReturn(List.of(postponed)).when(postponedConstraintDao).findValuesByUserAndSystemRole(USER_UUID, ROLE_REQUESTAUTHORIZED);
+	}
+
+	// one direct assignment per role
+	private static PostponedConstraintValue postponed(final long userRoleId, final String entityId, final String value) {
+		return new PostponedConstraintValue(userRoleId * 10, userRoleId, entityId, value);
+	}
+
+	private static SystemRoleConstraint ouConstraint(final String ouUuid) {
+		return ouConstraint(USER_ROLE_ID, ouUuid);
+	}
+
+	private static SystemRoleConstraint ouConstraint(final long userRoleId, final String ouUuid) {
+		return new SystemRoleConstraint(userRoleId, ConstraintValueType.VALUE, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID, ouUuid);
+	}
+
+	private static SystemRoleConstraint ouPostponedConstraint(final long userRoleId) {
+		return new SystemRoleConstraint(userRoleId, ConstraintValueType.POSTPONED, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID, null);
+	}
+
+	private static SystemRoleConstraint itSystemConstraint(final long userRoleId, final ConstraintValueType valueType, final String value) {
+		return new SystemRoleConstraint(userRoleId, valueType, Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID, value);
+	}
+
+	private static OrgUnit orgUnit() {
+		final var orgUnit = new OrgUnit();
+		orgUnit.setUuid(UUID.randomUUID().toString());
+		return orgUnit;
+	}
+
+	private static void mockSecurityContext(final boolean hasAuthorizedRole, final String loggedInUserUuid) {
 		final var authentication = Mockito.mock(Authentication.class);
 		if (hasAuthorizedRole) {
 			doReturn(Collections.singletonList(new SamlGrantedAuthority(ROLE_REQUESTAUTHORIZED)))
@@ -241,29 +364,17 @@ public class RequestAuthorizedRoleServiceTest {
 		} else {
 			doReturn(Collections.emptyList()).when(authentication).getAuthorities();
 		}
-		doReturn(TokenUser.builder().build()).when(authentication).getDetails();
+		final Map<String, Object> attributes = new HashMap<>();
+		attributes.put(RolePostProcessor.ATTRIBUTE_USER_UUID, loggedInUserUuid);
+		doReturn(TokenUser.builder().attributes(attributes).build()).when(authentication).getDetails();
 		final var securityContext = Mockito.mock(SecurityContext.class);
 		Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
 		SecurityContextHolder.setContext(securityContext);
 	}
 
-	private static UserUserRoleAssignment directAssignment(final UserRole userRole) {
-		final var directAssignment = new UserUserRoleAssignment();
-		directAssignment.setPostponedConstraints(Collections.emptyList());
-		directAssignment.setUserRole(userRole);
-		return directAssignment;
-	}
-
-	private static User userWithNoDirectAssignments() {
+	private static User user() {
 		final var user = new User();
-		user.setUserRoleAssignments(Collections.emptyList());
+		user.setUuid(USER_UUID);
 		return user;
 	}
-
-	private static User userWithDirectAssignments(List<UserUserRoleAssignment> directAssignments) {
-		final var user = new User();
-		user.setUserRoleAssignments(directAssignments);
-		return user;
-	}
-
 }

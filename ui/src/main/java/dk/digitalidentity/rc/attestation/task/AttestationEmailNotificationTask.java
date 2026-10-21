@@ -4,6 +4,7 @@ package dk.digitalidentity.rc.attestation.task;
 import dk.digitalidentity.rc.attestation.service.AttestationEmailNotificationService;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.SettingsService;
 import io.micrometer.core.annotation.Timed;
@@ -35,6 +36,7 @@ public class AttestationEmailNotificationTask {
     @Timed(longTask = true, value = "attestation.attestation_email_notification_task.timer")
     @Scheduled(cron = "${rc.attestation.attestation_notifications_cron}")
 //    @Scheduled(fixedDelay = 50000000)
+    @WarnIfSlowerThan(millis = 1 * 60 * 1000)
     public void notifyManagers() {
         if (!configuration.getScheduled().isEnabled()) {
             return;

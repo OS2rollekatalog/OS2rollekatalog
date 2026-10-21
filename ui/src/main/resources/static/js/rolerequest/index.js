@@ -16,7 +16,7 @@ class RoleGroupService {
 			pageLength: 25,
 			responsive: true,
 			autoWidth: false,
-			columnDefs: [{ orderable: false, targets: [1, 5] }],
+			columnDefs: [{ orderable: false, targets: [1, 6] }],
 			language: this.datatableService.defaultLanguageOptions
 		});
 
@@ -26,7 +26,7 @@ class RoleGroupService {
 	onRoleGroupRemoval(roleGroupId) {
 		const removalRequestDTO = new RemovalRequestDTO(null, roleGroupId, "");
 		if (this.config.reasonRequirement === "NONE") {
-			this.requestService.removeRequest(removalRequestDTO);
+			this.requestService.confirmAndRemoveRequest(removalRequestDTO);
 		} else {
 			this.requestService.openRequestRemovalModal(removalRequestDTO);
 		}
@@ -46,7 +46,7 @@ class UserRoleService {
 			pageLength: 25,
 			responsive: true,
 			autoWidth: false,
-			columnDefs: [{ orderable: false, targets: [4] }],
+			columnDefs: [{ orderable: false, targets: [5] }],
 			language: this.datatableService.defaultLanguageOptions
 		});
 	}
@@ -54,7 +54,7 @@ class UserRoleService {
 	onUserRoleRemoval(userRoleId) {
 		const removalRequestDTO = new RemovalRequestDTO(userRoleId, null, "");
 		if (this.config.reasonRequirement === "NONE") {
-			this.requestService.removeRequest(removalRequestDTO);
+			this.requestService.confirmAndRemoveRequest(removalRequestDTO);
 		} else {
 			this.requestService.openRequestRemovalModal(removalRequestDTO);
 		}
@@ -80,6 +80,21 @@ class RequestService {
 		});
 
 		location.reload();
+	}
+
+	confirmAndRemoveRequest(removalRequestDTO) {
+		if (!this.config.autoApproveRemoval) {
+			this.removeRequest(removalRequestDTO);
+			return;
+		}
+
+		window.sweetAlertService.confirm(
+			"Er du sikker?",
+			"Fjernelsen sker med det samme, uden godkendelse.",
+			"Ja, fjern",
+			"Fortryd",
+			() => this.removeRequest(removalRequestDTO)
+		);
 	}
 
 	openRequestRemovalModal(removalRequestDTO) {

@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initRequestApproveCheckbox();
     initCaseNumberCheckbox();
+	initPreventDuplicateRoles();
+	initRemoveRolesOnRelevantPositionChange();
     initAutoNiveauCheckbox(config.autoNiveauEnabled);
     showSavedNotification(config.saved, config.successMsg, config.failedMsg);
     initOuTree(jsTreeService, config.allOUs, config.selectedOUs);
@@ -26,6 +28,19 @@ document.addEventListener("click", (event) => {
 $(document).on("shown.bs.modal", "#modal-ou", () => {
     $("#ou-tree-search").focus();
 });
+
+
+function initPreventDuplicateRoles() {
+    $("#preventDuplicateRoles-checkbox").on("change", function () {
+        $("#preventDuplicateRoles").val(this.checked);
+    });
+}
+
+function initRemoveRolesOnRelevantPositionChange() {
+    $("#removeRolesOnRelevantPositionChange-checkbox").on("change", function () {
+        $("#removeRolesOnRelevantPositionChange").val(this.checked);
+    });
+}
 
 function initRequestApproveCheckbox() {
     $("#requestapprove-checkbox").on("change", function () {
@@ -124,6 +139,8 @@ function saveOUs() {
     codes.forEach((code) => {
         $("#excludedOUs").append(`<option value="${code.id}" selected="selected"> ${code.text}</option>`);
     });
+
+    window.unsavedChangesService.setChangesMade();
 
     $("#filterZeroTxt").hide();
     $("#filterOneTxt").hide();

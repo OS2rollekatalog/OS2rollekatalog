@@ -57,10 +57,10 @@ public enum EmailTemplateType {
 	ORGUNIT_NEW_PARENT("html.enum.email.message.type.orgunit_new_parent", false, false, false, Category.GENERAL, Arrays.asList(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER)),
 	USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT("html.enum.email.message.type.user_with_direct_roles_changed_orgunit", false, false, false, Category.GENERAL, Arrays.asList(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, EmailTemplatePlaceholder.USER_PLACEHOLDER, EmailTemplatePlaceholder.NEW_POSITIONS_PLACEHOLDER, EmailTemplatePlaceholder.OLD_POSITIONS_PLACEHOLDER)),
 	SYSTEM_ROLE_EXCEEDED_MAX_ASSIGNMENTS("html.enum.email.message.type.system_role_maximum_assignments", false, false, false, Category.GENERAL, Arrays.asList(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, EmailTemplatePlaceholder.COUNT_PLACEHOLDER, EmailTemplatePlaceholder.ROLE_NAME, EmailTemplatePlaceholder.MAX_COUNT_PLACEHOLDER)),
-	MANUAL_SYSTEM_CONTACT_PERFORMER("html.enum.email.message.type.manual_system_contact_performer", false, false, false, Category.CONTACT, ContactStructure.SYSTEM_PLACEHOLDERS, ContactStructure.SYSTEM_REPEATING_PART),
-	MANUAL_SYSTEM_CONTACT_ADVIS("html.enum.email.message.type.manual_system_contact_advis", false, false, false, Category.CONTACT, ContactStructure.SYSTEM_PLACEHOLDERS, ContactStructure.SYSTEM_REPEATING_PART),
-	MANUAL_ROLE_CONTACT_PERFORMER("html.enum.email.message.type.manual_role_contact_performer", false, false, false, Category.CONTACT, ContactStructure.ROLE_PLACEHOLDERS, ContactStructure.ROLE_REPEATING_PART),
-	MANUAL_ROLE_CONTACT_ADVIS("html.enum.email.message.type.manual_role_contact_advis", false, false, false, Category.CONTACT, ContactStructure.ROLE_PLACEHOLDERS, ContactStructure.ROLE_REPEATING_PART),
+	MANUAL_SYSTEM_CONTACT_PERFORMER("html.enum.email.message.type.manual_system_contact_performer", false, false, false, Category.CONTACT, ContactStructure.SYSTEM_PLACEHOLDERS, ContactStructure.SYSTEM_REPEATING_PART_PERFORMER),
+	MANUAL_SYSTEM_CONTACT_ADVIS("html.enum.email.message.type.manual_system_contact_advis", false, false, false, Category.CONTACT, ContactStructure.SYSTEM_PLACEHOLDERS, ContactStructure.SYSTEM_REPEATING_PART_ADVIS),
+	MANUAL_ROLE_CONTACT_PERFORMER("html.enum.email.message.type.manual_role_contact_performer", false, false, false, Category.CONTACT, ContactStructure.ROLE_PLACEHOLDERS, ContactStructure.ROLE_REPEATING_PART_PERFORMER),
+	MANUAL_ROLE_CONTACT_ADVIS("html.enum.email.message.type.manual_role_contact_advis", false, false, false, Category.CONTACT, ContactStructure.ROLE_PLACEHOLDERS, ContactStructure.ROLE_REPEATING_PART_ADVIS),
 	MANUAL_ITSYSTEM_ASSIGNMENT_PENDING("html.enum.email.message.type.manual_itsystem_assignment_pending", false, false, false, Category.MANUAL_ASSIGNMENT_EFFECTUATION, Arrays.asList(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, EmailTemplatePlaceholder.COUNT_PLACEHOLDER, EmailTemplatePlaceholder.TASK_LINK_PLACEHOLDER));
 
 	private final String message;
@@ -113,30 +113,44 @@ public enum EmailTemplateType {
 		}
 	}
 
-	// shared structure for the contact templates - performer and advis variants of the same mail must
-	// expose identical placeholder sets, so they reference the same constants
+	// shared structure for the contact templates - performer and advis variants share the top-level
+	// placeholders, but only performer declares REQUEST_REASON in its (nested) repeating part
 	private static final class ContactStructure {
 		private static final List<EmailTemplatePlaceholder> SYSTEM_PLACEHOLDERS =
 				List.of(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, EmailTemplatePlaceholder.USERS_BLOCK_PLACEHOLDER);
 
 		// the per-user block is a free-form block (no list wrapper); its changes render as a <ul>/<li> list.
 		// the renderer owns the <ul>/<li> tags so the editable parts stay plain content (see RepeatingPartDescriptor)
-		private static final RepeatingPartDescriptor SYSTEM_REPEATING_PART = new RepeatingPartDescriptor(
+		private static final RepeatingPartDescriptor SYSTEM_REPEATING_PART_PERFORMER = new RepeatingPartDescriptor(
 				EmailTemplatePlaceholder.USERS_BLOCK_PLACEHOLDER,
 				List.of(EmailTemplatePlaceholder.USER_PLACEHOLDER, EmailTemplatePlaceholder.USER_ID_PLACEHOLDER, EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER, EmailTemplatePlaceholder.PERSON_UUID_PLACEHOLDER, EmailTemplatePlaceholder.CHANGES_PLACEHOLDER),
 				null, null,
 				new RepeatingPartDescriptor(
 						EmailTemplatePlaceholder.CHANGES_PLACEHOLDER,
-						List.of(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, EmailTemplatePlaceholder.ACTION_PAST_PLACEHOLDER, EmailTemplatePlaceholder.ROLE_NAME, EmailTemplatePlaceholder.ROLE_DESCRIPTION_PLACEHOLDER, EmailTemplatePlaceholder.ASSIGNED_BY_PLACEHOLDER),
+						List.of(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, EmailTemplatePlaceholder.ACTION_PAST_PLACEHOLDER, EmailTemplatePlaceholder.ROLE_NAME, EmailTemplatePlaceholder.ROLE_DESCRIPTION_PLACEHOLDER, EmailTemplatePlaceholder.ASSIGNED_BY_PLACEHOLDER, EmailTemplatePlaceholder.CONSTRAINT_VALUES_PLACEHOLDER, EmailTemplatePlaceholder.REQUEST_REASON),
+						"ul", "li"));
+
+		private static final RepeatingPartDescriptor SYSTEM_REPEATING_PART_ADVIS = new RepeatingPartDescriptor(
+				EmailTemplatePlaceholder.USERS_BLOCK_PLACEHOLDER,
+				List.of(EmailTemplatePlaceholder.USER_PLACEHOLDER, EmailTemplatePlaceholder.USER_ID_PLACEHOLDER, EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER, EmailTemplatePlaceholder.PERSON_UUID_PLACEHOLDER, EmailTemplatePlaceholder.CHANGES_PLACEHOLDER),
+				null, null,
+				new RepeatingPartDescriptor(
+						EmailTemplatePlaceholder.CHANGES_PLACEHOLDER,
+						List.of(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, EmailTemplatePlaceholder.ACTION_PAST_PLACEHOLDER, EmailTemplatePlaceholder.ROLE_NAME, EmailTemplatePlaceholder.ROLE_DESCRIPTION_PLACEHOLDER, EmailTemplatePlaceholder.ASSIGNED_BY_PLACEHOLDER, EmailTemplatePlaceholder.CONSTRAINT_VALUES_PLACEHOLDER),
 						"ul", "li"));
 
 		private static final List<EmailTemplatePlaceholder> ROLE_PLACEHOLDERS =
 				List.of(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, EmailTemplatePlaceholder.ROLE_NAME, EmailTemplatePlaceholder.ROLE_DESCRIPTION_PLACEHOLDER, EmailTemplatePlaceholder.USERS_BLOCK_PLACEHOLDER);
 
 		// each affected user renders as a <li> inside a <ul>; the renderer owns those tags
-		private static final RepeatingPartDescriptor ROLE_REPEATING_PART = new RepeatingPartDescriptor(
+		private static final RepeatingPartDescriptor ROLE_REPEATING_PART_PERFORMER = new RepeatingPartDescriptor(
 				EmailTemplatePlaceholder.USERS_BLOCK_PLACEHOLDER,
-				List.of(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, EmailTemplatePlaceholder.USER_PLACEHOLDER, EmailTemplatePlaceholder.USER_ID_PLACEHOLDER, EmailTemplatePlaceholder.PERSON_UUID_PLACEHOLDER),
+				List.of(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, EmailTemplatePlaceholder.ACTION_PAST_PLACEHOLDER, EmailTemplatePlaceholder.USER_PLACEHOLDER, EmailTemplatePlaceholder.USER_ID_PLACEHOLDER, EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER, EmailTemplatePlaceholder.PERSON_UUID_PLACEHOLDER, EmailTemplatePlaceholder.ASSIGNED_BY_PLACEHOLDER, EmailTemplatePlaceholder.CONSTRAINT_VALUES_PLACEHOLDER, EmailTemplatePlaceholder.REQUEST_REASON),
+				"ul", "li");
+
+		private static final RepeatingPartDescriptor ROLE_REPEATING_PART_ADVIS = new RepeatingPartDescriptor(
+				EmailTemplatePlaceholder.USERS_BLOCK_PLACEHOLDER,
+				List.of(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, EmailTemplatePlaceholder.ACTION_PAST_PLACEHOLDER, EmailTemplatePlaceholder.USER_PLACEHOLDER, EmailTemplatePlaceholder.USER_ID_PLACEHOLDER, EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER, EmailTemplatePlaceholder.PERSON_UUID_PLACEHOLDER, EmailTemplatePlaceholder.ASSIGNED_BY_PLACEHOLDER, EmailTemplatePlaceholder.CONSTRAINT_VALUES_PLACEHOLDER),
 				"ul", "li");
 
 		private ContactStructure() {

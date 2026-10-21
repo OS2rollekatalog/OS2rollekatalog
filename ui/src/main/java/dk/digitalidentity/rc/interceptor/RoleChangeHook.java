@@ -41,6 +41,14 @@ public interface RoleChangeHook {
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit);
 	public default void interceptAddImmediateUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit) {};
 	public void interceptRemoveUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole);
+	/**fired @Before removing one specific assignment - lets the hooks know which assignment is removed, not just which role. Unless overridden, it calls the role-based hook above*/
+	public default void interceptRemoveUserRoleAssignmentOnOrgUnit(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
+		interceptRemoveUserRoleAssignmentOnOrgUnit(ou, assignment.getUserRole());
+	}
+	/**fired @Before removing one specific assignment - lets the hooks know which assignment is removed, not just which role group. Unless overridden, it calls the role-group-based hook above*/
+	public default void interceptRemoveRoleGroupAssignmentOnOrgUnit(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
+		interceptRemoveRoleGroupAssignmentOnOrgUnit(ou, assignment.getRoleGroup());
+	}
 	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole);
 	public default void interceptEditUserRoleAssignmentOnOrgUnitAfter(OrgUnit ou, UserRole userRole) {}
 	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup);
@@ -52,7 +60,13 @@ public interface RoleChangeHook {
 
 	// UserRoleService Hooks
 	public void interceptAddSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment);
+	/** Only recalculates - UserRoleService records the constraint history itself. */
+	public default void interceptEditSystemRoleConstraintsOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {}
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment);
 	public default void interceptDeleteUserRole(UserRole userRole) {}
 	public default void interceptDeleteRoleGroup(RoleGroup roleGroup) {}
+	
+	// Manager/Substitute Hooks
+	public default void interceptManagerRoleChange(User user) { };
+	public default void interceptSubstituteRoleChange(User user) { };
 }

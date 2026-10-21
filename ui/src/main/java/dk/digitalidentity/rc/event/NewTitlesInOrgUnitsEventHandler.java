@@ -43,7 +43,7 @@ public class NewTitlesInOrgUnitsEventHandler {
 				dto.getOrgUnit().getRoleGroupAssignments().stream().anyMatch(a -> !a.getTitles().isEmpty());
 
 			// NEW_TITLE_IN_ORG_UNIT fires for all new titles on OUs that have title-scoped assignments
-			if (ouHasTitleScopedAssignments && settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)) {
+			if (ouHasTitleScopedAssignments && settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)) {
 				StringBuilder message = new StringBuilder("Enheden '" + ouName + "' har fået tilføjet følgende nye stillinger:\n");
 				dto.getNewTitles().forEach(t -> message.append(t.getName()).append("\n"));
 				notificationService.save(createNotification(message.toString(), NotificationType.NEW_TITLE_IN_ORG_UNIT, ouName, NotificationEntityType.OUS, ouUuid));
@@ -61,7 +61,7 @@ public class NewTitlesInOrgUnitsEventHandler {
 				}
 			}
 
-			if (!titlesWithNoPriorAssignments.isEmpty() && settingsService.isNotificationTypeEnabled(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)) {
+			if (!titlesWithNoPriorAssignments.isEmpty() && settingsService.isNotificationTypeEnabledCached(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)) {
 				StringBuilder message = new StringBuilder("Enheden '" + ouName + "' har fået tilføjet følgende nye stillinger, hvor der ikke tidligere er tildelt rettigheder:\n");
 				titlesWithNoPriorAssignments.forEach(t -> message.append(t.getName()).append("\n"));
 				notificationService.save(createNotification(message.toString(), NotificationType.RETURNING_TITLE_IN_ORG_UNIT, ouName, NotificationEntityType.OUS, ouUuid));

@@ -47,4 +47,7 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	Set<ItSystem> findAllByDeletedFalseAndIdIn(Collection<Long> ids);
 
 	List<ItSystem> findByDeletedFalseAndAttestationExemptFalse();
+
+	@Query("SELECT DISTINCT r.itSystem.id FROM ItSystemAttestationResponsible r WHERE r.user.userId = :userId")
+	Set<Long> findIdsByAttestationResponsibleUserId(@Param("userId") String userId);
 }

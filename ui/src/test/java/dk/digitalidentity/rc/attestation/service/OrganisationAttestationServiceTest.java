@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.attestation.service;
 
+import dk.digitalidentity.rc.attestation.config.AttestationConfig;
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationOuAssignmentsDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
@@ -14,6 +15,7 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRole
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationUserAttestationEntry;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.FunctionDao;
 import dk.digitalidentity.rc.dao.TitleDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
@@ -29,6 +31,7 @@ import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,9 +41,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -123,7 +128,13 @@ class OrganisationAttestationServiceTest {
 	private UserRoleService userRoleService;
 
 	@Mock
+	private CurrentAssignmentService currentAssignmentService;
+
+	@Mock
 	private RoleGroupService roleGroupService;
+
+	@Mock
+	private RoleCatalogueConfiguration configuration;
 
 	@InjectMocks
 	private OrganisationAttestationService organisationAttestationService;
@@ -578,6 +589,29 @@ class OrganisationAttestationServiceTest {
 			// Assert
 			assertNull(result);
 		}
+
+		@Test
+		@DisplayName("An org unit with no user assignments keeps its name from the attestation")
+		void getAttestation_WithoutUserAssignments_ShouldKeepOuName() {
+			// Regression: enheder der kun attesteres for egne enhedsroller har ingen brugerrækker at
+			// hente navnet fra, og overskriften stod tom.
+			Attestation attestation = createOrganisationAttestation(1L, "attestation-uuid", OU_UUID, "Test OU");
+			LocalDate when = attestation.getCreatedAt();
+			when(userService.getByUuid(PERFORMER_USER_UUID)).thenReturn(performingUser);
+			when(userRoleAssignmentDao.listValidAssignmentsByResponsibleOu(when, OU_UUID)).thenReturn(Collections.emptyList());
+			when(ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(when, OU_UUID)).thenReturn(new ArrayList<>());
+			when(ouAssignmentsDao.listValidNotInheritedAssignmentsWithExceptedTilesForOu(when, OU_UUID)).thenReturn(Collections.emptyList());
+			when(configuration.getAttestation()).thenReturn(new AttestationConfig());
+			when(userRoleAssignmentDao.listAssignmentsWhichHaveBeenValidBetweenByResponsibleOuLimited(any(), any(), any(), any()))
+					.thenReturn(Page.empty());
+
+			// Act
+			var result = organisationAttestationService.getAttestation(attestation, PERFORMER_USER_UUID, false,
+					Attestation.AttestationType.ORGANISATION_ATTESTATION);
+
+			// Assert
+			assertEquals("Test OU", result.getOuName());
+		}
 	}
 
 	@Nested
@@ -824,4 +858,5 @@ class OrganisationAttestationServiceTest {
 				"Både den nedarvede og den anden afdelings rolle skal stå under Andre rettigheder");
 		}
 	}
+
 }

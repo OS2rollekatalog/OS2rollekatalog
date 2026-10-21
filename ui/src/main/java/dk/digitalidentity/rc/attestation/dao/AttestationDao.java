@@ -18,8 +18,6 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
 
     List<Attestation> findByAttestationTypeAndCreatedAtGreaterThanEqual(final Attestation.AttestationType type, final LocalDate createdAtAfter);
 
-    List<Attestation> findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(final Attestation.AttestationType type, final LocalDate createdAtAfter);
-
 
     Optional<Attestation> findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
 
@@ -47,12 +45,16 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
             final Attestation.AttestationType type, final Long itSystemId, final Long responsibleCollectionId);
     List<Attestation> findByItSystemIdAndResponsibleCollectionIdAndVerifiedAtIsNull(final Long itSystemId, final Long responsibleCollectionId);
 
+    /** Selects the whole send window rather than its first day, so a mail missed because the batch broke off is caught up. */
     @Query(value = "select att from Attestation att " +
-            "where att.attestationType=:type and att.deadline = :deadlineAt and att.verifiedAt is null" +
+            "where att.attestationType=:type and att.attestationRun=:run and att.verifiedAt is null" +
+            " and att.deadline <= :windowOpened and att.deadline > :windowClosed" +
             " and not exists (select m from AttestationMail m where m.attestation=att and m.emailType=:emailType)")
     List<Attestation> findAttestationsWhichNeedsMail(@Param("type") final Attestation.AttestationType type,
                                                      @Param("emailType") final AttestationMail.MailType emailType,
-                                                     @Param("deadlineAt") final LocalDate deadlineAt);
+                                                     @Param("run") final AttestationRun run,
+                                                     @Param("windowOpened") final LocalDate windowOpened,
+                                                     @Param("windowClosed") final LocalDate windowClosed);
 
     @Query(nativeQuery = true, value = "select a.* from attestation_attestation as a" +
             "    inner join attestation_it_system_user_attestation_entry oa on oa.attestation_id=a.id" +

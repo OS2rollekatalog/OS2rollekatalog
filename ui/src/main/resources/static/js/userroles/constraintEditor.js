@@ -60,21 +60,6 @@ function initConstraintDelegation() {
 
     $("#save.js-save-kle-constraints, .js-save-kle-constraints").on("click", kleModalSaveConstraints);
     $(".js-save-function-constraints").on("click", () => functionConstraintService.saveFunctions());
-
-    // #modal-ou is shared between the regular constraint editor
-    // (orgUnitConstraintService) and the postponed-constraints flow
-    // (orgUnitPostponedConstraintService, from postponedConstraintsInit.js) —
-    // the correct service is chosen based on which "choose OUs" entry point
-    // opened the modal (each toggles which save button is visible).
-    $("#modal-ou").on("click", ".js-save-postponed-ou-constraints", () => {
-        window.orgUnitPostponedConstraintService.oUModalSaveConstraints();
-    });
-    $("#modal-ou").on("click", ".js-save-ou-constraints", () => {
-        orgUnitConstraintService.oUModalSaveConstraints();
-    });
-    $("#modal-ou").on("click", ".js-save-ou-constraints-inherited", () => {
-        orgUnitConstraintService.oUModalSaveConstraintsWithInheritance();
-    });
 }
 
 function toggleDisabled(systemRoleId, constraintUuid, type) {
@@ -262,78 +247,12 @@ function showKleAndFetchValue(systemRoleId, constraintUuid) {
 function showFreetextAndFetchValue(systemRoleId, constraintUuid, type) {
     const multipleSelectField = $(`#${systemRoleId}${constraintUuid}multiple-select`);
 
-    if (constraintUuid === pageConfig.ouConstraintUuid || constraintUuid === pageConfig.internalOuConstraintUuid) {
-        let constraintVals = [];
-
-        pageConfig.selectedItSystems.forEach((element) => {
-            const existing = element.selectedConstraints[constraintUuid];
-            if (existing !== undefined) {
-                constraintVals = existing.constraintValue.split(",");
-            }
-        });
-
-        // NOTE: original code used `orgUnitList.array.forEach(...)`, which
-        // relies on an `.array` property that likely doesn't exist on
-        // orgUnitList. Corrected to iterate orgUnitList directly - please
-        // confirm this matches the intended data shape.
-        pageConfig.orgUnitList.forEach((element) => {
-            const newOption = document.createElement("option");
-            newOption.value = element.id;
-            newOption.text = element.text;
-
-            if (constraintVals.includes(element.id)) {
-                newOption.selected = "selected";
-            }
-
-            multipleSelectField.append(newOption);
-        });
-
-        const select = document.getElementById(`${systemRoleId}${constraintUuid}multiple-select`);
-        for (const option of select.options) {
-            if (constraintVals.includes(option.value)) {
-                option.selected = "selected";
-            }
-        }
-    } else if (constraintUuid === pageConfig.itSystemConstraintUuid) {
-        let constraintVals = [];
-
-        pageConfig.selectedItSystems.forEach((element) => {
-            if (element.id.toString() === systemRoleId) {
-                const existing = element.selectedConstraints[constraintUuid];
-                if (existing !== undefined) {
-                    constraintVals = existing.constraintValue.split(",");
-                }
-            }
-        });
-
-        pageConfig.itSystemList.forEach((element) => {
-            const newOption = document.createElement("option");
-            newOption.value = element.id;
-            newOption.text = element.text;
-
-            if (constraintVals.includes(element.id)) {
-                newOption.selected = "selected";
-            }
-
-            multipleSelectField.append(newOption);
-        });
-
-        const select = document.getElementById(`${systemRoleId}${constraintUuid}multiple-select`);
-        for (const option of select.options) {
-            if (constraintVals.includes(option.value)) {
-                option.selected = "selected";
-            }
-        }
-
-        multipleSelectField.select2();
-    }
-
-    if (type === "COMBO_MULTI") {
+    if (constraintUuid === pageConfig.itSystemConstraintUuid || type === "COMBO_MULTI") {
         multipleSelectField.select2();
     }
 
     multipleSelectField.show();
-    multipleSelectField.trigger("change");
+    multipleSelectField.trigger("change.select2");
 
     $(`#${systemRoleId}${constraintUuid}freetext`).show();
 

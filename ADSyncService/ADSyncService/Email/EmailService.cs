@@ -28,11 +28,12 @@ namespace ADSyncService.Email
 
         public void init()
         {
-            string tenantId = remoteConfigurationService.GetConfiguration().tenantId;
-            string clientId = remoteConfigurationService.GetConfiguration().clientId;
-            string clientSecret = remoteConfigurationService.GetConfiguration().clientSecret;
-            string user = remoteConfigurationService.GetConfiguration().sendingUserEmail;
-            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
+            RemoteConfiguration configuration = remoteConfigurationService.GetEmailConfiguration();
+            string tenantId = configuration.tenantId;
+            string clientId = configuration.clientId;
+            string clientSecret = configuration.clientSecret;
+            string user = configuration.sendingUserEmail;
+            bool featureEnabled = configuration.sendErrorEmailFeatureEnabled;
 
             if (!featureEnabled)
             {
@@ -62,9 +63,9 @@ namespace ADSyncService.Email
 
         public void EnqueueMail(string errorMessage, Exception e)
         {
-            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
-            if (!featureEnabled) { return; }
-            string recipientEmail = remoteConfigurationService.GetConfiguration().recipientEmail;
+            RemoteConfiguration configuration = remoteConfigurationService.GetEmailConfiguration();
+            if (!configuration.sendErrorEmailFeatureEnabled) { return; }
+            string recipientEmail = configuration.recipientEmail;
             var requestBody = new SendMailPostRequestBody
             {
                 Message = new Message
@@ -105,9 +106,9 @@ namespace ADSyncService.Email
         }
         public void EnqueueMail(string message)
         {
-            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
-            if (!featureEnabled) { return; }
-            string recipientEmail = remoteConfigurationService.GetConfiguration().recipientEmail;
+            RemoteConfiguration configuration = remoteConfigurationService.GetEmailConfiguration();
+            if (!configuration.sendErrorEmailFeatureEnabled) { return; }
+            string recipientEmail = configuration.recipientEmail;
             var requestBody = new SendMailPostRequestBody
             {
                 Message = new Message
@@ -138,9 +139,9 @@ namespace ADSyncService.Email
 
         public void SendPendingEmails()
         {
-            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
-            string user = remoteConfigurationService.GetConfiguration().sendingUserEmail;
-            if (!featureEnabled) { return; }
+            RemoteConfiguration configuration = remoteConfigurationService.GetEmailConfiguration();
+            string user = configuration.sendingUserEmail;
+            if (!configuration.sendErrorEmailFeatureEnabled) { return; }
             if (!initialized) {  init(); }
 
             SendMailPostRequestBody email = null;

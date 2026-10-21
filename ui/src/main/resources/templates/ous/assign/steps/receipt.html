@@ -1,0 +1,111 @@
+<th:block th:fragment="receipt" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div id="receiptStepContent" class="form-horizontal"
+	     th:attr="data-start-date=${selectedStartDate}, data-stop-date=${selectedStopDate}">
+		<div class="form-group mb-1">
+			<label class="col-sm-2 control-label" th:text="#{html.page.ou.assign.receipt.role.label} + ':'"></label>
+			<div class="col-sm-10">
+				<p class="form-control-static" th:text="${receipt.roleName}"></p>
+			</div>
+		</div>
+
+		<div class="form-group mb-1" th:if="${receipt.hasItSystem()}">
+			<label class="col-sm-2 control-label" th:text="#{html.page.ou.assign.receipt.itSystem.label} + ':'"></label>
+			<div class="col-sm-10">
+				<p class="form-control-static" th:text="${receipt.itSystemName.get()}"></p>
+			</div>
+		</div>
+
+		<div class="form-group mb-1">
+			<label class="col-sm-2 control-label" th:text="#{html.page.ou.assign.receipt.orgUnit.label} + ':'"></label>
+			<div class="col-sm-10">
+				<p class="form-control-static" th:text="${receipt.ouName}"></p>
+			</div>
+		</div>
+
+		<div class="form-group mb-1">
+			<label class="col-sm-2 control-label" th:text="#{html.page.ou.assign.receipt.assignedTo.label} + ':'"></label>
+			<div class="col-sm-10">
+				<div id="receiptScopeSummary" class="form-control-static">
+					<div class="receipt-scope-group" th:switch="${receipt.scope.target().name()}">
+						<th:block th:case="'EVERYONE'">
+							<div th:text="#{html.page.ou.assign.receipt.target.everyone}"></div>
+						</th:block>
+						<th:block th:case="'TITLES'">
+							<div th:text="#{html.page.ou.assign.receipt.target.titles}"></div>
+							<ul class="m-0 ps-4">
+								<li th:each="title : ${receipt.titles}" th:text="${title}"></li>
+							</ul>
+						</th:block>
+						<th:block th:case="'MANAGER'">
+							<div th:text="#{html.page.ou.assign.receipt.target.manager}"></div>
+							<div th:if="${receipt.includeSubstitutes}" th:text="#{html.page.ou.assign.receipt.target.manager.substitutes}"></div>
+						</th:block>
+						<th:block th:case="'FUNCTION'">
+							<div th:text="#{html.page.ou.assign.receipt.target.functions}"></div>
+							<ul class="m-0 ps-4">
+								<li th:each="function : ${receipt.functions}" th:text="${function}"></li>
+							</ul>
+						</th:block>
+					</div>
+
+					<div class="receipt-scope-group mt-4">
+						<div th:text="${receipt.scope.inherit()} ? #{html.page.ou.assign.receipt.inherit.yes} : #{html.page.ou.assign.receipt.inherit.no}"></div>
+					</div>
+
+					<div class="receipt-scope-group mt-4" th:unless="${receipt.scope.exception().name() == 'NONE'}"
+					     th:switch="${receipt.scope.exception().name()}">
+						<th:block th:case="'USERS'">
+							<div th:text="#{html.page.ou.assign.receipt.except.users}"></div>
+							<ul class="m-0 ps-4">
+								<li th:each="user : ${receipt.exceptedUsers}" th:text="${user}"></li>
+							</ul>
+						</th:block>
+						<th:block th:case="'OUS'">
+							<div th:text="#{html.page.ou.assign.receipt.except.ous}"></div>
+							<ul class="m-0 ps-4">
+								<li th:each="ou : ${receipt.exceptedOus}" th:text="${ou}"></li>
+							</ul>
+						</th:block>
+						<th:block th:case="'TITLES'">
+							<div th:text="#{html.page.ou.assign.receipt.except.titles}"></div>
+							<ul class="m-0 ps-4">
+								<li th:each="title : ${receipt.titles}" th:text="${title}"></li>
+							</ul>
+						</th:block>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label class="col-sm-2 control-label" th:text="#{html.page.ou.assign.receipt.startDate.label}"></label>
+			<div class="col-sm-8">
+				<div class="input-group date" id="receiptStartDatePicker">
+					<input type="text" class="form-control" th:placeholder="#{html.page.ou.assign.receipt.startDate.placeholder}" />
+					<span class="input-group-addon">
+						<span class="fa fa-calendar"></span>
+					</span>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group">
+			<label class="col-sm-2 control-label" th:text="#{html.page.ou.assign.receipt.stopDate.label}"></label>
+			<div class="col-sm-8">
+				<div class="input-group date" id="receiptStopDatePicker">
+					<input type="text" class="form-control" th:placeholder="#{html.page.ou.assign.receipt.stopDate.placeholder}" />
+					<span class="input-group-addon">
+						<span class="fa fa-calendar"></span>
+					</span>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group" th:if="${@settingsService.isCaseNumberEnabled()}">
+			<label class="col-sm-2 control-label" th:text="#{html.page.ou.assign.receipt.caseNumber.label}"></label>
+			<div class="col-sm-8">
+				<input type="text" class="form-control" id="receiptCaseNumber" maxlength="150" th:value="${selectedCaseNumber}" />
+			</div>
+		</div>
+	</div>
+</th:block>

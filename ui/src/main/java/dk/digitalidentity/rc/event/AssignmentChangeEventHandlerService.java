@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentExceptedAssignment;
+import dk.digitalidentity.rc.service.ManualAssignmentNotificationMapService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.CurrentAssignmentCalculator;
 import dk.digitalidentity.rc.service.assignment.CurrentAssignmentChangeResult;
@@ -34,6 +35,7 @@ public class AssignmentChangeEventHandlerService {
 	private final CurrentAssignmentCalculator currentAssignmentCalculator;
 	private final CurrentAssignmentService currentAssignmentService;
 	private final CurrentExceptedAssignmentService currentExceptedAssignmentService;
+	private final ManualAssignmentNotificationMapService manualAssignmentNotificationMapService;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -43,6 +45,17 @@ public class AssignmentChangeEventHandlerService {
 	@Retryable(retryFor = {CannotAcquireLockException.class, InvalidDataAccessApiUsageException.class}, maxAttempts = 5, backoff = @Backoff(delay = 500, multiplier = 2))
 	@Transactional
 	public List<User> updateUsers(final Set<String> userUuids) {
+		return update(userUuids, Map.of());
+	}
+
+	/** @param changedByUserUuid the person behind each user's change; a missing or null value means the system */
+	@Retryable(retryFor = {CannotAcquireLockException.class, InvalidDataAccessApiUsageException.class}, maxAttempts = 5, backoff = @Backoff(delay = 500, multiplier = 2))
+	@Transactional
+	public List<User> updateUsers(final Map<String, String> changedByUserUuid) {
+		return update(changedByUserUuid.keySet(), changedByUserUuid);
+	}
+
+	private List<User> update(final Set<String> userUuids, final Map<String, String> changedByUserUuid) {
 		// Do not do endless flushing
 		entityManager.setFlushMode(FlushModeType.COMMIT);
 
@@ -60,6 +73,8 @@ public class AssignmentChangeEventHandlerService {
 		// upsert by recordHash (batch)
 		final CurrentAssignmentChangeResult saveResult = currentAssignmentService.saveAllForUsers(assignmentsByUser);
 		final Set<User> assignmentChangedUsers = saveResult.changedUsers();
+		saveResult.lostUserRoleIdsByUser().forEach((user, userRoleIds) ->
+			manualAssignmentNotificationMapService.setRemovedBy(user, userRoleIds, changedByUserUuid.get(user.getUuid())));
 
 		// save exceptions to inherited ou assignments
 		final Set<User> exceptionChangedUsers = new HashSet<>();

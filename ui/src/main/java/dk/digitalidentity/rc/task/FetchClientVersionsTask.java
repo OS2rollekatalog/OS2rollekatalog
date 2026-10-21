@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.task;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.AppManagerService;
 import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.rc.service.model.ApplicationApiDTO;
@@ -38,6 +39,7 @@ public class FetchClientVersionsTask {
 
 	// run every hour
 	@Scheduled(fixedDelay = 60 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void fetchClientVersions() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

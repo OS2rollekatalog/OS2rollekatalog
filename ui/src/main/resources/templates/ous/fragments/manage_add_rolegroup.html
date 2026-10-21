@@ -23,7 +23,7 @@
 							<td class="preformat" th:text="${roleGroup.description}"></td>
 							<td>
 								<a
-									th:if="${roleGroup.assignable}"
+									th:if="${(preventDuplicates == false or roleGroup.alreadyAssigned == false) and roleGroup.assignable == true}"
 									href="#"
 									class="js-add-role-assignment"
 									th:attr="data-roleid=${roleGroup.id}, data-objtype='rolegroup', data-name=${roleGroup.name}">

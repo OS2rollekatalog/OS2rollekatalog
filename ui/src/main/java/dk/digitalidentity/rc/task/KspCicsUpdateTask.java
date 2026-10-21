@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.cics.KspCicsService;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ public class KspCicsUpdateTask {
 
 	// run hourly in daytime
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 6-18 * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void updateLocalData() {
 		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
 			!configuration.getScheduled().isEnabled()) {
@@ -49,6 +51,7 @@ public class KspCicsUpdateTask {
 
 	// run once every 5 minutes
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(4)}/5 * * * ?")
+	@WarnIfSlowerThan(millis = 30 * 1000)
 	public void syncUserProfileAssignments() {
 		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
 			!configuration.getIntegrations().getKspcics().isEnabledOutgoing() || 
@@ -62,6 +65,7 @@ public class KspCicsUpdateTask {
 	
 	// run every minute
 	@Scheduled(fixedDelay = 60 * 1000)
+	@WarnIfSlowerThan(millis = 10 * 1000)
 	public void checkForManualUpdate() {
 		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
 			!configuration.getScheduled().isEnabled()) {

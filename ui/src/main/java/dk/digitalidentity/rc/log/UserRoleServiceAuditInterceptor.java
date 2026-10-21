@@ -1,20 +1,25 @@
 package dk.digitalidentity.rc.log;
 
-import dk.digitalidentity.rc.dao.UserRoleDao;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.EventType;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import lombok.extern.slf4j.Slf4j;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
+
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.hibernate.engine.spi.EntityEntry;
+import org.hibernate.engine.spi.PersistenceContext;
+import org.hibernate.engine.spi.SessionImplementor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import jakarta.persistence.EntityManager;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Aspect
@@ -24,10 +29,7 @@ public class UserRoleServiceAuditInterceptor {
 	@Autowired
 	private AuditLogger auditLogger;
 
-	@Autowired
-	private UserRoleDao userRoleDao;
-
-	@PersistenceContext
+	@jakarta.persistence.PersistenceContext
 	private EntityManager entityManager;
 
 	@AfterReturning(value = "execution(* dk.digitalidentity.rc.service.UserRoleService.*(..)) && @annotation(AuditLogIntercepted)", returning = "retVal")
@@ -113,12 +115,7 @@ public class UserRoleServiceAuditInterceptor {
 				boolean created = userRole.getId() == 0;
 
 				if (!created) {
-					// open-in-view keeps the JPA session alive for the whole HTTP request, so the entity
-					// passed to save() is already mutated in-memory. Detach it, load the persisted state
-					// for snapshotting, then re-merge so jp.proceed() can still save the new values.
-					entityManager.detach(userRole);
-					userRoleDao.findById(userRole.getId()).ifPresent(this::snapshotBeforeState);
-					entityManager.merge(userRole);
+					snapshotBeforeState(userRole);
 				}
 
 		    	UserRole after = (UserRole) jp.proceed();
@@ -149,20 +146,26 @@ public class UserRoleServiceAuditInterceptor {
 		return jp.proceed();
 	}
 
-	private void snapshotBeforeState(UserRole role) {
+	private void snapshotBeforeState(UserRole userRole) {
+		// Scheduled tasks save detached roles, so their loaded state has to come from the database
+		UserRole managed = entityManager.contains(userRole) ? userRole : entityManager.find(UserRole.class, userRole.getId());
+		PersistenceContext persistenceContext = entityManager.unwrap(SessionImplementor.class).getPersistenceContextInternal();
+		EntityEntry entry = persistenceContext.getEntry(managed);
+		Object[] loadedState = entry.getLoadedState();
+
 		AuditLogContext ctx = AuditLogContextHolder.getContext();
-		ctx.putBefore(AuditLogContext.FIELD_NAVN, role.getName());
-		ctx.putBefore(AuditLogContext.FIELD_BESKRIVELSE, role.getDescription());
-		ctx.putBefore(AuditLogContext.FIELD_KUN_BRUGERE, String.valueOf(role.isUserOnly()));
-		ctx.putBefore(AuditLogContext.FIELD_FOELSOM_ROLLE, String.valueOf(role.isSensitiveRole()));
-		ctx.putBefore(AuditLogContext.FIELD_EKSTRA_FOELSOM_ROLLE, String.valueOf(role.isExtraSensitiveRole()));
-		ctx.putBefore(AuditLogContext.FIELD_ATTESTATION_AF_ATTESTATIONSANSVARLIG, String.valueOf(role.isRoleAssignmentAttestationByAttestationResponsible()));
-		ctx.putBefore(AuditLogContext.FIELD_KRAEVER_LEDERHANDLING, String.valueOf(role.isRequireManagerAction()));
-		ctx.putBefore(AuditLogContext.FIELD_SEND_TIL_BEMYNDIGELSESANSVARLIGE, String.valueOf(role.isSendToAuthorizationManagers()));
-		ctx.putBefore(AuditLogContext.FIELD_SEND_TIL_STEDFORTRAEDERE, String.valueOf(role.isSendToSubstitutes()));
-		ctx.putBefore(AuditLogContext.FIELD_KAN_ANMODE, role.getRequesterPermission());
-		ctx.putBefore(AuditLogContext.FIELD_KAN_GODKENDE, role.getApproverPermission());
-		ctx.putBefore(AuditLogContext.FIELD_ENHEDSFILTER, String.valueOf(role.isOuFilterEnabled()));
+		ctx.putBefore(AuditLogContext.FIELD_NAVN, (String) loadedState[entry.getPersister().findAttributeMapping("name").getStateArrayPosition()]);
+		ctx.putBefore(AuditLogContext.FIELD_BESKRIVELSE, (String) loadedState[entry.getPersister().findAttributeMapping("description").getStateArrayPosition()]);
+		ctx.putBefore(AuditLogContext.FIELD_KUN_BRUGERE, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("userOnly").getStateArrayPosition()]));
+		ctx.putBefore(AuditLogContext.FIELD_FOELSOM_ROLLE, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("sensitiveRole").getStateArrayPosition()]));
+		ctx.putBefore(AuditLogContext.FIELD_EKSTRA_FOELSOM_ROLLE, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("extraSensitiveRole").getStateArrayPosition()]));
+		ctx.putBefore(AuditLogContext.FIELD_ATTESTATION_AF_ATTESTATIONSANSVARLIG, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("roleAssignmentAttestationByAttestationResponsible").getStateArrayPosition()]));
+		ctx.putBefore(AuditLogContext.FIELD_KRAEVER_LEDERHANDLING, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("requireManagerAction").getStateArrayPosition()]));
+		ctx.putBefore(AuditLogContext.FIELD_SEND_TIL_BEMYNDIGELSESANSVARLIGE, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("sendToAuthorizationManagers").getStateArrayPosition()]));
+		ctx.putBefore(AuditLogContext.FIELD_SEND_TIL_STEDFORTRAEDERE, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("sendToSubstitutes").getStateArrayPosition()]));
+		ctx.putBefore(AuditLogContext.FIELD_KAN_ANMODE, ((RequesterPermission) loadedState[entry.getPersister().findAttributeMapping("requesterPermission").getStateArrayPosition()]).getRequestableBy());
+		ctx.putBefore(AuditLogContext.FIELD_KAN_GODKENDE, ((ApproverPermission) loadedState[entry.getPersister().findAttributeMapping("approverPermission").getStateArrayPosition()]).getApprovableBy());
+		ctx.putBefore(AuditLogContext.FIELD_ENHEDSFILTER, String.valueOf((Boolean) loadedState[entry.getPersister().findAttributeMapping("ouFilterEnabled").getStateArrayPosition()]));
 	}
 
 	private void buildUpdateDescription(UserRole after) {
@@ -176,8 +179,8 @@ public class UserRoleServiceAuditInterceptor {
 		ctx.diff(AuditLogContext.FIELD_KRAEVER_LEDERHANDLING, after.isRequireManagerAction());
 		ctx.diff(AuditLogContext.FIELD_SEND_TIL_BEMYNDIGELSESANSVARLIGE, after.isSendToAuthorizationManagers());
 		ctx.diff(AuditLogContext.FIELD_SEND_TIL_STEDFORTRAEDERE, after.isSendToSubstitutes());
-		ctx.diff(AuditLogContext.FIELD_KAN_ANMODE, after.getRequesterPermission());
-		ctx.diff(AuditLogContext.FIELD_KAN_GODKENDE, after.getApproverPermission());
+		ctx.diff(AuditLogContext.FIELD_KAN_ANMODE, after.getRequesterPermission().getRequestableBy());
+		ctx.diff(AuditLogContext.FIELD_KAN_GODKENDE, after.getApproverPermission().getApprovableBy());
 		ctx.diff(AuditLogContext.FIELD_ENHEDSFILTER, after.isOuFilterEnabled());
 	}
 

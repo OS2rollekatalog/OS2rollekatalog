@@ -33,7 +33,7 @@ public class NotificationService {
 
 	public Notification save(Notification notification) {
 		// Only save if enabled in settings
-		if (settingsService.isNotificationTypeEnabled(notification.getNotificationType())) {
+		if (settingsService.isNotificationTypeEnabledCached(notification.getNotificationType())) {
 			return notificationDao.save(notification);
 		}
 

@@ -73,6 +73,9 @@ public class UserRoleView {
 
 	@Column
 	private String itSystemOrgUnitFilterUuids;
+	
+	@Column
+	private boolean allowPostponing;
 
 	@Column
 	@Convert(converter = RequestableBySetConverter.class)

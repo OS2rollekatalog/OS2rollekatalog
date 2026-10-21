@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ItSystemService;
 
 @Component
@@ -20,6 +21,7 @@ public class ItSystemCleanupTask {
 
 	// Run daily at 01:00 - 02:00
 	@Scheduled(cron = "${cron.itSystemClean:0 #{new java.util.Random().nextInt(59)} 1 * * ?}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void deleteItSystems() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

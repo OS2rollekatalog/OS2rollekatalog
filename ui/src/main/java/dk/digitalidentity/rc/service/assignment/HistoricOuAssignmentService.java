@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,8 +46,7 @@ public class HistoricOuAssignmentService {
 
 	@Transactional
 	public void recordUserRoleUpdatedClose(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
-		String oldHash = computeHash(fromUserRoleAssignment(ou, assignment));
-		historicOuAssignmentDao.closeOpenByRecordHash(oldHash, LocalDateTime.now());
+		closeOpen(fromUserRoleAssignment(ou, assignment), LocalDateTime.now());
 	}
 
 	@Transactional
@@ -57,8 +57,40 @@ public class HistoricOuAssignmentService {
 
 	@Transactional
 	public void recordUserRoleRemoved(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
-		HistoricOuAssignment record = fromUserRoleAssignment(ou, assignment);
-		historicOuAssignmentDao.closeOpenByRecordHash(record.getRecordHash(), LocalDateTime.now());
+		closeOpen(fromUserRoleAssignment(ou, assignment), LocalDateTime.now());
+	}
+
+	/**
+	 * Closes the open row of one specific assignment. The hash carries no assignment id, so an identical
+	 * assignment that stays on the OU shares the open row - it is then left open.
+	 */
+	@Transactional
+	public void recordUserRoleAssignmentRemoved(OrgUnit ou, OrgUnitUserRoleAssignment removed) {
+		HistoricOuAssignment record = fromUserRoleAssignment(ou, removed);
+		boolean sharedWithRemaining = ou.getUserRoleAssignments().stream()
+			.filter(a -> a.getId() != removed.getId())
+			.filter(a -> a.getUserRole().getId() == removed.getUserRole().getId())
+			.anyMatch(a -> fromUserRoleAssignment(ou, a).getRecordHash().equals(record.getRecordHash()));
+
+		if (!sharedWithRemaining) {
+			closeOpen(record, LocalDateTime.now());
+		}
+	}
+
+	/** Role group variant of {@link #recordUserRoleAssignmentRemoved}, one row per role in the group. */
+	@Transactional
+	public void recordRoleGroupAssignmentRemoved(OrgUnit ou, OrgUnitRoleGroupAssignment removed) {
+		Set<String> remainingHashes = ou.getRoleGroupAssignments().stream()
+			.filter(a -> a.getId() != removed.getId())
+			.filter(a -> a.getRoleGroup().getId() == removed.getRoleGroup().getId())
+			.flatMap(a -> fromRoleGroupAssignment(ou, a).stream())
+			.map(HistoricOuAssignment::getRecordHash)
+			.collect(Collectors.toSet());
+
+		LocalDateTime now = LocalDateTime.now();
+		fromRoleGroupAssignment(ou, removed).stream()
+			.filter(record -> !remainingHashes.contains(record.getRecordHash()))
+			.forEach(record -> closeOpen(record, now));
 	}
 
 	@Transactional
@@ -70,9 +102,7 @@ public class HistoricOuAssignmentService {
 	@Transactional
 	public void recordRoleGroupUpdatedClose(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
 		LocalDateTime now = LocalDateTime.now();
-		fromRoleGroupAssignment(ou, assignment).stream()
-			.map(this::computeHash)
-			.forEach(hash -> historicOuAssignmentDao.closeOpenByRecordHash(hash, now));
+		fromRoleGroupAssignment(ou, assignment).forEach(record -> closeOpen(record, now));
 	}
 
 	@Transactional
@@ -83,9 +113,7 @@ public class HistoricOuAssignmentService {
 	@Transactional
 	public void recordRoleGroupRemoved(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
 		LocalDateTime now = LocalDateTime.now();
-		fromRoleGroupAssignment(ou, assignment).stream()
-			.map(this::computeHash)
-			.forEach(hash -> historicOuAssignmentDao.closeOpenByRecordHash(hash, now));
+		fromRoleGroupAssignment(ou, assignment).forEach(record -> closeOpen(record, now));
 	}
 
 	@Transactional
@@ -100,6 +128,64 @@ public class HistoricOuAssignmentService {
 	@Transactional
 	public void recordUserRoleRemovedFromRoleGroup(RoleGroup roleGroup, UserRole userRole) {
 		historicOuAssignmentDao.closeAllOpenByRoleGroupIdAndRoleId(roleGroup.getId(), userRole.getId(), LocalDateTime.now());
+	}
+
+	/**
+	 * Recomputes record_hash on one open row, so a row written under an older hash formula can be
+	 * closed again. Only writes when the hash actually drifted.
+	 *
+	 * @return true when the row was rewritten
+	 */
+	@Transactional
+	public boolean repairRecordHash(long id) {
+		HistoricOuAssignment record = historicOuAssignmentDao.findWithExclusionsById(id).orElse(null);
+		if (record == null || record.getValidTo() != null) {
+			return false;
+		}
+
+		String recordHash = computeHash(record);
+		if (recordHash.equals(record.getRecordHash())) {
+			return false;
+		}
+
+		stampOrCloseAsDuplicate(record, recordHash);
+		return true;
+	}
+
+	/** The open historic row this assignment should have right now. */
+	public HistoricOuAssignment toHistoricRecord(OrgUnitUserRoleAssignment assignment) {
+		return fromUserRoleAssignment(assignment.getOrgUnit(), assignment);
+	}
+
+	/** The open historic rows, one per role, this assignment should have right now. */
+	public List<HistoricOuAssignment> toHistoricRecords(OrgUnitRoleGroupAssignment assignment) {
+		return fromRoleGroupAssignment(assignment.getOrgUnit(), assignment);
+	}
+
+	private void closeOpen(HistoricOuAssignment record, LocalDateTime now) {
+		if (historicOuAssignmentDao.closeOpenByRecordHashIn(List.of(record.getRecordHash()), now) > 0) {
+			return;
+		}
+
+		List<String> olderHashes = HistoricOuAssignmentHashCalculator.olderHashes(record);
+		if (!olderHashes.isEmpty()) {
+			historicOuAssignmentDao.closeOpenByRecordHashIn(olderHashes, now);
+		}
+	}
+
+	/** Gives an open row a new hash, or closes it when another open row already has that hash. */
+	public void stampOrCloseAsDuplicate(HistoricOuAssignment record, String recordHash) {
+		if (historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(recordHash)) {
+			// Another open row already holds the repaired hash - stamping this one too would leave two
+			// open rows sharing a hash, and closeOpen would close both. Close this one as
+			// the duplicate instead and leave its old hash, so future events hit the other row.
+			record.setValidTo(LocalDateTime.now());
+		}
+		else {
+			record.setRecordHash(recordHash);
+		}
+
+		historicOuAssignmentDao.save(record);
 	}
 
 	@Transactional
@@ -334,6 +420,16 @@ public class HistoricOuAssignmentService {
 				.build());
 		}
 
+		if (assignment.isContainsExceptedOus() && assignment.getExceptedOus() != null) {
+			List<String> uuids = assignment.getExceptedOus().stream()
+				.map(OrgUnit::getUuid)
+				.toList();
+			exclusions.add(HistoricOuAssignmentExclusion.builder()
+				.exclusionType(ExclusionType.EXCEPTED_OUS)
+				.uuids(uuids)
+				.build());
+		}
+
 		return exclusions;
 	}
 
@@ -376,6 +472,16 @@ public class HistoricOuAssignmentService {
 				.toList();
 			exclusions.add(HistoricOuAssignmentExclusion.builder()
 				.exclusionType(ExclusionType.FUNCTIONS)
+				.uuids(uuids)
+				.build());
+		}
+
+		if (assignment.isContainsExceptedOus() && assignment.getExceptedOus() != null) {
+			List<String> uuids = assignment.getExceptedOus().stream()
+				.map(OrgUnit::getUuid)
+				.toList();
+			exclusions.add(HistoricOuAssignmentExclusion.builder()
+				.exclusionType(ExclusionType.EXCEPTED_OUS)
 				.uuids(uuids)
 				.build());
 		}

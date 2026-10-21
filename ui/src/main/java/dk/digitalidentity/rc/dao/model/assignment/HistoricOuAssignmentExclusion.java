@@ -31,8 +31,16 @@ import java.util.List;
 @AllArgsConstructor
 public class HistoricOuAssignmentExclusion {
 
+	@Getter
 	public enum ExclusionType {
-		EXCEPTED_USERS, POSITIVE_TITLES, NEGATIVE_TITLES, FUNCTIONS
+		EXCEPTED_USERS(1), POSITIVE_TITLES(1), NEGATIVE_TITLES(1), FUNCTIONS(1), EXCEPTED_OUS(2);
+
+		/** The identity version that introduced this type. A new type changes the record hash. */
+		private final int since;
+
+		ExclusionType(int since) {
+			this.since = since;
+		}
 	}
 
 	@Id

@@ -12,6 +12,7 @@ class DuplicateCleanupService {
      * @param {string} config.txtOrderConfirmed notify message shown right after confirming
      * @param {string} config.txtCleanupFailed notify message passed to errorHandler on failure
      * @param {string} config.txtCleanupSucceeded notify message shown on success
+     * @param {string} [config.txtCleanupAlreadyRunning] notify message shown when the server answers 409 because another clean-up is running
      * @param {string} config.txtQueueSpinner message shown in the spinner overlay while draining
      * @param {string} config.btnNo cancel button text
      * @param {string} config.btnYes confirm button text
@@ -24,6 +25,7 @@ class DuplicateCleanupService {
         this.txtOrderConfirmed = config.txtOrderConfirmed;
         this.txtCleanupFailed = config.txtCleanupFailed;
         this.txtCleanupSucceeded = config.txtCleanupSucceeded;
+        this.txtCleanupAlreadyRunning = config.txtCleanupAlreadyRunning;
         this.txtQueueSpinner = config.txtQueueSpinner;
         this.btnNo = config.btnNo;
         this.btnYes = config.btnYes;
@@ -52,8 +54,12 @@ class DuplicateCleanupService {
                     headers: {
                         'X-CSRF-TOKEN': window.token
                     },
-                    error: function () {
+                    error: function (jqXHR) {
                         spinner.stop();
+                        if (jqXHR.status === 409 && self.txtCleanupAlreadyRunning) {
+                            $.notify({ message: self.txtCleanupAlreadyRunning }, { status: 'warning', autoHideDelay: 4000 });
+                            return;
+                        }
                         errorHandler(self.txtCleanupFailed).apply(this, arguments);
                     },
                     success: function () {

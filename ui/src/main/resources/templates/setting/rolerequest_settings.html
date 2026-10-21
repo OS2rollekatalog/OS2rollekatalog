@@ -8,7 +8,7 @@
 
     <section>
         <div class="content-wrapper">
-            <h3 th:text="#{html.setting.rolerequest.title}"></h3>
+            <div th:replace="~{fragments/saveHeader :: saveHeader(title=#{html.setting.rolerequest.title}, formId='setting-form')}"></div>
             <form id="setting-form" class="form-horizontal" method="post" th:action="@{/ui/settings/rolerequest}"
                   th:object="${settingsForm}">
 				<input type="hidden" th:field="*{showRecommendedRolesTab}" />
@@ -16,6 +16,7 @@
 				<input type="hidden" th:field="*{showExistingRolesTab}" />
 				<input type="hidden" th:field="*{showSingleTableInRequestApproveEnabled}" />
 				<input type="hidden" th:field="*{allowSelfApproval}" />
+				<input type="hidden" th:field="*{autoApproveRemoval}" />
 				<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 
                     <!-- REQUESTER SETTINGS -->
@@ -40,7 +41,7 @@
                                        style="padding-top:0;"></label>
 								<div class="col-sm-8">
 									<div style="margin-bottom: 10px;" th:each="requestOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy).values()}"
-										 class="row gap-2 d-flex">
+										 class="row">
 										<th:block th:unless="${requestOpt.name() == 'INHERIT'}">
 											<input th:id="${'request_'+ requestOpt}" class="i-checks requesterSetting" type="checkbox"
 												   th:value="${requestOpt}" name="approver" style="width:3rem;"
@@ -165,7 +166,7 @@
                                        style="padding-top:0px;"></label>
 								<div class="col-sm-8">
 									<div style="margin-bottom: 10px;" th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
-										 class="row gap-2 d-flex">
+										 class="row">
 										<th:block th:unless="${approverOpt.name() == 'INHERIT'}">
 											<input th:id="${'approver_'+ approverOpt}" class="i-checks approverSetting" type="checkbox"
 												   th:value="${approverOpt}" name="approver" style="width:3rem;"
@@ -202,6 +203,20 @@
 								</div>
                             </div>
                         </fieldset>
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.setting.rolerequest.autoApproveRemoval.label}"></label>
+								<div class="col-sm-8 row">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="auto-approve-removal-checkbox" type="checkbox" th:attr="checked=${settingsForm.autoApproveRemoval}" />
+											<span class="fa fa-check"></span>
+										</label>
+										<a th:replace="~{fragments/help :: help (title=#{html.setting.rolerequest.autoApproveRemoval.label}, content=#{html.setting.rolerequest.autoApproveRemoval.explainer})}"></a>
+									</div>
+								</div>
+							</div>
+						</fieldset>
                     </div>
                 </div>
 
@@ -256,19 +271,6 @@
                     </div>
                 </div>
 
-                <div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
-                    <div class="panel-heading"></div>
-                    <div class="panel-body">
-                        <fieldset>
-                            <div class="form-group">
-                                <div class="col-md-offset-1 col-md-10">
-                                    <button type="submit" class="btn btn-primary btn-block"
-                                            th:text="#{html.control.button.save}"></button>
-                                </div>
-                            </div>
-                        </fieldset>
-                    </div>
-                </div>
             </form>
         </div>
     </section>

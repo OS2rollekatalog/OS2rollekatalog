@@ -399,6 +399,92 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 	}
 
 	/**
+	 * Tests that posting assignmentType=USER_ROLE to the /rolegroup endpoint fails with a
+	 * clean 400 error naming the expected value, instead of Jackson's raw internal parse error.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return clean 400 when assignmentType=USER_ROLE is posted to /rolegroup endpoint")
+	void testCreateRoleGroupAssignment_WithMismatchedAssignmentType() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+
+		RoleGroup roleGroup = roleGroupService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No role group found"));
+		long roleGroupId = roleGroup.getId();
+		String orgUnitUuid = orgUnit.getUuid();
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "USER_ROLE",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"roleGroup": {
+					"id": %d
+				},
+				"inherit": false,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": []
+			}
+			""", orgUnitUuid, roleGroupId);
+
+		this.mockMvc.perform(post("/api/v2/organisation/assignment/rolegroup")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("Invalid assignmentType 'USER_ROLE' for this endpoint. Expected 'ROLE_GROUP'."));
+	}
+
+	/**
+	 * Same bug, mirrored: assignmentType=ROLE_GROUP posted to /userrole must also fail with
+	 * a clean 400 error rather than Jackson's raw internal parse error.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return clean 400 when assignmentType=ROLE_GROUP is posted to /userrole endpoint")
+	void testCreateUserRoleAssignment_WithMismatchedAssignmentType() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+
+		UserRole userRole = userRoleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No user role found"));
+		long userRoleId = userRole.getId();
+		String orgUnitUuid = orgUnit.getUuid();
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "ROLE_GROUP",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"userRole": {
+					"id": %d
+				},
+				"inherit": false,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": []
+			}
+			""", orgUnitUuid, userRoleId);
+
+		this.mockMvc.perform(post("/api/v2/organisation/assignment/userrole")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("Invalid assignmentType 'ROLE_GROUP' for this endpoint. Expected 'USER_ROLE'."));
+	}
+
+	/**
 	 * Tests retrieval of a single user role assignment by its ID.
 	 * <p>
 	 * Verifies that:
@@ -1612,4 +1698,28 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 		assertThat(response.getPath()).isEqualTo("/api/v2/organisation/assignment/rolegroup");
 	}
 
+
+	/**
+	 * Tests that the generated OpenAPI schema for each assignment subtype only lists its own
+	 * valid assignmentType value, instead of both USER_ROLE and ROLE_GROUP on both endpoints.
+	 *
+	 * @throws Exception if HTTP request fails
+	 */
+	@Test
+	@DisplayName("Should document only the valid assignmentType value per subtype in the OpenAPI schema")
+	void testOpenApiSchema_AssignmentTypeAllowedValuesArePerSubtype() throws Exception {
+		MvcResult result = this.mockMvc.perform(get("/v3/api-docs")).andReturn();
+
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode schemas = mapper.readTree(result.getResponse().getContentAsString())
+			.path("components").path("schemas");
+
+		JsonNode roleGroupAssignmentType = schemas.path("RoleGroupAssignment").path("properties").path("assignmentType");
+		assertThat(roleGroupAssignmentType.path("enum")).extracting(JsonNode::asText).containsExactly("ROLE_GROUP");
+		assertThat(roleGroupAssignmentType.path("example").asText()).isEqualTo("ROLE_GROUP");
+
+		JsonNode userRoleAssignmentType = schemas.path("UserRoleAssignment").path("properties").path("assignmentType");
+		assertThat(userRoleAssignmentType.path("enum")).extracting(JsonNode::asText).containsExactly("USER_ROLE");
+		assertThat(userRoleAssignmentType.path("example").asText()).isEqualTo("USER_ROLE");
+	}
 }

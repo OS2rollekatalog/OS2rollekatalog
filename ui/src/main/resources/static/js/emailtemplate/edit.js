@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     confirmButtonColor: "#4765a0",
                     confirmButtonText: swalImageOk
                 });
+            },
+            onChange: function () {
+                window.unsavedChangesService.setChangesMade();
             }
         },
         dialogsInBody: true
@@ -39,6 +42,11 @@ document.addEventListener('DOMContentLoaded', function () {
             ["font", ["bold", "italic", "underline"]],
             ["view", ["codeview"]]
         ],
+        callbacks: {
+            onChange: function () {
+                window.unsavedChangesService.setChangesMade();
+            }
+        },
         dialogsInBody: true
     });
 
@@ -46,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $("input[name=enabled]").val(this.checked);
     });
 
-    $('#buttonSubmit').on('click', function () {
+    $('.js-page-save').on('click', function () {
         const data = getFormData($('#templateForm'));
         save(data, false);
     });
@@ -75,6 +83,8 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             data: JSON.stringify(payload)
         }).done(function (data) {
+            window.unsavedChangesService.reset();
+
             if (data !== '') {
                 $.notify({ message: data }, { status: 'success', autoHideDelay: 2000 });
             } else {

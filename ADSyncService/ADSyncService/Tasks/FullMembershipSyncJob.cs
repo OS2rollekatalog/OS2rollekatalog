@@ -23,7 +23,14 @@ namespace ADSyncService
 
         public void Execute(IJobExecutionContext context)
         {
-            bool fullMembershipSyncEnabled = remoteConfiguration.GetConfiguration().fullMembershipSyncFeatureEnabled;
+            RemoteConfiguration configuration = remoteConfiguration.GetConfigurationIfAvailable();
+            if (configuration == null)
+            {
+                log.Error("FullMembershipSyncJob skipped: no valid configuration");
+                return;
+            }
+
+            bool fullMembershipSyncEnabled = configuration.fullMembershipSyncFeatureEnabled;
             log.Info("fullMembershipSyncEnabled: " + fullMembershipSyncEnabled);
 
             if (fullMembershipSyncEnabled)

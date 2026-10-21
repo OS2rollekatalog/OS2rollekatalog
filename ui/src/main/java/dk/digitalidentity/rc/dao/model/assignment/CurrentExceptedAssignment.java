@@ -55,6 +55,9 @@ public class CurrentExceptedAssignment {
 	private LocalDate stopDate;
 	private LocalDateTime createdAt;
 
+	/** When the org unit assignment was made. Kept out of the record hash, see CurrentAssignment. */
+	private LocalDateTime assignedWhen;
+
 	public String generateRecordHash() {
 		int hashValue = Objects.hash(
 			exceptionUserUuid,

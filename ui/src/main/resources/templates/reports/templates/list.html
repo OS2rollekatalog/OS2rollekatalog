@@ -23,7 +23,6 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 							<th class="col-md-1" th:text="#{html.page.report.column.user}"></th>
 							<th class="col-md-1" th:text="#{html.page.report.column.ou}"></th>
 							<th class="col-md-1" th:text="#{html.page.report.column.userrole}"></th>
-							<th class="col-md-1" th:text="#{html.page.report.column.kle}"></th>
 							<th class="col-md-2" th:text="#{html.page.report.column.itsystem}"></th>
 							<th class="col-md-2" th:text="#{html.page.report.column.show.inactive}"></th>
 							<th class="col-md-2" th:text="#{html.page.report.column.show.systemroles}"></th>
@@ -42,9 +41,6 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 							</td>
 							<td>
 								<i th:if="${reportTemplate.showUserRoles}" class="fa fa-check"></i>
-							</td>
-							<td>
-								<i th:if="${reportTemplate.showKLE}" class="fa fa-check"></i>
 							</td>
 							<td>
 								<i th:if="${reportTemplate.showItSystems}" class="fa fa-check"></i>

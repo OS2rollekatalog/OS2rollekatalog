@@ -20,6 +20,7 @@ import dk.digitalidentity.rc.attestation.service.tracker.AttestationRunTrackerSe
 import dk.digitalidentity.rc.attestation.service.tracker.ItSystemAttestationTrackerService;
 import dk.digitalidentity.rc.attestation.service.tracker.UserAttestationTrackerService;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.SettingsService;
 import io.micrometer.core.annotation.Timed;
@@ -63,14 +64,12 @@ public class AttestationTask {
     @Autowired
     private HistoryService historyService;
 
-//    @Autowired
-//    private Flyway flyway;
-
 	@Autowired
 	private UserAssignmentsUpdaterJdbc userAssignmentsUpdaterJdbc;
 
 	@Timed(longTask = true, value = "attestation.finish_outstanding_task.timer")
-    @Scheduled(cron = "${rc.attestation.finish_outstanding_cron}")
+    @Scheduled(cron = "${rc.attestation.finish_outstanding_cron:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 6 * * *}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
     public void finishOutstandingAttestations() {
         // This task will look through unfinished attestestations and finish them in case they are done
         if (!configuration.getScheduled().isEnabled()) {
@@ -92,8 +91,8 @@ public class AttestationTask {
     }
 
     @Timed(longTask = true, value = "attestation.attestation_task.timer")
-    @Scheduled(cron = "${rc.attestation.attestation_cron}")
-	//@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
+    @Scheduled(cron = "${rc.attestation.attestation_cron:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 5 * * *}")
+    @WarnIfSlowerThan(millis = 3 * 60 * 1000)
 	public void updateAttestation() {
         if (!configuration.getScheduled().isEnabled()) {
             return;
@@ -120,20 +119,6 @@ public class AttestationTask {
                 throw new AttestationDataUpdaterException("Cannot update attestation more than once pr. day");
             }
 
-            /*
-             * KBP i mail til BSG: Tror godt du kan slette den, den kan godt ske at blive relevant igen (den genberegner hashes)
-             * der var en overgang vi ændrede en i tabellerne, men det gør vi ikke mere, så tænker det ok at slette den.
-             *
-             
-            // if flyway installRank is strictly greater than the last recorded installedRank in settings,
-            // it updates all the ou hash values but not any other values.
-            MigrationInfo[] version = flyway.info().applied();
-            if (version.length > 0 && version[version.length-1].getInstalledRank() > settingsService.getCurrentInstalledRank()) {
-                ouAssignmentsUpdaterJdbc.updateAllOuHashOnly(now);
-                settingsService.setCurrentInstalledRank(version[version.length-1].getInstalledRank());
-            }
-            */
-
             updateAssignments(now);
             updateTrackers(now);
             settingsService.setScheduledAttestationLastRun(new Date());
@@ -149,17 +134,24 @@ public class AttestationTask {
     }
 
     private void updateTrackers(LocalDate now) throws Exception {
+    	log.info("starting migrateAttestationsWithoutRun");
         attestationRunTrackerService.migrateAttestationsWithoutRun();
+        log.info("starting updateRuns");
         attestationRunTrackerService.updateRuns(now);
+        log.info("starting updateSystemUserAttestations");
         userAttestationTracker.updateSystemUserAttestations(now);
+        log.info("starting updateOrganisationUserAttestations");
         userAttestationTracker.updateOrganisationUserAttestations(now);
+        log.info("starting updateItSystemRolesAttestations");
         systemAttestationTracker.updateItSystemRolesAttestations(now);
     }
 
     private void updateAssignments(LocalDate now) {
+    	log.info("starting updateOuAssignments");
         ouAssignmentsUpdaterJdbc.updateOuAssignments(now);
+        log.info("starting updateUserRoleAssignments");
 		userAssignmentsUpdaterJdbc.updateUserRoleAssignments(now);
+		log.info("starting updateItSystemAssignments");
         systemRoleAssignmentsUpdaterJdbc.updateItSystemAssignments(now);
     }
-
 }

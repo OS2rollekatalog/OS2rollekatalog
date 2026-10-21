@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentExceptedAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -19,7 +20,7 @@ public abstract class CurrentExceptedAssignmentMapper {
 
 
 	public static CurrentExceptedAssignment toAssignmentException(User user, Title title, OrgUnitUserRoleAssignment assignmentException, OrgUnit positionOrgUnit) {
-		CurrentExceptedAssignment currentExceptedAssignment = toAssignmentException(user, assignmentException.getUserRole(), null, assignmentException.getOrgUnit(), ContainsTitles.NO.equals(assignmentException.getContainsTitles()) ? null : title, assignmentException.getId(), assignmentException.getAssignedByName(), assignmentException.getAssignedByUserId(), positionOrgUnit);
+		CurrentExceptedAssignment currentExceptedAssignment = toAssignmentException(user, assignmentException.getUserRole(), null, assignmentException.getOrgUnit(), ContainsTitles.NO.equals(assignmentException.getContainsTitles()) ? null : title, assignmentException.getId(), assignmentException.getAssignedByName(), assignmentException.getAssignedByUserId(), positionOrgUnit, assignmentException.getAssignedTimestamp());
 
 		currentExceptedAssignment.setRecordHash(currentExceptedAssignment.generateRecordHash());
 		return currentExceptedAssignment;
@@ -28,7 +29,7 @@ public abstract class CurrentExceptedAssignmentMapper {
 	public static Set<CurrentExceptedAssignment> toAssignmentException(User user, Title title, OrgUnitRoleGroupAssignment assignmentException, OrgUnit positionOrgUnit) {
 		Set<CurrentExceptedAssignment> assignmentExceptions = new HashSet<>();
 		for (RoleGroupUserRoleAssignment assignment : assignmentException.getRoleGroup().getUserRoleAssignments()) {
-			CurrentExceptedAssignment currentExceptedAssignment = toAssignmentException(user, assignment.getUserRole(), assignment.getRoleGroup(), assignmentException.getOrgUnit(), ContainsTitles.NO.equals(assignmentException.getContainsTitles()) ? null : title, assignmentException.getId(), assignmentException.getAssignedByName(), assignmentException.getAssignedByUserId(), positionOrgUnit);
+			CurrentExceptedAssignment currentExceptedAssignment = toAssignmentException(user, assignment.getUserRole(), assignment.getRoleGroup(), assignmentException.getOrgUnit(), ContainsTitles.NO.equals(assignmentException.getContainsTitles()) ? null : title, assignmentException.getId(), assignmentException.getAssignedByName(), assignmentException.getAssignedByUserId(), positionOrgUnit, assignmentException.getAssignedTimestamp());
 
 			currentExceptedAssignment.setRecordHash(currentExceptedAssignment.generateRecordHash());
 			assignmentExceptions.add(currentExceptedAssignment);
@@ -36,7 +37,7 @@ public abstract class CurrentExceptedAssignmentMapper {
 		return assignmentExceptions;
 	}
 
-	private static CurrentExceptedAssignment toAssignmentException(User user, UserRole userRole, RoleGroup roleGroup, OrgUnit orgUnit, Title title, long assignmentId, String assignedByName, String assignedByUserId, OrgUnit positionOrgUnit) {
+	private static CurrentExceptedAssignment toAssignmentException(User user, UserRole userRole, RoleGroup roleGroup, OrgUnit orgUnit, Title title, long assignmentId, String assignedByName, String assignedByUserId, OrgUnit positionOrgUnit, Date assignedTimestamp) {
 		CurrentExceptedAssignment currentExceptedAssignment = new CurrentExceptedAssignment();
 		currentExceptedAssignment.setExceptionAssignmentId(assignmentId);
 		currentExceptedAssignment.setExceptionUserUuid(user.getUuid());
@@ -56,6 +57,7 @@ public abstract class CurrentExceptedAssignmentMapper {
 		currentExceptedAssignment.setResponsibleOUUuid(positionOrgUnit != null ? positionOrgUnit.getUuid() : null);
 		currentExceptedAssignment.setAssignedBy(assignedByName + " (" + assignedByUserId + ")");
 		currentExceptedAssignment.setCreatedAt(LocalDateTime.now());
+		currentExceptedAssignment.setAssignedWhen(CurrentAssignmentMapper.toLocalDateTime(assignedTimestamp));
 
 		currentExceptedAssignment.setRecordHash(currentExceptedAssignment.generateRecordHash());
 		return currentExceptedAssignment;

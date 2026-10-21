@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task.assignment;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.HistoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,7 @@ public class HistoryRoleAssignmentsTask {
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 2 * * ?")
 	// enable this to execute script at bootup
 //	@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 5 * 60 * 1000)
 	public void generateHistory() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getScheduled().getHistory().isEnabled()) {
@@ -42,7 +44,6 @@ public class HistoryRoleAssignmentsTask {
 		historyService.generateItSytemHistory();
 		historyService.generateRoleAssignmentHistory();
 		historyService.generateKleAssignmentHistory();
-		historyService.generateOURoleAssignmentHistory();
 		historyService.generateManagerDelegateHistory();
 
 		// Keep this last, so we can se what dates the generation where successful
@@ -52,6 +53,7 @@ public class HistoryRoleAssignmentsTask {
 	}
 
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 5 * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void deleteAncientHistory() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getScheduled().getHistory().isEnabled()) {

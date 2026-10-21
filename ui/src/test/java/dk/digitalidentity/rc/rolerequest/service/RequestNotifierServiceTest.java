@@ -1,5 +1,9 @@
 package dk.digitalidentity.rc.rolerequest.service;
 
+import org.springframework.test.util.ReflectionTestUtils;
+import org.junit.jupiter.api.BeforeEach;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.service.permission.ApprovableRequestService;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
@@ -45,8 +49,8 @@ import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createOr
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createUserRole;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -65,11 +69,19 @@ class RequestNotifierServiceTest {
     @Mock private ItSystemService itSystemService;
     @Mock private RequestAuthorizedRoleService requestAuthorizedRoleService;
     @Mock private AssignmentService assignmentService;
-    @Mock private RequestApproverResolver requestApproverResolver;
+    @Mock private ApprovableRequestService approvableRequestService;
     @Mock private ManagerSubstituteService managerSubstituteService;
+
+    private static final long REQUEST_ID = 1L;
 
     @InjectMocks
     private RequestNotifierService service;
+
+    @BeforeEach
+    void wireCandidates() {
+        ReflectionTestUtils.setField(service, "approverCandidates", new ApproverCandidates(
+                settingsService, orgUnitService, managerSubstituteService, itSystemService, systemRoleService, userRoleService, assignmentService));
+    }
 
     // ---- Helpers ---- //
 
@@ -85,8 +97,9 @@ class RequestNotifierServiceTest {
     private static RoleRequest systemResponsibleRequest(ItSystem itSystem) {
         UserRole userRole = createUserRole(null, itSystem, List.of(ApprovableBy.SYSTEMRESPONSIBLE));
         return RoleRequest.builder()
+                .id(REQUEST_ID)
                 .userRole(userRole)
-                .approverOption(List.of(ApprovableBy.SYSTEMRESPONSIBLE))
+                .approverOption(ApproverPermission.of(List.of(ApprovableBy.SYSTEMRESPONSIBLE)))
                 .status(RequestApproveStatus.REQUESTED)
                 .emailSent(false)
                 .build();
@@ -106,12 +119,11 @@ class RequestNotifierServiceTest {
 
             RoleRequest request = systemResponsibleRequest(itSystem);
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             when(itSystemService.getAttestationResponsibles(itSystem)).thenReturn(List.of(owner1, owner2));
-            when(requestApproverResolver.canApprove(request, owner1)).thenReturn(true);
-            when(requestApproverResolver.canApprove(request, owner2)).thenReturn(true);
+            when(approvableRequestService.emailRecipientAmong(eq(owner1), anyCollection())).thenReturn(Set.of(REQUEST_ID));
+            when(approvableRequestService.emailRecipientAmong(eq(owner2), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
 
@@ -132,11 +144,10 @@ class RequestNotifierServiceTest {
 
             RoleRequest request = systemResponsibleRequest(itSystem);
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             when(itSystemService.getAttestationResponsibles(itSystem)).thenReturn(List.of(owner));
-            when(requestApproverResolver.canApprove(request, owner)).thenReturn(true);
+            when(approvableRequestService.emailRecipientAmong(eq(owner), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
 
@@ -154,9 +165,8 @@ class RequestNotifierServiceTest {
 
             RoleRequest request = systemResponsibleRequest(itSystem);
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             when(settingsService.getRequestApproveServicedeskEmail()).thenReturn(null);
 
             service.sendMailToRoleAssignerOnce();
@@ -174,11 +184,10 @@ class RequestNotifierServiceTest {
 
             RoleRequest request = systemResponsibleRequest(itSystem);
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             when(itSystemService.getAttestationResponsibles(itSystem)).thenReturn(List.of(ownerWithEmail, ownerNoEmail));
-            when(requestApproverResolver.canApprove(request, ownerWithEmail)).thenReturn(true);
+            when(approvableRequestService.emailRecipientAmong(eq(ownerWithEmail), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
 
@@ -214,20 +223,20 @@ class RequestNotifierServiceTest {
 
             UserRole userRole = createUserRole(null, createItSystem("sys-uuid", List.of(ApprovableBy.AUTHRESPONSIBLE)), List.of(ApprovableBy.AUTHRESPONSIBLE));
             RoleRequest request = RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
                     .orgUnit(orgUnit)
                     .receiver(receiver)
                     .requester(requesterAuthManager)
-                    .approverOption(List.of(ApprovableBy.AUTHRESPONSIBLE))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.AUTHRESPONSIBLE)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.AUTHRESPONSIBLE));
-            when(requestApproverResolver.canApprove(request, requesterAuthManager)).thenReturn(false);
-            when(requestApproverResolver.canApprove(request, otherAuthManager)).thenReturn(true);
+            when(approvableRequestService.emailRecipientAmong(eq(requesterAuthManager), anyCollection())).thenReturn(Set.of());
+            when(approvableRequestService.emailRecipientAmong(eq(otherAuthManager), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
 
@@ -256,17 +265,17 @@ class RequestNotifierServiceTest {
 
             UserRole userRole = createUserRole(null, createItSystem("sys-uuid", List.of(ApprovableBy.AUTHRESPONSIBLE)), List.of(ApprovableBy.AUTHRESPONSIBLE));
             RoleRequest request = RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
                     .orgUnit(orgUnit)
                     .receiver(receiver)
-                    .approverOption(List.of(ApprovableBy.AUTHRESPONSIBLE))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.AUTHRESPONSIBLE)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.AUTHRESPONSIBLE));
             when(settingsService.getRequestApproveServicedeskEmail()).thenReturn(null);
 
             service.sendMailToRoleAssignerOnce();
@@ -294,18 +303,18 @@ class RequestNotifierServiceTest {
 
             UserRole userRole = createUserRole(null, createItSystem("sys-uuid", List.of(ApprovableBy.AUTHRESPONSIBLE)), List.of(ApprovableBy.AUTHRESPONSIBLE));
             RoleRequest request = RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
                     .orgUnit(requestOrgUnit)
                     .receiver(receiver)
-                    .approverOption(List.of(ApprovableBy.AUTHRESPONSIBLE))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.AUTHRESPONSIBLE)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.AUTHRESPONSIBLE));
-            when(requestApproverResolver.canApprove(request, realApprover)).thenReturn(true);
+            when(approvableRequestService.emailRecipientAmong(eq(realApprover), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
 
@@ -330,19 +339,19 @@ class RequestNotifierServiceTest {
 
             UserRole userRole = createUserRole(null, createItSystem("sys-uuid", List.of(ApprovableBy.MANAGERORSUBSTITUTE)), List.of(ApprovableBy.MANAGERORSUBSTITUTE));
             RoleRequest request = RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
                     .orgUnit(childOu)
-                    .approverOption(List.of(ApprovableBy.MANAGERORSUBSTITUTE))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.MANAGERORSUBSTITUTE)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.MANAGERORSUBSTITUTE));
             when(orgUnitService.getEffectiveApprover(childOu, null)).thenReturn(new EffectiveApprover(parentManager, parentOu));
             when(managerSubstituteService.getSubstitutesForOrgUnit(parentOu)).thenReturn(List.of());
-            when(requestApproverResolver.canApprove(request, parentManager)).thenReturn(true);
+            when(approvableRequestService.emailRecipientAmong(eq(parentManager), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
 
@@ -361,17 +370,17 @@ class RequestNotifierServiceTest {
 
             UserRole userRole = createUserRole(null, createItSystem("sys-uuid", List.of(ApprovableBy.MANAGERORSUBSTITUTE)), List.of(ApprovableBy.MANAGERORSUBSTITUTE));
             RoleRequest request = RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
                     .orgUnit(orgUnit)
                     .receiver(receiverManager)
-                    .approverOption(List.of(ApprovableBy.MANAGERORSUBSTITUTE))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.MANAGERORSUBSTITUTE)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.MANAGERORSUBSTITUTE));
             when(orgUnitService.getEffectiveApprover(orgUnit, receiverManager)).thenReturn(null);
             when(settingsService.getRequestApproveServicedeskEmail()).thenReturn(null);
 
@@ -387,8 +396,9 @@ class RequestNotifierServiceTest {
 
         private RoleRequest authorizedRequest(ItSystem itSystem, UserRole userRole) {
             return RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
-                    .approverOption(List.of(ApprovableBy.AUTHORIZED))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.AUTHORIZED)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
@@ -421,19 +431,16 @@ class RequestNotifierServiceTest {
             RoleRequest request = authorizedRequest(itSystem, userRole);
             request.setRequester(requesterAuthorized);
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.AUTHORIZED));
-            when(requestApproverResolver.isItSystemAccessAllowed(any(), any())).thenReturn(true);
-            when(requestApproverResolver.isOuAccessAllowed(any(), any())).thenReturn(true);
 
             ItSystem roleCatalogueSystem = createItSystem("rc-uuid", List.of());
             roleCatalogueSystem.setId(99L);
             SystemRole requestAuthorizedRole = new SystemRole();
             stubAuthorizedRoleLookup(roleCatalogueSystem, requestAuthorizedRole, List.of(requesterAuthorized, otherAuthorized));
 
-            when(requestApproverResolver.canApprove(request, requesterAuthorized)).thenReturn(false);
-            when(requestApproverResolver.canApprove(request, otherAuthorized)).thenReturn(true);
+            when(approvableRequestService.emailRecipientAmong(eq(requesterAuthorized), anyCollection())).thenReturn(Set.of());
+            when(approvableRequestService.emailRecipientAmong(eq(otherAuthorized), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
 
@@ -455,18 +462,15 @@ class RequestNotifierServiceTest {
             RoleRequest request = authorizedRequest(itSystem, userRole);
             request.setReceiver(receiverAuthorized);
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.AUTHORIZED));
-            when(requestApproverResolver.isItSystemAccessAllowed(any(), any())).thenReturn(true);
-            when(requestApproverResolver.isOuAccessAllowed(any(), any())).thenReturn(true);
 
             ItSystem roleCatalogueSystem = createItSystem("rc-uuid", List.of());
             roleCatalogueSystem.setId(99L);
             SystemRole requestAuthorizedRole = new SystemRole();
             stubAuthorizedRoleLookup(roleCatalogueSystem, requestAuthorizedRole, List.of(receiverAuthorized));
 
-            when(requestApproverResolver.canApprove(request, receiverAuthorized)).thenReturn(false);
+            when(approvableRequestService.emailRecipientAmong(eq(receiverAuthorized), anyCollection())).thenReturn(Set.of());
             when(settingsService.getRequestApproveServicedeskEmail()).thenReturn(null);
 
             service.sendMailToRoleAssignerOnce();
@@ -485,8 +489,9 @@ class RequestNotifierServiceTest {
             ItSystem itSystem = createItSystem("sys-uuid", List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             UserRole userRole = createUserRole(null, itSystem, List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             RoleRequest request = RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
-                    .approverOption(List.of(ApprovableBy.SYSTEMRESPONSIBLE))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.SYSTEMRESPONSIBLE)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
@@ -500,12 +505,11 @@ class RequestNotifierServiceTest {
                 owners.add(makeUser("uuid-" + suffix, "owner" + suffix + "@example.com", "Owner " + suffix));
             }
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
-            when(requestApproverResolver.resolveEffectiveOptions(request)).thenReturn(List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             when(itSystemService.getAttestationResponsibles(itSystem)).thenReturn(owners);
             for (User owner : owners) {
-                when(requestApproverResolver.canApprove(request, owner)).thenReturn(true);
+                when(approvableRequestService.emailRecipientAmong(eq(owner), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             }
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
@@ -531,8 +535,9 @@ class RequestNotifierServiceTest {
             ItSystem itSystem = createItSystem("sys-uuid", List.of(ApprovableBy.SYSTEMRESPONSIBLE));
             UserRole userRole = createUserRole(null, itSystem, List.of(ApprovableBy.AUTHORIZED, ApprovableBy.SYSTEMRESPONSIBLE));
             RoleRequest request = RoleRequest.builder()
+                    .id(REQUEST_ID)
                     .userRole(userRole)
-                    .approverOption(List.of(ApprovableBy.AUTHORIZED, ApprovableBy.SYSTEMRESPONSIBLE))
+                    .approverOption(ApproverPermission.of(List.of(ApprovableBy.AUTHORIZED, ApprovableBy.SYSTEMRESPONSIBLE)))
                     .status(RequestApproveStatus.REQUESTED)
                     .emailSent(false)
                     .build();
@@ -543,14 +548,12 @@ class RequestNotifierServiceTest {
                 owners.add(makeUser("uuid-" + suffix, "aaaa" + suffix + "@example.com", "Owner " + suffix));
             }
 
-            when(roleRequestDao.findByStatusInAndEmailSent(anyCollection(), anyBoolean())).thenReturn(List.of(request));
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(request));
             when(settingsService.getRoleRequestApproverEmails())
                     .thenReturn(java.util.Map.of(ApprovableBy.AUTHORIZED, "servicedesk@example.com"));
-            when(requestApproverResolver.resolveEffectiveOptions(request))
-                    .thenReturn(List.of(ApprovableBy.AUTHORIZED, ApprovableBy.SYSTEMRESPONSIBLE));
             when(itSystemService.getAttestationResponsibles(itSystem)).thenReturn(owners);
             for (User owner : owners) {
-                when(requestApproverResolver.canApprove(request, owner)).thenReturn(true);
+                when(approvableRequestService.emailRecipientAmong(eq(owner), anyCollection())).thenReturn(Set.of(REQUEST_ID));
             }
             when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
             when(roleRequestDao.saveAll(any())).thenReturn(List.of(request));
@@ -560,6 +563,83 @@ class RequestNotifierServiceTest {
             ArgumentCaptor<String> emailCaptor = ArgumentCaptor.forClass(String.class);
             verify(emailQueueService, times(10)).queueEmail(emailCaptor.capture(), any(), any(), any(), any(), any());
             assertThat(emailCaptor.getAllValues()).contains("servicedesk@example.com");
+        }
+    }
+    @Nested
+    @DisplayName("sendMailToRoleAssignerOnce — batching")
+    class Batching {
+
+        private RoleRequest request(long id, ItSystem itSystem, ApprovableBy approverType) {
+            return RoleRequest.builder()
+                    .id(id)
+                    .userRole(createUserRole(null, itSystem, List.of(approverType)))
+                    .approverOption(ApproverPermission.of(List.of(approverType)))
+                    .status(RequestApproveStatus.REQUESTED)
+                    .emailSent(false)
+                    .build();
+        }
+
+        @Test
+        @DisplayName("asks each candidate once for the whole batch, and looks up the authorized users once")
+        void oncePerCandidate() {
+            // ---- Given ---- //
+            User authorized1 = makeUser("uuid-1", "one@example.com", "One");
+            User authorized2 = makeUser("uuid-2", "two@example.com", "Two");
+            ItSystem itSystem = createItSystem("sys-uuid", List.of(ApprovableBy.AUTHORIZED));
+            List<RoleRequest> requests = List.of(
+                    request(1L, itSystem, ApprovableBy.AUTHORIZED),
+                    request(2L, itSystem, ApprovableBy.AUTHORIZED),
+                    request(3L, itSystem, ApprovableBy.AUTHORIZED));
+
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(requests);
+            when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
+            ItSystem roleCatalogueSystem = createItSystem("rc-uuid", List.of());
+            roleCatalogueSystem.setId(99L);
+            SystemRole requestAuthorizedRole = new SystemRole();
+            when(itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER)).thenReturn(roleCatalogueSystem);
+            when(systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_REQUESTAUTHORIZED, 99L)).thenReturn(requestAuthorizedRole);
+            UserRole authorizedUserRole = new UserRole();
+            when(userRoleService.findAllBySystemRole(requestAuthorizedRole)).thenReturn(Set.of(authorizedUserRole));
+            CurrentAssignment assignment1 = new CurrentAssignment();
+            assignment1.setUser(authorized1);
+            CurrentAssignment assignment2 = new CurrentAssignment();
+            assignment2.setUser(authorized2);
+            when(assignmentService.getActiveByUserRole(authorizedUserRole)).thenReturn(Set.of(assignment1, assignment2));
+            when(approvableRequestService.emailRecipientAmong(eq(authorized1), anyCollection())).thenReturn(Set.of(1L, 2L, 3L));
+            when(approvableRequestService.emailRecipientAmong(eq(authorized2), anyCollection())).thenReturn(Set.of(1L, 2L, 3L));
+            when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
+
+            // ---- When ---- //
+            service.sendMailToRoleAssignerOnce();
+
+            // ---- Then ---- //
+            verify(approvableRequestService, times(1)).emailRecipientAmong(eq(authorized1), anyCollection());
+            verify(approvableRequestService, times(1)).emailRecipientAmong(eq(authorized2), anyCollection());
+            verify(userRoleService, times(1)).findAllBySystemRole(requestAuthorizedRole);
+        }
+
+        @Test
+        @DisplayName("does not email a candidate about a request they cannot approve, even if they can approve another one")
+        void candidateOnlyForApprovableRequests() {
+            // ---- Given ---- //
+            User owner = makeUser("uuid-1", "owner@example.com", "Owner");
+            ItSystem ownedSystem = createItSystem("owned-uuid", List.of(ApprovableBy.SYSTEMRESPONSIBLE));
+            ItSystem otherSystem = createItSystem("other-uuid", List.of(ApprovableBy.SYSTEMRESPONSIBLE));
+            RoleRequest ownedRequest = request(1L, ownedSystem, ApprovableBy.SYSTEMRESPONSIBLE);
+            RoleRequest otherRequest = request(2L, otherSystem, ApprovableBy.SYSTEMRESPONSIBLE);
+
+            when(roleRequestDao.findPendingForApprovalEmails(false)).thenReturn(List.of(ownedRequest, otherRequest));
+            when(settingsService.getRoleRequestApproverEmails()).thenReturn(java.util.Collections.emptyMap());
+            when(itSystemService.getAttestationResponsibles(ownedSystem)).thenReturn(List.of(owner));
+            when(itSystemService.getAttestationResponsibles(otherSystem)).thenReturn(List.of());
+            when(approvableRequestService.emailRecipientAmong(eq(owner), anyCollection())).thenReturn(Set.of(2L));
+            when(emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS)).thenReturn(enabledTemplate());
+
+            // ---- When ---- //
+            service.sendMailToRoleAssignerOnce();
+
+            // ---- Then ---- //
+            verify(emailQueueService, times(0)).queueEmail(eq("owner@example.com"), any(), any(), any(), any(), any());
         }
     }
 }

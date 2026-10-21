@@ -5,11 +5,8 @@ import lombok.Getter;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 
-import java.util.List;
-
 @Getter
 public enum RequestableBy {
-	// IMPORTANT! these names must not overlap, so contains in SQL returns false positives.
 	INHERIT("html.enum.sttings.requestableby.inherit"),
 	EMPLOYEE("html.enum.sttings.requestableby.employee"),
 	MANAGERORSUBSTITUTE("html.enum.sttings.requestableby.manager"),
@@ -26,12 +23,5 @@ public enum RequestableBy {
 	public String getDisplayName() {
 		MessageSource messageSource = ApplicationContextProvider.getBean(MessageSource.class);
 		return messageSource.getMessage(this.message, null, LocaleContextHolder.getLocale());
-	}
-
-	/**
-	 * An empty permission list means the same thing as an explicit NONE - nobody may request.
-	 */
-	public static boolean isNoneOrEmpty(List<RequestableBy> permission) {
-		return permission == null || permission.isEmpty() || permission.contains(NONE);
 	}
 }

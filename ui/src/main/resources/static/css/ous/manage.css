@@ -1,8 +1,3 @@
-.table .checkbox {
-	margin-left: 10px;
-	width: auto;
-}
-
 .autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
 .autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
 .autocomplete-selected { background: #F0F0F0; }

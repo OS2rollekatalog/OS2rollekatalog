@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.task.assignment;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.assignment.HistoricOuAssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +56,7 @@ public class SeedHistoricOuAssignmentsTask {
 	private final Set<Long> permanentlyFailedRoleGroup = new HashSet<>();
 
 	@Scheduled(fixedDelay = 30_000)
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void seedChunk() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

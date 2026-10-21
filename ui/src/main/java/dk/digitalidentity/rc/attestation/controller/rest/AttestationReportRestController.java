@@ -14,6 +14,7 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.util.ManagerSubstituteUtil;
 import io.micrometer.core.annotation.Timed;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,7 +68,8 @@ public class AttestationReportRestController {
     }
 
 
-    @GetMapping("/rest/attestation/v2/reports/download/all")
+    @SuppressWarnings("removal")
+	@GetMapping("/rest/attestation/v2/reports/download/all")
     @Timed("attestation.controller.mvc.attestation_report_controller.download_all.timer")
     public ModelAndView downloadAll(HttpServletResponse response, Locale locale,
                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate since) {
@@ -81,6 +83,7 @@ public class AttestationReportRestController {
         return new ModelAndView(new RoleAssignmentXlsView(lockService, "historiske_rolletildelinger_alle.xlsx"), model);
     }
 
+	@SuppressWarnings("removal")
 	@GetMapping("/rest/attestation/v2/reports/download/roles/all")
 	@Timed("attestation.controller.mvc.attestation_report_controller.download_all_roles.timer")
 	public ModelAndView downloadAllRoles(HttpServletResponse response, Locale locale,
@@ -95,7 +98,8 @@ public class AttestationReportRestController {
 		return new ModelAndView(new RoleBuildXlsView(lockService), model);
 	}
 
-    @GetMapping("/rest/attestation/v2/reports/download/orgunits/{ouUuid}")
+    @SuppressWarnings("removal")
+	@GetMapping("/rest/attestation/v2/reports/download/orgunits/{ouUuid}")
     @Timed("attestation.controller.mvc.attestation_report_controller.download_org_unit.timer")
     public ModelAndView downloadOrgUnit(HttpServletResponse response, Locale locale, @PathVariable String ouUuid,
                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate since) {
@@ -108,7 +112,7 @@ public class AttestationReportRestController {
 
         if (!SecurityUtil.isAttestationAdminOrAdmin()) {
             Set<String> managedOrgUnits = orgUnitService.getByManagerMatchingUser(user).stream().map(o -> o.getUuid()).collect(Collectors.toSet());
-            managedOrgUnits.addAll(user.getSubstituteFor().stream().map(o -> o.getOrgUnit().getUuid()).collect(Collectors.toSet()));
+            managedOrgUnits.addAll(user.getSubstituteFor().stream().filter(ManagerSubstituteUtil::isActive).map(o -> o.getOrgUnit().getUuid()).collect(Collectors.toSet()));
 
             if (!managedOrgUnits.contains(ouUuid)) {
                 return new ModelAndView("attestationmodule/error", model);
@@ -121,7 +125,8 @@ public class AttestationReportRestController {
         return new ModelAndView(new RoleAssignmentXlsView(lockService, "historiske_rolletildelinger_" + orgUnit.getName() + ".xlsx"), model);
     }
 
-    @GetMapping("/rest/attestation/v2/reports/download/itsystems/{id}")
+    @SuppressWarnings("removal")
+	@GetMapping("/rest/attestation/v2/reports/download/itsystems/{id}")
     @Timed("attestation.controller.mvc.attestation_report_controller.download_it_system.timer")
     public ModelAndView downloadITSystem(HttpServletResponse response, Locale locale, @PathVariable long id,
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate since) {
@@ -142,7 +147,8 @@ public class AttestationReportRestController {
         return new ModelAndView(new RoleAssignmentXlsView(lockService,"historiske_rolletildelinger_" + itSystem.getName() + ".xlsx"), model);
     }
 
-    @GetMapping("/rest/attestation/v2/reports/download/audit/{attestationRunId}")
+    @SuppressWarnings("removal")
+	@GetMapping("/rest/attestation/v2/reports/download/audit/{attestationRunId}")
     @Timed("attestation.controller.mvc.attestation_report_controller.download_audit.timer")
     public ModelAndView downloadAuditReport(HttpServletResponse response, Locale locale,
             @PathVariable long attestationRunId) {

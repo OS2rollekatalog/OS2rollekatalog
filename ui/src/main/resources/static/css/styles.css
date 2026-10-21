@@ -96,6 +96,11 @@ li.bold {
 	vertical-align: top !important;
 }
 
+.table .checkbox {
+	margin-left: 10px;
+	width: auto;
+}
+
 /* for this to work the all parent elements must have overflow: visible; */
 .sticky {
 	position: sticky;
@@ -106,4 +111,39 @@ li.bold {
 
 .layout-fixed .wrapper {
 	overflow: visible;
+}
+
+.page-header-bar {
+	position: sticky;
+	position: -webkit-sticky;
+	top: 55px;
+	z-index: 100;
+	background: #fff;
+}
+
+.page-header-bar .save-header-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.page-header-bar .unsaved-indicator {
+	display: none;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: normal;
+	color: #aa6708;
+}
+
+.page-header-bar .save-header-actions.is-dirty .unsaved-indicator {
+	display: inline-flex;
+}
+
+.page-header-bar .unsaved-indicator .dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #f0ad4e;
+	display: inline-block;
 }

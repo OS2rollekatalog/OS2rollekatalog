@@ -15,8 +15,14 @@ namespace ADSyncService
 
         public void Execute(IJobExecutionContext context)
         {
-            bool readonlyItSystemEnabled = remoteConfigurationService.GetConfiguration().readonlyItSystemFeatureEnabled;
-            if (readonlyItSystemEnabled)
+            RemoteConfiguration configuration = remoteConfigurationService.GetConfigurationIfAvailable();
+            if (configuration == null)
+            {
+                log.Error("ReadOnlyItSystemSyncJob skipped: no valid configuration");
+                return;
+            }
+
+            if (configuration.readonlyItSystemFeatureEnabled)
             {
                 try
                 {

@@ -44,7 +44,7 @@ public class MyRequestsController {
 	}
 
 	record PendingRequestGroup(String uuid, Date requestDate, String action, String recieverName, long userroleCount,
-							   long rolegroupCount, List<PendingRequest> requests, String status, String timeFrame) {
+							   long rolegroupCount, List<PendingRequest> requests, String status, String timeFrame, String reason) {
 	}
 
 	@GetMapping("/ui/request/myrequests")
@@ -78,7 +78,8 @@ public class MyRequestsController {
 							)
 						),
 						request.getStatus().getMessage(),
-						formatTimeFrame(request.getStartDate(), request.getEndDate())
+						formatTimeFrame(request.getStartDate(), request.getEndDate()),
+						request.getReason()
 					);
 					pendingRequestGroupDTOs.add(group);
 				}
@@ -105,7 +106,8 @@ public class MyRequestsController {
 						)
 					).toList(),
 					groupedStatus(requests),
-					formatTimeFrame(requests.getFirst().getStartDate(), requests.getFirst().getEndDate())
+					formatTimeFrame(requests.getFirst().getStartDate(), requests.getFirst().getEndDate()),
+					requests.getFirst().getReason()
 				);
 				pendingRequestGroupDTOs.add(group);
 			}

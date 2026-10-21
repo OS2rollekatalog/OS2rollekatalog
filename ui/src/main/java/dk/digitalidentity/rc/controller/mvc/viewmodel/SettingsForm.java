@@ -16,8 +16,10 @@ public class SettingsForm {
 	private String itSystemChangeEmail;
 	private boolean caseNumberEnabled;
 	private boolean autoNiveauEnabled;
+	private boolean preventDuplicateRoles;
 	private Set<String> excludedOUs;
 	private Map<Integer, OrgUnitLevel> depthToNiveauMappings = new HashMap<>();
 	private Map<ApprovableBy, String> alternativeEmails;
 	private Integer removeDirectAssignmentsForDeleted;
+	private boolean removeRolesOnRelevantPositionChange;
 }

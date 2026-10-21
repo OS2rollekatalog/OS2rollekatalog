@@ -1,0 +1,31 @@
+<th:block th:fragment="functions" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div id="functionsStepContent">
+		<label class="control-label" th:text="#{html.page.ou.assign.functions.select.label}"></label>
+
+		<p class="text-muted" th:if="${#lists.isEmpty(functions)}"
+		   th:text="#{html.page.ou.assign.functions.none}"></p>
+
+		<table id="functionsStepTable" class="table table-striped">
+			<thead>
+				<tr>
+					<th class="col-md-2" th:text="#{html.entity.function.checked}"></th>
+					<th class="col-md-10" th:text="#{html.entity.function.name}"></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr th:each="function : ${functions}">
+					<td>
+						<div class="checkbox c-checkbox">
+							<label>
+								<input class="functions-step-checkbox" type="checkbox" th:attr="data-id=${function.uuid}"
+							       th:checked="${selectedFunctionUuids != null and selectedFunctionUuids.contains(function.uuid)}" />
+								<span class="fa fa-check"></span>
+							</label>
+						</div>
+					</td>
+					<td th:text="${function.name}"></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</th:block>

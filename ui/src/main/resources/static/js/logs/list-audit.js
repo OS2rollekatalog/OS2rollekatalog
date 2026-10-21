@@ -97,7 +97,6 @@ $(document).ready(() => {
             order: [], // Empty array = no initial sorting
             paging: true,
             ordering: true,
-            stateSave: true,
             info: true,
             pageLength: 25,
             // dom: controls the order of rendered elements ('f' = global search field)

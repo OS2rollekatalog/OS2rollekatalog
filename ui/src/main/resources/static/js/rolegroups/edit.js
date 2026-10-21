@@ -34,7 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     orgUnitService.loadRolesFragment();
     // Edit role-group assignment from the OU modal
-    window.ouRoleAssignmentService.parentService = orgUnitService;
 
     $("#name").on("change", handleNameOrDescriptionChange);
     $("#description").on("change", handleNameOrDescriptionChange);
@@ -49,8 +48,11 @@ document.addEventListener("DOMContentLoaded", () => {
     window.select2Service.initSelect("#requesterSettingsSelect, #approverSettingsSelect", {
         placeholder: "",
         allowClear: true,
-        multiple: true
+        multiple: true,
+        templateResult: requestApproveService.templateResult
     });
+
+    requestApproveService.rememberSelection($("#requesterSettingsSelect, #approverSettingsSelect").toArray());
 
     window.sweetAlertService = window.sweetAlertService || new SweetAlertService();
 
@@ -134,8 +136,8 @@ function getRoleAssignmentAjaxObject(requestUrl, okMsg, errorMsg) {
 
 async function handleRoleGroupRequesterPermissionChange() {
     const groupId = String(this.dataset.groupid);
-    const selectedValues = Array.from(this.selectedOptions).map((option) => option.value);
-    requestApproveService.handleRequesterRestrictions();
+    requestApproveService.handleRequesterRestrictions(this);
+    const selectedValues = requestApproveService.selectedPermissions(this);
 
     const response = await fetch(`${pageConfig.url}${groupId}/requester`, {
         method: "POST",
@@ -156,8 +158,8 @@ async function handleRoleGroupRequesterPermissionChange() {
 
 async function handleRoleGroupApproverPermissionChange() {
     const groupId = String(this.dataset.groupid);
-    const selectedValues = Array.from(this.selectedOptions).map((option) => option.value);
-    requestApproveService.handleApproverRestrictions();
+    requestApproveService.handleApproverRestrictions(this);
+    const selectedValues = requestApproveService.selectedPermissions(this);
 
     const response = await fetch(`${pageConfig.url}${groupId}/approver`, {
         method: "POST",
@@ -224,14 +226,6 @@ function initFragmentDelegation() {
 
     $("#ous_menu").on("click", ".js-back-to-ou-roles", () => {
         orgUnitService.loadRolesFragment();
-    });
-
-    $("#ous_menu").on("click", ".js-add-ou-role-assignment", function () {
-        orgUnitService.addRoleAssignment(this);
-    });
-
-    $("#ous_menu").on("click", ".js-edit-ou-assignment", function () {
-        orgUnitService.editRoleAssignment(this);
     });
 
     $("#ous_menu").on("click", ".js-delete-ou-assignment", function () {
@@ -453,43 +447,6 @@ class OrgUnitService {
         );
     }
 
-    editRoleAssignment(elem) {
-        const parent = elem.parentElement;
-        const startDate = parent.dataset.startdate;
-        const stopDate = parent.dataset.stopdate;
-        const assignmentType = parent.dataset.assignmenttype;
-        const assignmentId = parent.dataset.assignmentid;
-        const ou = parent.dataset.orgunit;
-
-        $("#ouRoleGroupEditModal").load(`${this.config.uiUrl}fragments/ou/${ou}?edit=true`, () => {
-            window.initOuEditModalDatePickers();
-            window.ouRoleAssignmentService.init();
-
-            window.ouRolesEditModalService.assignmentId = assignmentId;
-            window.ouRolesEditModalService.ouUuid = ou;
-            window.ouRolesEditModalService.roleType = "rolegroup";
-            window.ouRolesEditModalService.roleId = this.config.roleId;
-            window.ouRolesEditModalService.inherit = Number(assignmentType) === -2;
-
-            window.ouRolesEditModalService.showAssignModal(
-                this.config.titlesEnabled, startDate, stopDate, assignmentType, assignmentId, this.config.roleName
-            );
-        });
-    }
-
-    addRoleAssignment(elem) {
-        window.ouRolesModalService.roleType = "rolegroup";
-        window.ouRolesModalService.roleId = this.config.roleId;
-        window.ouRolesModalService.ouUuid = elem.dataset.orgunit;
-
-        $("#ouRoleGroupModal").load(`${this.config.uiUrl}fragments/ou/${window.ouRolesModalService.ouUuid}`, () => {
-            window.initOuModalDatePickers();
-            window.ouRoleAssignmentService.init();
-            window.ouRoleAssignmentService.parentService = this;
-
-            window.ouRolesModalService.showAssignModal(this.config.titlesEnabled, null, null, this.config.roleName);
-        });
-    }
 }
 
 /**

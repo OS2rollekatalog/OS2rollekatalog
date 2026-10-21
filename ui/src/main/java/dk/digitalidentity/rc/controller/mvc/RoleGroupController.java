@@ -1,15 +1,16 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.security.Principal;
+import java.text.Collator;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -22,21 +23,20 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
 import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
 import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
-import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
@@ -44,12 +44,9 @@ import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
-import dk.digitalidentity.rc.service.FunctionService;
-import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
@@ -65,18 +62,14 @@ import lombok.RequiredArgsConstructor;
 @Controller
 public class RoleGroupController {
 
-	private final ModelMapper mapper;
 	private final RoleGroupService roleGroupService;
 	private final RolegroupValidator rolegroupValidator;
 	private final UserService userService;
 	private final OrgUnitService orgUnitService;
-    private final RoleCatalogueConfiguration configuration;
-	private final TitleService titleService;
 	private final UserPermissionContext userPermissionContext;
-	private final ManagerSubstituteService managerSubstituteService;
-	private final FunctionService functionService;
     private final SettingsService settingsService;
 	private final AssignmentService assignmentService;
+	private final ResolvedPermissionService resolvedPermissionService;
 	// a role group has no IT system of its own, so whether it may be assigned is derived from the user roles it contains
 	private final UserRoleService userRoleService;
 
@@ -91,22 +84,11 @@ public class RoleGroupController {
 	record RoleGroupListItemDTO(Long id, String name, String description, boolean userOnly, List<ApprovableBy> approverPermission, List<RequestableBy> requesterPermission, ItemPermissionDTO allowedActions) {}
 	@GetMapping(value = { "/ui/rolegroups/list" })
 	public String list(Model model, Principal principal) throws Exception {
-		List<RoleGroup> roles = Collections.emptyList();
-		List<ApprovableBy> globalApprovables = settingsService.getRolerequestApprover();
-		List<RequestableBy> globalRequestables = settingsService.getRolerequestRequester();
-		roles = roleGroupService.getAll();
-		roles.forEach(rg -> {
-			if (rg.getApproverPermission().contains(ApprovableBy.INHERIT)) {
-				rg.getApproverPermission().addAll(globalApprovables);
-				rg.getApproverPermission().remove(ApprovableBy.INHERIT);
-			}
-			if (rg.getRequesterPermission().contains(RequestableBy.INHERIT)) {
-				rg.getRequesterPermission().addAll(globalRequestables);
-				rg.getRequesterPermission().remove(RequestableBy.INHERIT);
-			}
-		});
-
-		model.addAttribute("roleGroups", mapToRoleGroupListItemDTO(roles));
+		List<RoleGroup> roles = roleGroupService.getAll();
+		List<Long> roleGroupIds = roles.stream().map(RoleGroup::getId).toList();
+		Map<Long, RequesterPermission> requesterPermissions = resolvedPermissionService.roleGroupRequesterPermissions(roleGroupIds);
+		Map<Long, ApproverPermission> approverPermissions = resolvedPermissionService.roleGroupApproverPermissions(roleGroupIds);
+		model.addAttribute("roleGroups", mapToRoleGroupListItemDTO(roles, requesterPermissions, approverPermissions));
 
 		return "rolegroups/list";
 	}
@@ -118,7 +100,7 @@ public class RoleGroupController {
 			return "redirect:../list";
 		}
 
-		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
+		RoleGroupForm roleGroupForm = RoleGroupForm.from(roleGroup);
 
 		// remove userRoles from soft-deleted it-systems until they are really deleted
 		roleGroupForm.setUserRoleAssignments(roleGroup.getUserRoleAssignments().stream()
@@ -138,16 +120,16 @@ public class RoleGroupController {
 			return "redirect:../list";
 		}
 
-		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
-		boolean titlesEnabled = configuration.getTitles().isEnabled();
+		RoleGroupForm roleGroupForm = RoleGroupForm.from(roleGroup);
 
 		model.addAttribute("rolegroup", roleGroupForm);
 //		model.addAttribute("roles", getAddRoles(roleGroup));
-		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		PermissionConstraint readOrgunitConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
+		Collator collator = Collator.getInstance(Locale.of("da", "DK"));
 		List<OUListForm> ouListForms = orgUnitService.getAllCached().stream()
 			.filter(ou -> readOrgunitConstraint.allowsOrgunit(ou.getUuid()))
+			.sorted(Comparator.comparing(OrgUnit::getName, collator))
 			.map(ou -> new OUListForm(ou, false))
 			.toList();
 
@@ -180,7 +162,7 @@ public class RoleGroupController {
 			return "rolegroups/new";
 		}
 
-		RoleGroup roleGroup = mapper.map(rolegroupForm, RoleGroup.class);
+		RoleGroup roleGroup = rolegroupForm.toNewRoleGroup();
 
 		roleGroup = roleGroupService.save(roleGroup);
 		return "redirect:edit/" + roleGroup.getId();
@@ -376,56 +358,8 @@ public class RoleGroupController {
 
 	}
 
-	record ManagerOrSubstituteDTO(String name, String userId) {}
-	record FunctionDTO(String uuid, String name, boolean checked) {}
-	@GetMapping(value = "/ui/rolegroups/fragments/ou/{uuid}")
-	public String getOUFragment(Model model, @PathVariable("uuid") String uuid, @RequestParam(name = "edit", required = false, defaultValue = "false") boolean edit) {
-		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
-		boolean titlesEnabled = configuration.getTitles().isEnabled();
 
-		if (titlesEnabled && orgUnit != null) {
-			List<Title> titles = orgUnitService.getTitles(orgUnit);
-
-			List<TitleListForm> titleForms = titles
-					.stream()
-					.map(title -> new TitleListForm(title, false))
-					.collect(Collectors.toList());
-
-			List<String> titleFormsUuids = titleForms.stream().map(TitleListForm::getId).toList();
-			titleForms.addAll(orgUnit.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).toList());
-
-			model.addAttribute("titles", titleForms);
-
-			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
-			model.addAttribute("allTitles", allTitles);
-		}
-		else {
-			model.addAttribute("titles", null);
-		}
-
-		if (orgUnit != null) {
-			User manager = orgUnitService.getManager(orgUnit);
-			model.addAttribute("manager", manager == null ? null : new ManagerOrSubstituteDTO(manager.getName(), manager.getUserId()));
-			model.addAttribute("substitutes", managerSubstituteService.getSubstitutesForOrgUnit(orgUnit)
-					.stream()
-					.map(s -> new ManagerOrSubstituteDTO(s.getName(), s.getUserId()))
-					.collect(Collectors.toList())
-			);
-
-			List<Function> functions = functionService.getAllActive();
-			model.addAttribute("functions", functions
-					.stream()
-					.map(f -> new FunctionDTO(f.getUuid(), f.getName(), false))
-					.collect(Collectors.toList())
-			);
-		}
-
-		model.addAttribute("titlesEnabled", titlesEnabled);
-
-		return "ous/fragments/ou_roles_modal :: ouRolesModal";
-	}
-
-	private List<RoleGroupListItemDTO> mapToRoleGroupListItemDTO(Collection<RoleGroup> roleGroups) {
+	private List<RoleGroupListItemDTO> mapToRoleGroupListItemDTO(Collection<RoleGroup> roleGroups, Map<Long, RequesterPermission> requesterPermissions, Map<Long, ApproverPermission> approverPermissions) {
 		Set<Long> readConstraintSystems = userPermissionContext.getConstraint(permissionEntity, Permission.READ).getConstrainedItSystemIds();
 		Set<Long> updateConstraintSystems =  userPermissionContext.getConstraint(permissionEntity, Permission.UPDATE).getConstrainedItSystemIds();
 		Set<Long> createConstraintSystems =  userPermissionContext.getConstraint(permissionEntity, Permission.CREATE).getConstrainedItSystemIds();
@@ -453,8 +387,8 @@ public class RoleGroupController {
 									r.getName(),
 									r.getDescription(),
 									r.isUserOnly(),
-									r.getApproverPermission(),
-									r.getRequesterPermission(),
+									approverPermissions.get(r.getId()).getApprovableBy(),
+									requesterPermissions.get(r.getId()).getRequestableBy(),
 									specificAllowedActions);
 						}
 				)

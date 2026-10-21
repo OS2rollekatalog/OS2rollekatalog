@@ -46,6 +46,10 @@ public class TestInterceptorConfiguration {
 		when(mock.interceptCreateUser(any())).thenAnswer(invocation ->
 				((ProceedingJoinPoint) invocation.getArgument(0)).proceed());
 
+		// Same for the @Around advice on UserRoleService's constraint methods: unstubbed it swallows the call
+		when(mock.interceptEditSystemRoleConstraintsOnUserRole(any(), any())).thenAnswer(invocation ->
+				((ProceedingJoinPoint) invocation.getArgument(0)).proceed());
+
 		return mock;
 	}
 

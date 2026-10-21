@@ -21,6 +21,7 @@ import org.springframework.web.client.RestClient;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.KleDao;
 import dk.digitalidentity.rc.dao.model.Kle;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.os2sync.OS2syncKlassifikationService;
 import dk.kleonline.xml.EmneKomponent;
@@ -76,6 +77,7 @@ public class ReadKleTask {
 
 	// Run every Saturday at random point between 22:00-22:30
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(30)} 22 * * SAT")
+	@WarnIfSlowerThan(millis = 5 * 60 * 1000)
 	public synchronized void reloadCache() {
 		if (configuration.getScheduled().isEnabled()) {
 			return; // do not reload cache on the instance that is running the scheduled task
@@ -87,7 +89,8 @@ public class ReadKleTask {
 	}
 
 	// Run every Saturday at random point between 21:00-21:30
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(30)} 21 * * SAT")
+	@Scheduled(cron = "${kle.cron:0 #{new java.util.Random().nextInt(30)} 21 * * SAT}")
+	@WarnIfSlowerThan(millis = 5 * 60 * 1000)
 	public synchronized void parse() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;
@@ -164,6 +167,8 @@ public class ReadKleTask {
 		List<Kle> updatedKleList = getUpdatedKleList();
 		List<Kle> kleList = kleDao.findAll();
 
+		log.info("Have " + kleList.size() + " existing KLE numbers, which are being matched with " + updatedKleList.size() + " KLEs from KLE-Online");
+		
 		for (Kle updatedKle : updatedKleList) {
 			boolean found = false;
 			boolean nameChange = false;
@@ -211,6 +216,8 @@ public class ReadKleTask {
 		}
 
 		kleCacheMap = newCacheMap;
+		
+		log.info("Done fetching KLE");
 	}
 
 	public List<Kle> getUpdatedKleList() {
@@ -221,7 +228,7 @@ public class ReadKleTask {
 			.uri("https://www.klxml.dk/download/XML-ver2-0/KLE-Emneplan_Version2-0.xml")
 			.retrieve()
 			.body(KLEEmneplanKomponent.class);
-
+		
 		for (HovedgruppeKomponent hg : kleKLEEmneplan.getHovedgruppe()) {
 			Kle kle = new Kle();
 			kle.setCode(hg.getHovedgruppeNr());

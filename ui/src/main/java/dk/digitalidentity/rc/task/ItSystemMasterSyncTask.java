@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ItSystemMasterService;
 
 @Component
@@ -19,6 +20,7 @@ public class ItSystemMasterSyncTask {
 	private RoleCatalogueConfiguration configuration;
 
 	@Scheduled(cron = "0 7/15 6-20 * * *")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void fetchItSystems() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getIntegrations().getMaster().isEnabled()) {
@@ -29,6 +31,7 @@ public class ItSystemMasterSyncTask {
 	}
 
 	@Scheduled(cron = "0 2/15 6-20 * * *")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void updateLocalItSystems() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getIntegrations().getMaster().isEnabled()) {

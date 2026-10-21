@@ -13,13 +13,17 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +36,15 @@ import java.util.stream.Collectors;
  * HistoricOuAssignmentHashCalculator that production code uses, keeping a single source of truth.
  * Only open rows (valid_to IS NULL) are affected — closed rows represent immutable past intervals
  * and their hashes are never read again.
+ *
+ * Calling the live calculator means this migration always writes the formula the running code reads,
+ * which is what closes the stale-hash window before the application takes traffic. The cost is that
+ * two open rows which drifted apart under an older formula can collapse onto one hash here, so the
+ * same duplicate guard HistoricOuAssignmentService.repairRecordHash uses is applied per row: if
+ * another open row already carries the computed hash, this row is closed as the duplicate instead of
+ * being stamped. Without it the two rows would share a hash and closeOpenByRecordHash would close
+ * both, and no later pass of HistoricOuAssignmentHashRepairJob could tell - both rows match their
+ * own stored hash.
  */
 public class V1_346__RecomputeOpenHistoricOuAssignmentHashes extends BaseJavaMigration {
 
@@ -99,19 +112,55 @@ public class V1_346__RecomputeOpenHistoricOuAssignmentHashes extends BaseJavaMig
 		// N+1 round-trip pattern of one SELECT per row.
 		Map<Long, List<HistoricOuAssignmentExclusion>> exclusionsById = loadExclusionsForBatch(conn, ids);
 
-		try (PreparedStatement update = conn.prepareStatement(
-				"UPDATE historic_ou_assignment SET record_hash = ? WHERE id = ?")) {
+		try (PreparedStatement otherOpenRowWithHash = conn.prepareStatement(
+				"SELECT 1 FROM historic_ou_assignment " +
+				"WHERE record_hash = ? AND valid_to IS NULL AND id <> ? LIMIT 1");
+			PreparedStatement stamp = conn.prepareStatement(
+				"UPDATE historic_ou_assignment SET record_hash = ? WHERE id = ?");
+			PreparedStatement close = conn.prepareStatement(
+				"UPDATE historic_ou_assignment SET valid_to = ? WHERE id = ?")) {
+
+			Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+			// the stamps below are still queued, so the SELECT cannot see them yet
+			Set<String> stampedInBatch = new HashSet<>();
+
 			for (int i = 0; i < ids.size(); i++) {
+				long id = ids.get(i);
 				HistoricOuAssignment row = rows.get(i);
-				row.setExclusions(exclusionsById.getOrDefault(ids.get(i), Collections.emptyList()));
-				update.setString(1, HistoricOuAssignmentHashCalculator.compute(row));
-				update.setLong(2, ids.get(i));
-				update.addBatch();
+				row.setExclusions(exclusionsById.getOrDefault(id, Collections.emptyList()));
+				String recordHash = HistoricOuAssignmentHashCalculator.compute(row);
+
+				if (stampedInBatch.contains(recordHash) || hasOtherOpenRowWithHash(otherOpenRowWithHash, recordHash, id)) {
+					// Two open rows for the same assignment, drifted apart under an older formula, both
+					// land on this hash. Stamping both would leave them sharing it, and
+					// closeOpenByRecordHash closes every open row it matches - so close this one as the
+					// duplicate and leave its old hash, the way HistoricOuAssignmentService
+					// .repairRecordHash does. Ascending id means the oldest row is the one that survives.
+					close.setTimestamp(1, now);
+					close.setLong(2, id);
+					close.addBatch();
+				}
+				else {
+					stampedInBatch.add(recordHash);
+					stamp.setString(1, recordHash);
+					stamp.setLong(2, id);
+					stamp.addBatch();
+				}
 			}
-			update.executeBatch();
+
+			stamp.executeBatch();
+			close.executeBatch();
 		}
 
 		return ids;
+	}
+
+	private boolean hasOtherOpenRowWithHash(PreparedStatement query, String recordHash, long id) throws SQLException {
+		query.setString(1, recordHash);
+		query.setLong(2, id);
+		try (ResultSet rs = query.executeQuery()) {
+			return rs.next();
+		}
 	}
 
 	private Map<Long, List<HistoricOuAssignmentExclusion>> loadExclusionsForBatch(

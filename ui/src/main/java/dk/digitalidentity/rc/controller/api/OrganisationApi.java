@@ -1,28 +1,8 @@
 package dk.digitalidentity.rc.controller.api;
 
-import dk.digitalidentity.rc.controller.api.dto.OrganisationV2DTO;
-import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
-import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
-import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
-import dk.digitalidentity.rc.controller.api.model.UserDTO;
-import dk.digitalidentity.rc.dao.model.Domain;
-import dk.digitalidentity.rc.dao.model.KLEMapping;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.enums.KleType;
-import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
-import dk.digitalidentity.rc.service.DomainService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.OrganisationExporter;
-import dk.digitalidentity.rc.service.OrganisationImporter;
-import dk.digitalidentity.rc.service.OrganisationImporterOld;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -36,20 +16,34 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.List;
+import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
+import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
+import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
+import dk.digitalidentity.rc.controller.api.model.UserDTO;
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.KLEMapping;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
+import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.OrganisationExporter;
+import dk.digitalidentity.rc.service.OrganisationImporter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RequireApiOrganisationRole
 @RestController
 @SecurityRequirement(name = "ApiKey")
 @RequestMapping("/api")
 @Tag(name = "Organisation API")
 public class OrganisationApi {
-	private static final Logger log = LoggerFactory.getLogger(OrganisationApi.class);
-
-	// TODO: remove once we do not need it anymore
-	@Autowired
-	private OrganisationImporterOld organisationImporterOld;
 	
 	@Autowired
 	private OrganisationImporter organisationImporter;
@@ -106,38 +100,6 @@ public class OrganisationApi {
 		orgUnitService.save(orgUnit);
 		
         return new ResponseEntity<>(HttpStatus.OK);
-	}
-	
-	@PostMapping(value = "/organisation")
-	public synchronized ResponseEntity<?> importOrgUnits(@RequestBody String request) {
-		if (errorOnOldApi) {
-			log.error("Calling deprecated API v1");
-		}
-
-		throw new BadRequestException("This endpoint does not exist anymore - please upgrade to /api/organisation/v3");
-	}
-	
-	@PostMapping(value = "/organisation/v2")
-	@Transactional(rollbackFor = Exception.class)
-	public synchronized ResponseEntity<?> importOrgUnitsV2(@RequestBody OrganisationV2DTO organisation) {
-		if (errorOnOldApi) {
-			log.error("Calling deprecated API v2");
-		}
-		
-		try {
-			OrganisationImportResponse response = organisationImporterOld.bigImportV2(organisation);
-
-			if (response.containsChanges()) {
-				log.info("update completed: " + response.toString());
-			}
-
-			return new ResponseEntity<>(response, HttpStatus.OK);
-		}
-		catch (Exception ex) {
-			log.error("Import failed on v2!", ex);
-			
-			throw new BadRequestException(ex.getMessage());
-		}
 	}
 	
 	@PostMapping(value = "/organisation/v3")

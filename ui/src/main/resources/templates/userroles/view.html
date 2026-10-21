@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="~{fragments/header :: header (title=#{html.page.userroles.view.title})}"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.userroles.view.title}, ouAssignment=true)}"></head>
 <body class="layout-fixed">
 <div class="wrapper">
     <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
@@ -95,11 +95,13 @@
                                 <div class="col-sm-8">
                                     <select id="approverSettingsSelect" class="form-control" disabled multiple
                                             th:object="${role}"
-                                            th:field="*{approverPermission}"
+                                            name="approverPermission"
                                             th:attr="data-roleid=${role.id}">
+                                        <option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(role.approverPermission)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
                                         <option th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
                                                 th:value="${approverOpt}"
-                                                th:text="#{__${approverOpt.getMessage()}__}"></option>
+                                                th:text="#{__${approverOpt.getMessage()}__}"
+                                                th:selected="${#lists.contains(role.approverPermission, approverOpt)}"></option>
                                     </select>
                                 </div>
                             </div>
@@ -308,7 +310,7 @@
                                 </table>
                             </div>
 
-                            <div id="users_menu" class="tab-pane fade in">
+                            <div id="users_menu" class="tab-pane fade in" th:data-load-error-message="#{html.default.message.error}">
                             </div>
 
                             <div id="ous_menu" class="tab-pane fade in">
@@ -325,8 +327,6 @@
 <link rel="stylesheet" th:href="@{/css/bulk-assign-roles.css}" />
 
 <div id="userUserRoleModal"></div>
-<div id="ouUserRoleModal"></div>
-<div id="ouUserRoleEditModal"></div>
 <div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
 <div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
 <div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
@@ -340,7 +340,6 @@
 <script th:replace="~{fragments/assignDatePicker :: content}"></script>
 <script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript}"></script>
 <script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')}"></script>
-<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 <script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
 <script th:replace="~{users/fragments/bulk_assign_user_role_modal :: bulkAssignUserRoleModalScript}"></script>
 <script th:src="@{/js/DatatableService.js}"></script>
@@ -361,7 +360,6 @@
 		"deleteAssignmentConfirmTxt": [[#{html.control.button.yes}]],
 		"deleteAssignmentCancelTxt": [[#{html.control.button.cancel}]],
 		"txtQueueSpinner": [[#{html.common.queue.spinner.working}]],
-		"titlesEnabled": [[${titlesEnabled}]],
 		"infoMessage": [[${infoMessage}]],
 		"errorMessage": [[${errorMessage}]],
 		"swalImageOk": [[#{html.button.ok}]],
@@ -372,7 +370,11 @@
 <script th:src="@{/js/service/SweetAlertService.js}"></script>
 <script th:src="@{/js/service/Select2Service.js}"></script>
 <script th:src="@{/js/service/NotificationService.js}"></script>
+<script type="module" th:src="@{/js/userroles/assignedUsersTab.js}"></script>
 <script th:src="@{/js/userroles/view.js}"></script>
 
+
+	<div th:replace="~{ous/assign/modal :: assignModal}"></div>
+	<script type="module" th:src="@{/js/userroles/view-ou-assign.js}"></script>
 </body>
 </html>

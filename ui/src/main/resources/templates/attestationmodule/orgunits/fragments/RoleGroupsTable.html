@@ -47,6 +47,9 @@
                             <li th:each="exceptedTitle : ${roleGroup.exceptedTitles}" th:text="${exceptedTitle}"></li>
                         </ul>
                     </div>
+                    <div th:if="${orgUnitAssignments && showInherit && roleGroup.inherit && !#lists.isEmpty(roleGroup.exceptedOus)}">
+                        <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inherit} + #{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inheritExcept} + ' ' + ${#strings.listJoin(roleGroup.exceptedOus, ', ')} + ' ' + #{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inheritExceptSuffix}"></b>
+                    </div>
                     <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.functions)}">
                         <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.functions}"></b>
                         <ul>

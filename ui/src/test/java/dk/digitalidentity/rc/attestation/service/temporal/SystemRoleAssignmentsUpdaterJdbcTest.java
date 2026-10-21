@@ -20,6 +20,7 @@ import org.springframework.transaction.TransactionStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -419,6 +420,30 @@ class SystemRoleAssignmentsUpdaterJdbcTest {
 
 			// ---- Then ---- //
 			verify(temporalDao, never()).saveAttestationSystemRoleAssignment(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("live role metadata")
+	class LiveRoleMetadata {
+
+		@Test
+		@DisplayName("uses the current name and description of the job function role and the system role, not the copy frozen on the historic row")
+		void usesCurrentNameAndDescription() {
+			// ---- Given ---- //
+			given(temporalDao.currentUserRoleMetadata())
+					.willReturn(Map.of(20L, new RoleMetadata("Renamed User Role", "Rewritten user role description")));
+			given(temporalDao.currentSystemRoleMetadata())
+					.willReturn(Map.of(30L, new RoleMetadata("Renamed System Role", "Rewritten system role description")));
+
+			// ---- When ---- //
+			AttestationSystemRoleAssignment result = runAndCapture(base().build());
+
+			// ---- Then ---- //
+			assertThat(result.getUserRoleName()).isEqualTo("Renamed User Role");
+			assertThat(result.getUserRoleDescription()).isEqualTo("Rewritten user role description");
+			assertThat(result.getSystemRoleName()).isEqualTo("Renamed System Role");
+			assertThat(result.getSystemRoleDescription()).isEqualTo("Rewritten system role description");
 		}
 	}
 }

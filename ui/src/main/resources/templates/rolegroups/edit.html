@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/header :: header (title=#{html.page.rolegroup.edit.title})}"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.rolegroup.edit.title}, ouAssignment=true)}"></head>
 <body>
 <div class="wrapper">
     <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
@@ -102,12 +102,13 @@
 									   th:text="#{html.entity.itsystem.approversetting}"></label>
 								<div class="col-sm-8">
 									<select id="approverSettingsSelect" class="form-control" multiple
-											th:field="*{approverPermission}"
+											name="approverPermission"
 											th:attr="data-groupid=${rolegroup.id}">
+										<option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(rolegroup.approverPermission)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
 										<option th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
 												th:value="${approverOpt}"
 												th:text="#{__${approverOpt.getMessage()}__}"
-												th:selected="${approverPermission != null and #lists.contains(approverPermission, approverOpt)}"></option>
+												th:selected="${#lists.contains(rolegroup.approverPermission, approverOpt)}"></option>
 									</select>
 								</div>
 							</div>
@@ -173,9 +174,8 @@
     </section>
 </div>
 
-	<!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal
-	The modal ou_roles_modal shows at the top-->
 	<style>
+		/*TODO: Cleanup - styles belong in the header in their own files, not in the script section*/
 		.table .checkbox {
 			margin-left: 10px;
 			width: auto;
@@ -185,8 +185,6 @@
 	<link rel="stylesheet" th:href="@{/css/bulk-assign-roles.css}" />
 
 	<div id="userRoleGroupModal"></div>
-	<div id="ouRoleGroupModal"></div>
-	<div id="ouRoleGroupEditModal"></div>
 	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
 	<div th:replace="~{users/fragments/bulk_assign_user_role_modal :: bulkAssignUserRoleModal}"></div>
 	<div th:replace="~{users/fragments/bulk_assign_user_role_users_modal :: bulkAssignUserRoleUsersModal}"></div>
@@ -196,7 +194,6 @@
 	<script th:replace="~{fragments/datatables :: datatables(orderColumnValue=1)}"></script>
 	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
 
-	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
 	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
 	<script th:replace="~{users/fragments/bulk_assign_user_role_modal :: bulkAssignUserRoleModalScript}"></script>
@@ -207,6 +204,7 @@
 	<script th:src="@{/js/service/JsTreeService.js}"></script>
 	<script th:src="@{/js/service/SweetAlertService.js}"></script>
 	<script th:src="@{/js/service/TextareaAutosizeService.js}"></script>
+	<script th:src="@{/js/service/NotificationService.js}"></script>
 
 	<script type="application/json" th:inline="javascript" id="rolegroup-edit-config">
 		{
@@ -229,10 +227,13 @@
 			"possibleFilterOus": [[${possibleFilterOus}]],
 			"selectedFilterOUs": [[${selectedFilterOUs}]],
 			"fieldNotUpdatedMsgOUFilter": [[#{html.entity.itsystem.notUpdatedMsgOUFilter}]],
-			"roleId": [[${rolegroup.id}]],
-			"titlesEnabled": [[${titlesEnabled}]]
+			"roleId": [[${rolegroup.id}]]
 		}
 	</script>
 	<script th:src="@{/js/rolegroups/edit.js}"></script>
+
+	<!--Ou assignment -->
+	<div th:replace="~{ous/assign/modal :: assignModal}"></div>
+	<script type="module" th:src="@{/js/rolegroups/edit-ou-assign.js}"></script>
 </body>
 </html>

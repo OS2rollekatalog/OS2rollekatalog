@@ -137,6 +137,7 @@ class ManualAssignmentEffectuationNotifierTest {
 		verify(emailQueueService).queueEmail(eq("owner2@example.com"), anyString(), anyString(), any(), any(), any());
 	}
 
+	@SuppressWarnings("unchecked")
 	@Test
 	@DisplayName("the digest link carries the exact task ids it covers")
 	void digestLinkCarriesTaskIds() {

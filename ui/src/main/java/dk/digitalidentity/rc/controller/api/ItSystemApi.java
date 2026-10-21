@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.api;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.controller.api.dto.ItSystemDTO;
 import dk.digitalidentity.rc.controller.api.dto.ItSystemWithSystemRolesDTO;
 import dk.digitalidentity.rc.controller.api.dto.SystemRoleDTO;
@@ -13,8 +15,6 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.RequireApiItSystemRole;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -38,7 +38,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -269,8 +268,8 @@ public class ItSystemApi {
 				userRole.setIdentifier(systemRole.getIdentifier());
 				userRole.setName(systemRole.getName());
 				userRole.setDescription(systemRole.getDescription());
-				userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
-				userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
+				userRole.setApproverPermission(ApproverPermission.inherit());
+				userRole.setRequesterPermission(RequesterPermission.inherit());
 
 				SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
 				systemRoleAssignment.setAssignedByName("Systembruger");

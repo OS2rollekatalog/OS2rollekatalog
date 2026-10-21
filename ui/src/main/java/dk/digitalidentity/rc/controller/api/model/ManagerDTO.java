@@ -13,7 +13,7 @@ public class ManagerDTO {
 	private String userId;
 
     public ManagerDTO(User manager) {
-        this.uuid = manager.getUuid();
+        this.uuid = manager.getExtUuid();
         this.userId = manager.getUserId();
     }
     

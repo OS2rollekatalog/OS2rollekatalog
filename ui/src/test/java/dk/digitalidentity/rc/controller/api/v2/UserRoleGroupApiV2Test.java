@@ -614,17 +614,8 @@ public class UserRoleGroupApiV2Test extends AbstractApiTest {
 	}
 
 	/**
-	 * Pins the current behaviour for a role group restricted to a title on an org unit: it is
-	 * reported as ORG_UNIT with no title, NOT as TITLE.
-	 * <p>
-	 * This is not what you would expect from the assignment itself, but it is what the calculated
-	 * rows can express. {@code CurrentAssignment.title} is only ever set by the
-	 * {@code OrgUnitUserRoleAssignment} overload of {@code CurrentAssignmentMapper.toCurrentAssignment};
-	 * the {@code OrgUnitRoleGroupAssignment} overload takes no title parameter, so role group rows
-	 * always have a null title and {@code getAssignedThroughForRoleGroup} can never return TITLE.
-	 * The same blind spot exists in the GUI. Tracked in issue #111 - when that is fixed, this test
-	 * should flip to asserting TITLE.
-	 * </p>
+	 * A role group restricted to a title on an org unit is reported as TITLE, with the
+	 * restricting title included as assignedThroughTitle.
 	 * <p>
 	 * Uses "fnur" rather than the default test user, because "fnur" is the bootstrapped user whose
 	 * positions have titles.
@@ -633,8 +624,8 @@ public class UserRoleGroupApiV2Test extends AbstractApiTest {
 	 * @throws Exception if HTTP request fails or test data is missing
 	 */
 	@Test
-	@DisplayName("Should report role group restricted to a title as ORG_UNIT, since title is not carried onto rolegroup rows")
-	void testGetAssignmentsByRoleGroup_titleRestrictionReportedAsOrgUnit() throws Exception {
+	@DisplayName("Should report role group restricted to a title as TITLE, with the title included")
+	void testGetAssignmentsByRoleGroup_titleRestrictionReportedAsTitle() throws Exception {
 		final String titledUserId = "fnur";
 		User user = userService.getByUserId(titledUserId);
 		Position position = user.getPositions().stream()
@@ -650,13 +641,14 @@ public class UserRoleGroupApiV2Test extends AbstractApiTest {
 
 		JsonNode entry = singleEntryForUser(roleGroup, titledUserId, null);
 
-		// The title restriction did apply - fnur got the role group through it - but the origin
-		// is reported as the org unit, and the title is absent.
-		assertThat(entry.path("assignedThrough").asText()).isEqualTo("ORG_UNIT");
+		// The title restriction applied - fnur got the role group through it - and the origin
+		// is reported as the title, carrying the title that caused the assignment.
+		assertThat(entry.path("assignedThrough").asText()).isEqualTo("TITLE");
 		assertThat(entry.path("orgUnit").path("uuid").asText()).isEqualTo(position.getOrgUnit().getUuid());
 		assertThat(entry.hasNonNull("assignedThroughTitle"))
-			.as("title is not carried onto calculated rolegroup rows")
-			.isFalse();
+			.as("title is now carried onto calculated rolegroup rows")
+			.isTrue();
+		assertThat(entry.path("assignedThroughTitle").path("uuid").asText()).isEqualTo(title.getUuid());
 		assertThat(entry.path("assignmentType").asText()).isEqualTo("OU_ROLE_GROUP");
 	}
 

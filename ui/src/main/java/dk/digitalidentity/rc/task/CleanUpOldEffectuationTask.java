@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ManualAssignmentEffectuationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class CleanUpOldEffectuationTask {
 	private final RoleCatalogueConfiguration configuration;
 
 	@Scheduled(cron = "${rc.effectuationConfig.cleanUpTaskCron:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 1 * * ?}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void cleanUpOldEffectuations() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.info("Scheduled jobs are disabled on this instance");

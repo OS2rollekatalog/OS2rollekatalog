@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.service.nemlogin;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -18,14 +20,13 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -52,8 +53,6 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedCons
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -66,9 +65,9 @@ import dk.digitalidentity.rc.service.nemlogin.model.NemLoginAllRolesResponse;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginRole;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginUserProfile;
 import dk.digitalidentity.rc.service.nemlogin.model.Scope;
-import dk.digitalidentity.rc.service.nemlogin.model.TokenResponse;
 import lombok.extern.slf4j.Slf4j;
 
+@EnableAsync
 @EnableCaching
 @EnableScheduling
 @Slf4j
@@ -80,9 +79,6 @@ public class NemLoginService {
 	@Qualifier("nemLoginRestClient")
 	@Autowired
 	private RestClient restClient;
-
-	@Autowired
-	private NemLoginService self;
 
 	@Autowired
 	private RoleCatalogueConfiguration config;
@@ -107,6 +103,25 @@ public class NemLoginService {
 
 	@Autowired
 	private DirtyNemLoginUserService dirtyNemLoginUserService;
+
+	@Autowired
+	private NemLoginTokenCache tokenCache;
+
+	public boolean initialized() {
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
+		if (itSystems == null || itSystems.size() != 1) {
+			log.error("Could not find a unique NEMLOGIN it-system (either 0 or > 1 was found!)");
+			return false;
+		}
+
+		ItSystem itSystem = itSystems.get(0);
+		List<SystemRole> existingRoles = systemRoleService.getByItSystem(itSystem);
+		if (existingRoles.isEmpty()) {
+			return false;
+		}
+
+		return true;
+	}
 
 	public void addUserToQueue(User user) {
 		if (!StringUtils.hasLength(user.getNemloginUuid()) || user.isDeleted()) {
@@ -163,6 +178,8 @@ public class NemLoginService {
 			SecurityUtil.loginSystemAccount();
 			List<User> nemLoginUsers = userService.getAllWithNemLoginUuid();
 			for (User user : nemLoginUsers) {
+				boolean changes = false;
+
 				List<AssignedRole> assignedRoles = getRolesForUser(user);
 				if (assignedRoles == null || assignedRoles.size() == 0) {
 					continue;
@@ -176,7 +193,6 @@ public class NemLoginService {
 					}
 
 					UserRole existingUserRole = null;
-					boolean assigned = false;
 
 					if (assignedRole.getScope().getType().equals("SE")) {
 						existingUserRole = userRoleService.getByNameAndItSystem(assignedRole.getName() + " med senr", itSystem);
@@ -196,8 +212,8 @@ public class NemLoginService {
 						existingUserRole = new UserRole();
 						existingUserRole.setItSystem(itSystem);
 						existingUserRole.setDescription(assignedRole.getDescription());
-						existingUserRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
-						existingUserRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
+						existingUserRole.setApproverPermission(ApproverPermission.inherit());
+						existingUserRole.setRequesterPermission(RequesterPermission.inherit());
 
 						existingUserRole.setSystemRoleAssignments(new ArrayList<>());
 						SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
@@ -243,34 +259,29 @@ public class NemLoginService {
 						existingUserRole.getSystemRoleAssignments().add(systemRoleAssignment);
 						userRoleService.save(existingUserRole);
 					}
-					else {
-						long existingId = existingUserRole.getId();
 
-						if (user.getUserRoleAssignments().stream().anyMatch(u -> u.getUserRole().getId() == existingId)) {
-							assigned = true;
-						}
+					UserUserRoleAssignment userUserRoleAssignment = new UserUserRoleAssignment();
+					userUserRoleAssignment.setUserRole(existingUserRole);
+					userUserRoleAssignment.setUser(user);
+					userUserRoleAssignment.setAssignedByUserId("system");
+					userUserRoleAssignment.setAssignedByName("Systembruger");
+					userUserRoleAssignment.setPostponedConstraints(new ArrayList<>());
+
+					if (assignedRole.getScope().getType().equals("SE") || assignedRole.getScope().getType().equals("PU")) {
+						PostponedConstraint postponedConstraint = new PostponedConstraint();
+						postponedConstraint.setUserUserRoleAssignment(userUserRoleAssignment);
+						postponedConstraint.setValue(assignedRole.getScope().getValue());
+						postponedConstraint.setSystemRole(matchingSystemRole);
+						postponedConstraint.setConstraintType(assignedRole.getScope().getType().equals("SE") ? senrConstraint : pnrConstraint);
+						userUserRoleAssignment.getPostponedConstraints().add(postponedConstraint);
 					}
 
-					if (!assigned) {
-						UserUserRoleAssignment userUserRoleAssignment = new UserUserRoleAssignment();
-						userUserRoleAssignment.setUserRole(existingUserRole);
-						userUserRoleAssignment.setUser(user);
-						userUserRoleAssignment.setAssignedByUserId("system");
-						userUserRoleAssignment.setAssignedByName("Systembruger");
-						userUserRoleAssignment.setPostponedConstraints(new ArrayList<>());
+					user.getUserRoleAssignments().add(userUserRoleAssignment);
+					changes = true;
+				}
 
-						if (assignedRole.getScope().getType().equals("SE") || assignedRole.getScope().getType().equals("PU")) {
-							PostponedConstraint postponedConstraint = new PostponedConstraint();
-							postponedConstraint.setUserUserRoleAssignment(userUserRoleAssignment);
-							postponedConstraint.setValue(assignedRole.getScope().getValue());
-							postponedConstraint.setSystemRole(matchingSystemRole);
-							postponedConstraint.setConstraintType(assignedRole.getScope().getType().equals("SE") ? senrConstraint : pnrConstraint);
-							userUserRoleAssignment.getPostponedConstraints().add(postponedConstraint);
-						}
-
-						user.getUserRoleAssignments().add(userUserRoleAssignment);
-						userService.save(user);
-					}
+				if (changes) {
+					userService.save(user);
 				}
 			}
 		}
@@ -281,6 +292,8 @@ public class NemLoginService {
 		}
 	}
 
+	// this one takes a long time, so we want to avoid blocking
+	@Async
 	@Transactional
 	public void syncAdminRoleAssignments() {
 		if (!config.getIntegrations().getNemLogin().isEnabled()) {
@@ -626,7 +639,7 @@ public class NemLoginService {
 		log.info("DirtyNemLoginUser synchronization completed");
 	}
 
-	
+	@Async
 	public void fullRoleSync() {
 		log.info("Running full NemLog-In role sync");
 
@@ -665,6 +678,11 @@ public class NemLoginService {
 		Map<String, Set<String>> systemRoleIdentifiersSenrConstraints = new HashMap<>();
 
 		for (CurrentAssignment assignment : assignedUserRoles) {
+			// skip empty assignments
+			if (assignment.getUserRole() == null) {
+				continue;
+			}
+
 			for (SystemRoleAssignment systemRoleAssignment : assignment.getUserRole().getSystemRoleAssignments()) {
 				if (assignment.getPostponedConstraints() == null || assignment.getPostponedConstraints().isEmpty()) {
 					boolean anyConstraint = false;
@@ -805,38 +823,15 @@ public class NemLoginService {
 	}
 
 	public String fetchToken() {
-		String token = self.fetchTokenCached();
+		String token = tokenCache.fetchToken();
 		if (StringUtils.hasLength(token)) {
 			return token;
 		}
 
 		// attempt once more
-		self.cleanUpToken();
+		tokenCache.cleanUpToken();
 
-		return self.fetchTokenCached();
-	}
-
-	@Cacheable(value = "token", unless = "#result == null")
-	public String fetchTokenCached() {
-		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/idmlogin/tls/authenticate";
-
-		TokenResponse response = invokeRestClient("fetchTokenCached", url, HttpMethod.POST, "{}", TokenResponse.class);
-		if (response != null) {
-			return response.getAccessToken();
-		}
-
-		return null;
-	}
-
-	@CacheEvict(value = "token", allEntries = true)
-	public void cleanUpToken() {
-		;
-	}
-
-	// the tokens are valid for 1 hour, so we refresh at least once per 30 minutes
-	@Scheduled(fixedRate = 30 * 60 * 1000)
-	public void cleanUpTask() {
-		self.cleanUpToken();
+		return tokenCache.fetchToken();
 	}
 
 	private List<NemLoginRole> getAllRoles() {
@@ -885,9 +880,10 @@ public class NemLoginService {
 
 	private void addRoleToUser(User user, Scope scope, String roleUuid) {
 		if (config.getIntegrations().getNemLogin().isUserDryRunOnly()) {
-			log.info("Adding " + roleUuid + " to " + user.getUserId());
 			return;
 		}
+
+		log.info("Adding " + roleUuid + " to " + user.getUserId());
 
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
 		RoleBody roleBody = new RoleBody(scope, Collections.singletonList(roleUuid));

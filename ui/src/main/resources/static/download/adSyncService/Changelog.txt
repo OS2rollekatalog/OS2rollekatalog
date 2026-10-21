@@ -21,3 +21,5 @@
 # 2026-06-15 -   2.4.12 -  Description sættes nu ved oprettelse af AD-grupper
                            Caching af brugere tilføjet for bedre ydeevne og stabilitet
                            Ny konfiguration (backSyncFeatureMaintainDescriptionAndName) til at slå opdatering af gruppenavn og -beskrivelse fra/til ved backsync (default true)
+# 2026-09-08 -   2.4.13 -  Timeout mod rollekataloget kan nu konfigureres (ApiTimeoutSeconds, default 300 sekunder)
+# 2026-10-13 -   2.4.14 -  Rejected remote configuration is now logged and emailed; jobs log when no valid configuration exists

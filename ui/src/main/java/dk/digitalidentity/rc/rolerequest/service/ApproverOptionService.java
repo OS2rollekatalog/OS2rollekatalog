@@ -1,11 +1,7 @@
 package dk.digitalidentity.rc.rolerequest.service;
 
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
@@ -19,8 +15,11 @@ import java.util.Locale;
 @Service
 @RequiredArgsConstructor
 public class ApproverOptionService {
-	private final SettingsService settingsService;
 	private final MessageSource messageSource;
+
+	public String getApproverOptionsAsString(ApproverPermission approverPermission) {
+		return getApproverOptionsAsString(approverPermission.getApprovableBy());
+	}
 
 	public String getApproverOptionsAsString(Collection<ApprovableBy> approverOptions) {
 		List<String> approvableByList = approverOptions.stream()
@@ -53,60 +52,4 @@ public class ApproverOptionService {
 		}
 		return result.toString();
 	}
-
-
-	/**
-	 * Helper method for getting the approval permission for a userrole, taking into account the INHERIT value
-	 *
-	 * @param userRole
-	 * @return Nearest relevant ApprovalOption from the given userrole
-	 */
-	public List<ApprovableBy> getInheritedApproverOption(UserRole userRole) {
-		List<ApprovableBy> relevantOption = userRole.getApproverPermission();
-		ItSystem itSystem = userRole.getItSystem();
-		if (relevantOption.contains(ApprovableBy.INHERIT)) {
-			if (itSystem != null && itSystem.getApproverPermission() != null && !itSystem.getApproverPermission().contains(ApprovableBy.INHERIT)) {
-				relevantOption = itSystem.getApproverPermission();
-			} else {
-				relevantOption = settingsService.getRolerequestApprover();
-			}
-		}
-		return relevantOption;
-	}
-
-	/**
-	 * Helper method for getting approval permission for a roleGroup, taking into account the INHERIT value
-	 *
-	 * @param roleGroup
-	 * @return Nearest relevant ApprovalOption from the given roleGroup
-	 */
-	public List<ApprovableBy> getInheritedApproverOption(RoleGroup roleGroup) {
-		List<ApprovableBy> relevantOption = roleGroup.getApproverPermission();
-		if (relevantOption.contains(ApprovableBy.INHERIT)) {
-			relevantOption = settingsService.getRolerequestApprover();
-		}
-		return relevantOption;
-	}
-
-	public List<RequestableBy> getInheritedRequesterPermission(UserRole userRole) {
-		List<RequestableBy> relevantOption = userRole.getRequesterPermission();
-		ItSystem itSystem = userRole.getItSystem();
-		if (relevantOption.contains(RequestableBy.INHERIT)) {
-			if (itSystem != null && itSystem.getRequesterPermission() != null && !itSystem.getRequesterPermission().contains(RequestableBy.INHERIT)) {
-				relevantOption = itSystem.getRequesterPermission();
-			} else {
-				relevantOption = settingsService.getRolerequestRequester();
-			}
-		}
-		return relevantOption;
-	}
-
-	public List<RequestableBy> getInheritedRequesterPermission(RoleGroup roleGroup) {
-		List<RequestableBy> relevantOption = roleGroup.getRequesterPermission();
-		if (relevantOption.contains(RequestableBy.INHERIT)) {
-			relevantOption = settingsService.getRolerequestRequester();
-		}
-		return relevantOption;
-	}
-
 }

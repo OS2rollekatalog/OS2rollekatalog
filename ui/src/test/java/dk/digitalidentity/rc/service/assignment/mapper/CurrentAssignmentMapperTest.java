@@ -20,8 +20,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
@@ -55,6 +59,48 @@ class CurrentAssignmentMapperTest {
 		testUserRole = createUserRole("test-user-role-uuid", testItSystem);
 		testOrgUnit = createOrgUnit("test-org-unit-uuid", null);
 		testTitle = createTitle("test-title-uuid");
+	}
+
+	@Nested
+	@DisplayName("assignedWhen mapping")
+	class AssignedWhenTests {
+
+		private static final LocalDateTime ASSIGNED = LocalDateTime.of(2024, 9, 9, 14, 9, 14);
+
+		@Test
+		@DisplayName("Should take assignedWhen from the source assignment, not from the mapping time")
+		void shouldTakeAssignedWhenFromSource() {
+			UserUserRoleAssignment assignment = createDirectUserRoleAssignment(testUserRole, null, null);
+			assignment.setAssignedTimestamp(Date.from(ASSIGNED.atZone(ZoneId.systemDefault()).toInstant()));
+
+			CurrentAssignment result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testOrgUnit);
+
+			assertThat(result.getAssignedWhen()).isEqualTo(ASSIGNED);
+			assertThat(result.getAssignedWhen()).isNotEqualTo(result.getCreatedAt());
+		}
+
+		@Test
+		@DisplayName("Should leave assignedWhen null when the source has none, so consumers fall back to validFrom")
+		void shouldLeaveAssignedWhenNullWhenSourceHasNone() {
+			UserUserRoleAssignment assignment = createDirectUserRoleAssignment(testUserRole, null, null);
+
+			CurrentAssignment result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testOrgUnit);
+
+			assertThat(result.getAssignedWhen()).isNull();
+		}
+
+		@Test
+		@DisplayName("Should keep assignedWhen out of the record hash, so a corrected date does not version the row")
+		void shouldKeepAssignedWhenOutOfRecordHash() {
+			UserUserRoleAssignment without = createDirectUserRoleAssignment(testUserRole, null, null);
+			UserUserRoleAssignment with = createDirectUserRoleAssignment(testUserRole, null, null);
+			with.setAssignedTimestamp(Date.from(Instant.parse("2024-09-09T12:09:14Z")));
+
+			String hashWithout = CurrentAssignmentMapper.toCurrentAssignment(without, testUser, testOrgUnit).getRecordHash();
+			String hashWith = CurrentAssignmentMapper.toCurrentAssignment(with, testUser, testOrgUnit).getRecordHash();
+
+			assertThat(hashWith).isEqualTo(hashWithout);
+		}
 	}
 
 	@Nested
@@ -217,51 +263,29 @@ class CurrentAssignmentMapperTest {
 	class OrgUnitUserRoleAssignmentMappingTests {
 
 		@Test
-		@DisplayName("Should set title when containsTitles is POSITIVE")
-		void shouldMapOrgUnitAssignmentWithTitle() {
-			// Arrange
-			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(testUserRole, testOrgUnit);
-			assignment.setContainsTitles(ContainsTitles.POSITIVE);
-			assignment.setAssignedByName("Assigner");
-			assignment.setAssignedByUserId("assigner-id");
+		@DisplayName("Should record how titles are filtered without moving the title or the record hash")
+		void shouldRecordContainsTitlesOutsideTheRecordHash() {
+			// Arrange - the same assignment, filtered positively and negatively on the same title
+			OrgUnitUserRoleAssignment positive = createOrgUnitUserRoleAssignment(testUserRole, testOrgUnit);
+			positive.setContainsTitles(ContainsTitles.POSITIVE);
+			positive.setAssignedByName("Assigner");
+			positive.setAssignedByUserId("assigner-id");
+
+			OrgUnitUserRoleAssignment negative = createOrgUnitUserRoleAssignment(testUserRole, testOrgUnit);
+			negative.setContainsTitles(ContainsTitles.NEGATIVE);
+			negative.setAssignedByName("Assigner");
+			negative.setAssignedByUserId("assigner-id");
 
 			// Act
-			CurrentAssignment result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testTitle, testOrgUnit);
+			CurrentAssignment positiveResult = CurrentAssignmentMapper.toCurrentAssignment(positive, testUser, testTitle, testOrgUnit);
+			CurrentAssignment negativeResult = CurrentAssignmentMapper.toCurrentAssignment(negative, testUser, testTitle, testOrgUnit);
 
-			// Assert
-			assertThat(result.getTitle()).isEqualTo(testTitle);
-		}
-
-		@Test
-		@DisplayName("Should not set title when containsTitles is NO")
-		void shouldNotSetTitleWhenContainsTitlesIsNo() {
-			// Arrange
-			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(testUserRole, testOrgUnit);
-			assignment.setContainsTitles(ContainsTitles.NO);
-			assignment.setAssignedByName("Assigner");
-			assignment.setAssignedByUserId("assigner-id");
-
-			// Act
-			CurrentAssignment result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testTitle, testOrgUnit);
-
-			// Assert
-			assertThat(result.getTitle()).isNull();
-		}
-
-		@Test
-		@DisplayName("Should not set title when containsTitles is null")
-		void shouldNotSetTitleWhenContainsTitlesIsNull() {
-			// Arrange
-			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(testUserRole, testOrgUnit);
-			assignment.setContainsTitles(null);
-			assignment.setAssignedByName("Assigner");
-			assignment.setAssignedByUserId("assigner-id");
-
-			// Act
-			CurrentAssignment result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testTitle, testOrgUnit);
-
-			// Assert
-			assertThat(result.getTitle()).isNull();
+			// Assert - hashing the flag would close and reopen every title filtered assignment on upgrade
+			assertThat(positiveResult.getContainsTitles()).isEqualTo(ContainsTitles.POSITIVE);
+			assertThat(negativeResult.getContainsTitles()).isEqualTo(ContainsTitles.NEGATIVE);
+			assertThat(positiveResult.getTitle()).isEqualTo(testTitle);
+			assertThat(negativeResult.getTitle()).isEqualTo(testTitle);
+			assertThat(negativeResult.getRecordHash()).isEqualTo(positiveResult.getRecordHash());
 		}
 
 		@Test
@@ -287,7 +311,7 @@ class CurrentAssignmentMapperTest {
 	class OrgUnitRoleGroupAssignmentMappingTests {
 
 		@Test
-		@DisplayName("Should expand OrgUnit RoleGroup to multiple CurrentAssignments")
+		@DisplayName("Should expand OrgUnit RoleGroup to one assignment per user role, carrying orgUnit, roleGroup and title")
 		void shouldExpandOrgUnitRoleGroupToMultipleAssignments() {
 			// Arrange
 			UserRole role1 = createUserRole("role-1-uuid", testItSystem);
@@ -297,38 +321,60 @@ class CurrentAssignmentMapperTest {
 			RoleGroup roleGroup = createRoleGroup(1L, List.of(role1, role2));
 
 			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, testOrgUnit);
+			assignment.setContainsTitles(ContainsTitles.POSITIVE);
 			assignment.setAssignedByName("Assigner");
 			assignment.setAssignedByUserId("assigner-id");
 
 			// Act
-			Set<CurrentAssignment> result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testOrgUnit);
+			Set<CurrentAssignment> result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testTitle, testOrgUnit);
 
 			// Assert
 			assertThat(result).hasSize(2)
+				.allMatch(ca -> ca.getOrgUnit() == testOrgUnit && ca.getRoleGroup() == roleGroup && ca.getTitle() == testTitle)
 				.extracting(CurrentAssignment::getUserRole)
 				.containsExactlyInAnyOrder(role1, role2);
 		}
 
 		@Test
-		@DisplayName("Should set orgUnit and roleGroup on all expanded assignments")
-		void shouldSetOrgUnitAndRoleGroupOnAllExpandedAssignments() {
+		@DisplayName("Should stamp title on expanded assignments and record that titles are NEGATIVE")
+		void shouldStampTitleAndRecordNegativeContainsTitles() {
 			// Arrange
 			UserRole role1 = createUserRole("role-1-uuid", testItSystem);
 			role1.setId(1L);
-			UserRole role2 = createUserRole("role-2-uuid", testItSystem);
-			role2.setId(2L);
-			RoleGroup roleGroup = createRoleGroup(1L, List.of(role1, role2));
+			RoleGroup roleGroup = createRoleGroup(1L, List.of(role1));
 
 			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, testOrgUnit);
+			assignment.setContainsTitles(ContainsTitles.NEGATIVE);
 			assignment.setAssignedByName("Assigner");
 			assignment.setAssignedByUserId("assigner-id");
 
 			// Act
-			Set<CurrentAssignment> result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testOrgUnit);
+			Set<CurrentAssignment> result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testTitle, testOrgUnit);
 
 			// Assert
-			assertThat(result).hasSize(2)
-				.allMatch(ca -> ca.getOrgUnit() == testOrgUnit && ca.getRoleGroup() == roleGroup);
+			// Assert - without the flag the stamped title would read as "assigned through title"
+			assertThat(result).allMatch(ca -> ca.getTitle() == testTitle && ca.getContainsTitles() == ContainsTitles.NEGATIVE);
+		}
+
+		@Test
+		@DisplayName("Should set title on the roleGroup-only row when the role group has no user roles")
+		void shouldSetTitleOnRoleGroupOnlyRow() {
+			// Arrange
+			RoleGroup emptyRoleGroup = createRoleGroup(1L, Collections.emptyList());
+
+			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(emptyRoleGroup, testOrgUnit);
+			assignment.setContainsTitles(ContainsTitles.POSITIVE);
+			assignment.setAssignedByName("Assigner");
+			assignment.setAssignedByUserId("assigner-id");
+
+			// Act
+			Set<CurrentAssignment> result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testTitle, testOrgUnit);
+
+			// Assert
+			assertThat(result).hasSize(1);
+			CurrentAssignment row = result.iterator().next();
+			assertThat(row.isRoleGroupOnly()).isTrue();
+			assertThat(row.getTitle()).isEqualTo(testTitle);
 		}
 	}
 }

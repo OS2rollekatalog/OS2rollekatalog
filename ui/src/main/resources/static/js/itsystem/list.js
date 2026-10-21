@@ -2,7 +2,8 @@ const itsystemListConfig = JSON.parse(document.getElementById("itsystem-list-con
 const token = $("meta[name='_csrf']").attr("content");
 const sweetAlertService = new SweetAlertService();
 
-$(document).ready(() => {
+// Using JQuery to load leads to an early init of the table with no options -> always use a native load when importing datatables.js
+document.addEventListener("DOMContentLoaded", () => {
     const listTable = $("#listTable").DataTable();
 
     $("input[name=showHidden]").change(function () {

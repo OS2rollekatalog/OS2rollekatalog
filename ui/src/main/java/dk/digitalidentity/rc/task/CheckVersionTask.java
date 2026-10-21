@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.AppManagerService;
 import dk.digitalidentity.rc.service.model.ApplicationApiDTO;
 
@@ -25,6 +26,7 @@ public class CheckVersionTask {
 
 	// check for a new version once per hour
 	@Scheduled(initialDelay = 1000, fixedDelay = 60 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 5 * 1000)
 	public void checkVersion() {
 		if (!StringUtils.hasLength(configuration.getIntegrations().getAppManager().getUrl())) {
 			return;

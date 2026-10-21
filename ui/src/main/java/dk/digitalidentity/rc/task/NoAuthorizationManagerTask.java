@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.dao.model.Notification;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -44,6 +45,7 @@ public class NoAuthorizationManagerTask {
 	private ManagerSubstituteService managerSubstituteService;
 	
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 9 * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void run() {
 		if (!configuration.getScheduled().isEnabled() || !settingsService.isRequestApproveEnabled()) {
 			return;

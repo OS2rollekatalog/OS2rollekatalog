@@ -270,27 +270,6 @@ public class OrganisationApiTest extends AbstractApiTest {
 	}
 
 	/**
-	 * Tests that v1 API endpoint is deprecated and returns 400.
-	 * <p>
-	 * Verifies that:
-	 * - Old v1 endpoint returns HTTP 400 Bad Request
-	 * - API version deprecation is enforced
-	 * - Clients are forced to upgrade to newer versions
-	 * </p>
-	 *
-	 * @throws Exception if HTTP request fails
-	 */
-	@Test
-	@DisplayName("Should return 400 for deprecated v1 endpoint")
-	void testImportOrgUnits_V1_Deprecated() throws Exception {
-		this.mockMvc.perform(post("/api/organisation")
-				.header("ApiKey", API_KEY)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{}"))
-			.andExpect(status().isBadRequest());
-	}
-
-	/**
 	 * Tests that organizational structure can be imported via v3 API.
 	 * <p>
 	 * Verifies that:
@@ -679,49 +658,5 @@ public class OrganisationApiTest extends AbstractApiTest {
 					subsectionWithPath("users").description("Array of all users")
 				)
 			));
-	}
-
-	/**
-	 * Tests that v2 API endpoint still works but is deprecated.
-	 * <p>
-	 * Verifies that:
-	 * - v2 endpoint still functions for backward compatibility
-	 * - Endpoint returns HTTP 200 OK
-	 * - Clients should migrate to v3
-	 * </p>
-	 * <p>
-	 * Note: v2 is deprecated and maintained only for backward compatibility.
-	 * New implementations should use v3.
-	 * </p>
-	 *
-	 * @throws Exception if HTTP request fails or validation fails
-	 */
-	@Test
-	@DisplayName("Should accept v2 import but endpoint is deprecated")
-	void testImportOrgUnitsV2_Deprecated() throws Exception {
-		String requestBody = """
-            {
-                "orgUnits": [
-                    {
-                        "uuid": "550e8400-e29b-41d4-a716-446655440020",
-                        "name": "V2 Root Org",
-                        "parentOrgUnitUuid": null
-                    }
-                ],
-                "users": []
-            }
-            """;
-
-		this.mockMvc.perform(post("/api/organisation/v2")
-				.header("ApiKey", API_KEY)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(requestBody))
-			.andExpect(status().isOk());
-
-		entityManager.flush();
-		entityManager.clear();
-		OrgUnit createdOrgUnit = orgUnitService.getByUuid("550e8400-e29b-41d4-a716-446655440020");
-		assertThat(createdOrgUnit).isNotNull();
-		assertThat(createdOrgUnit.getName()).isEqualTo("V2 Root Org");
 	}
 }

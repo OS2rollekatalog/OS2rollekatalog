@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.task.assignment;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.event.AssignmentChangeEventHandlerService;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class CleanUpDeletedUserCurrentAssignmentsTask {
 	private long totalProcessed = 0;
 
 	@Scheduled(fixedDelay = 30_000)
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void cleanupChunk() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

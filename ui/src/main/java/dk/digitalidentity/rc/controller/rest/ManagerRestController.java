@@ -167,10 +167,12 @@ public class ManagerRestController {
 				return ResponseEntity.badRequest().body("Der skal vælges en organisations enhed");
 			}
 
-			// check if substitute already assigned to selected orgUnit
+			// check if substitute already assigned to selected orgUnit - skip instead of failing, so the
+			// remaining orgUnits in the request can still be processed and no duplicates are created
 			if (manager.getManagerSubstitutes().stream().anyMatch(m -> m.getSubstitute().equals(substitute) && m.getOrgUnit().equals(orgUnit))) {
-				return ResponseEntity.badRequest().body(substitute.getName() + " er allerede tildelt som stedfortræder i " + orgUnit.getName());
+				continue;
 			}
+
 			ManagerSubstitute managerSubstituteMapping = new ManagerSubstitute();
 			managerSubstituteMapping.setManager(manager);
 			managerSubstituteMapping.setSubstitute(substitute);

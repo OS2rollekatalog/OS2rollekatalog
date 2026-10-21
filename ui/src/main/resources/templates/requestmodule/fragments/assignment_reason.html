@@ -1,0 +1,7 @@
+<th:block xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<td th:fragment="reasonCell(reason)"
+		th:text="${reason != null} ? ${#strings.abbreviate(reason, 80)} : ''"
+		th:title="${reason}"
+		th:attr="data-toggle=${reason != null} ? 'tooltip' : null, tabindex=${reason != null} ? '0' : null"
+		data-placement="top"></td>
+</th:block>

@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc.viewmodel;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -9,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -62,8 +64,8 @@ public class UserRoleForm {
     	this.identifier = userRole.getIdentifier();
     	this.userOnly = userRole.isUserOnly();
     	this.uuid = userRole.getUuid();
-    	this.requesterPermission = userRole.getRequesterPermission();
-    	this.approverPermission	 = userRole.getApproverPermission();
+    	this.requesterPermission = userRole.getRequesterPermission().getRequestableBy();
+    	this.approverPermission	 = userRole.getApproverPermission().getApprovableBy();
 		this.contactEmail = userRole.getContactEmail();
 		this.advisEmail = userRole.getAdvisEmail();
     	this.description = userRole.getDescription();
@@ -99,8 +101,8 @@ public class UserRoleForm {
 		userRole.setAdvisEmail(this.advisEmail);
     	userRole.setUserOnly(this.userOnly);
     	userRole.setUuid(this.uuid);
-    	userRole.setRequesterPermission(this.requesterPermission);
-    	userRole.setApproverPermission(this.approverPermission);
+    	userRole.setRequesterPermission(RequesterPermission.of(this.requesterPermission));
+    	userRole.setApproverPermission(ApproverPermission.of(this.approverPermission));
     	userRole.setDescription(this.description);
     	userRole.setItSystem(this.itSystem);
     	userRole.setSensitiveRole(this.sensitiveRole);

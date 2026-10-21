@@ -31,7 +31,7 @@
                     <li th:if="${isAdmin || isManagerOrSubstituteAnywhere || isSystemOwnerAnywhere || isRequestAuthorizedAnywhere || isAuthorizationResponsibleAnywhere}">
                         <a role="button" th:href="@{/ui/request/employees}" th:class="${page == 'employeeRequests'} ? 'navActive' : ''" th:text="#{requestmodule.topbar.employeeRequest}"></a>
                     </li>
-                    <li th:if="${isAdmin || isManagerOrSubstituteAnywhere || isSystemOwnerAnywhere || isRequestAuthorizedAnywhere || isAuthorizationResponsibleAnywhere}">
+                    <li th:if="${isAdmin || isManagerOrSubstituteAnywhere || isSystemOwnerAnywhere || isRequestAuthorizedAnywhere || isAuthorizationResponsibleAnywhere || isApproveAuthorizedAnywhere}">
                         <a role="button" th:href="@{/ui/request/pending}" th:class="${page == 'pendingRequests'} ? 'navActive' : ''">
 							<span th:text="#{requestmodule.topbar.pendingRequest}"></span>
 							<span class="badge badge-primary" th:text="${waitingRequestsCount}"></span></a>

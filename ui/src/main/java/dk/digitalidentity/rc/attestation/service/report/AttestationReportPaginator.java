@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.attestation.service.report;
 
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentReportRowDTO;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 
@@ -23,15 +24,26 @@ public class AttestationReportPaginator {
     private final LocalDate since;
     private final LocalDate to;
     private final Predicate<RoleAssignmentReportRowDTO> rowFilter;
+    /** Set for the audit report, which is pulled for one run; null when the report spans a period. */
+    private final AttestationRun run;
+    /** The same attestations apply to every page, so they are looked up on the first one. */
+    private AttestationReportContextService.AttestationReportContext context;
     private int currentPage = 0;
 
     public AttestationReportPaginator(final AttestationReportService service, final List<Long> rowIdPages,
                                       final LocalDate since, final LocalDate to, final Predicate<RoleAssignmentReportRowDTO> rowFilter) {
+        this(service, rowIdPages, since, to, rowFilter, null);
+    }
+
+    public AttestationReportPaginator(final AttestationReportService service, final List<Long> rowIdPages,
+                                      final LocalDate since, final LocalDate to, final Predicate<RoleAssignmentReportRowDTO> rowFilter,
+                                      final AttestationRun run) {
         this.service = service;
         this.rowIdPages = ListUtils.partition(rowIdPages, PAGE_SIZE);
         this.since = since;
         this.to = to;
         this.rowFilter = rowFilter;
+        this.run = run;
     }
 
     public boolean hasNext() {
@@ -43,7 +55,10 @@ public class AttestationReportPaginator {
             return Collections.emptyList();
         }
         log.info("Current page {} of {}", currentPage, rowIdPages.size());
-        return service.getUserRoleRows(since, to, rowIdPages.get(currentPage++)).stream()
+        if (context == null) {
+            context = service.reportContext(since, to, run);
+        }
+        return service.getUserRoleRows(since, to, rowIdPages.get(currentPage++), context).stream()
                 .filter(rowFilter)
                 .collect(Collectors.toList());
     }

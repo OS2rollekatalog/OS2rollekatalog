@@ -29,6 +29,8 @@ public enum Settings {
     SETTING_EMAIL_QUEUE_LIMIT("EmailQueueLimit", null),
     SETTING_CURRENT_INSTALLED_RANK("currentInstalledRank", null),
     SETTING_DONT_SEND_MAIL_TO_MANAGER("DontSendMailToMangerEnabled", null),
+    SETTING_ATTESTATION_ESCALATION_RECIPIENTS("AttestationEscalationRecipients", "html.setting.attestation.escalation.recipients"),
+    SETTING_ATTESTATION_ESCALATION_EMAILS("AttestationEscalationEmails", "html.setting.attestation.escalation.emails"),
 	SETTING_VIKAR_REGEX("VikarRegEx", null),
     SETTING_ROLEREQUEST_REQUESTER("allowedrequesters", null),
     SETTING_ROLEREQUEST_APPROVER("allowedrapprovers", null),
@@ -39,15 +41,18 @@ public enum Settings {
 	SETTING_ROLEREQUEST_SHOW_ALL_TAB("showAllRolesTab", "html.setting.rolerequest.request.showAllTab.label"),
 	SETTING_ROLEREQUEST_SHOW_EXISTING_TAB("showExistingRolesTab", "html.setting.rolerequest.request.showExistingTab.label"),
     SETTING_ROLEREQUEST_ALLOW_SELF_APPROVAL("rolerequestAllowSelfApproval", "html.setting.rolerequest.allowSelfApproval.label"),
+    SETTING_ROLEREQUEST_AUTO_APPROVE_REMOVAL("rolerequestAutoApproveRemoval", "html.setting.rolerequest.autoApproveRemoval.label"),
     SETTING_CASE_NUMBER_ENABLED("caseNumberEnabled", "html.setting.caseNumber.enabled"),
     SETTING_EXCLUDED_OUS("ExcludedOUs", "html.setting.pickou"),
     SETTING_ATTESTATION_ORGUNIT_OPTIN("attestationOrgUnitOptIn",null),
     SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS("ScheduledAttestationOptedInOrgUnits", "html.setting.attestation.scheduled.filter.optin"),
 	SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED("RemoveDirectAssignmentsForDisabled", "html.setting.direct.affiliations.duration"),
+	SETTING_PREVENT_DUPLICATE_ROLES("PreventDuplicateRoles", "html.setting.preventDuplicateRoles"),
 	SETTING_FIRST_MANUAL_IT_SYSTEM_RUN("firstManualItSystemRun",null),
 	SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED("HistoricItSystemAssignmentCollectionRepairPerformed", null),
-	SETTING_ATTESTATION_RESPONSIBLE_COLLECTION_RECONCILE_PERFORMED("AttestationResponsibleCollectionReconcilePerformed", null),
-	SETTING_ASSIGNMENT_HOOK_TIMESTAMP("AssignmentHookTimestamp", null);
+	SETTING_ATTESTATION_RESPONSIBLE_COLLECTION_RECONCILE_PERFORMED_V2("AttestationResponsibleCollectionReconcilePerformedV2", null),
+	SETTING_ASSIGNMENT_HOOK_TIMESTAMP("AssignmentHookTimestamp", null),
+	SETTING_REMOVE_DIRECT_ASSIGNMENTS_ON_RELEVANT_POSITION_CHANGE("RemoveAssignmentsOnPositionChange", null);
 
     private String key;
     private String message;

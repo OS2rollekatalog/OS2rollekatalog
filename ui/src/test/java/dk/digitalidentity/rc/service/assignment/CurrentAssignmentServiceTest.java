@@ -4,6 +4,7 @@ import dk.digitalidentity.rc.dao.assignment.CurrentAssignmentDao;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,7 @@ import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUse
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -179,6 +182,35 @@ class CurrentAssignmentServiceTest {
 			assertThat(createdHistoricHashes)
 				.contains("new-hash")
 				.doesNotContain("outdated-hash", "existing-hash");
+		}
+
+		@SuppressWarnings("unchecked")
+		@Test
+		@DisplayName("should relabel a surviving row whose containsTitles changed instead of replacing it")
+		void shouldRelabelSurvivingRowWithChangedContainsTitles() {
+			// ---- Given ---- //
+			CurrentAssignment stored = createCurrentAssignment(1L, "existing-hash", testUser);
+			stored.setContainsTitles(ContainsTitles.POSITIVE);
+			CurrentAssignment calculated = createCurrentAssignment(null, "existing-hash", testUser);
+			calculated.setContainsTitles(ContainsTitles.NEGATIVE);
+
+			given(currentAssignmentDao.findByUserIn(Set.of(testUser)))
+				.willReturn(Set.of(stored));
+
+			// ---- When ---- //
+			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(calculated)));
+
+			// ---- Then ---- //
+			ArgumentCaptor<Collection<CurrentAssignment>> relabelCaptor = ArgumentCaptor.forClass(Collection.class);
+
+			verify(historicAssignmentService).relabelAssignedThroughFor(relabelCaptor.capture());
+
+			// the stored row must carry the new value - the hash is blind to it, so nothing else reaches it
+			assertThat(relabelCaptor.getValue()).singleElement().isSameAs(stored);
+			assertThat(stored.getContainsTitles()).isEqualTo(ContainsTitles.NEGATIVE);
+
+			verify(currentAssignmentDao, never()).deleteAllById(any());
+			verify(currentAssignmentDao, never()).saveAll(any());
 		}
 
 		@Test

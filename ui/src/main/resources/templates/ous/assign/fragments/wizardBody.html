@@ -1,0 +1,39 @@
+<th:block th:fragment="wizardBody" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="d-flex gap-3" th:attr="data-submit-url=${stepSubmitUrl}">
+		<ul class="assignment-wizard-nav list-unstyled m-0">
+			<li th:each="step : ${wizardSteps}"
+			    th:class="'wizard-step py-2 px-3 wizard-step--' + ${#strings.toLowerCase(step.state())}"
+			    th:attr="data-step-id=${step.id().name()}, data-back-url=${step.backUrl()}"
+			    th:text="${#messages.msg(step.id().messageKey())}">
+			</li>
+		</ul>
+		<div class="assignment-wizard-content flex-column">
+			<div id="wizardStepErrors" class="alert alert-danger" th:attr="hidden=${stepErrors == null or stepErrors.isEmpty()} ? 'hidden' : null">
+				<div th:each="error : ${stepErrors}" th:text="${error}"></div>
+			</div>
+
+			<div class="flex-column" th:switch="${currentStepId}">
+				<th:block th:case="'SELECT_SCOPE'"><th:block th:replace="~{ous/assign/assignmentTypeView :: assignmentTypeView}"></th:block></th:block>
+				<th:block th:case="'EXCEPTED_OUS'"><th:block th:replace="~{ous/assign/steps/exceptedOus :: exceptedOus}"></th:block></th:block>
+				<th:block th:case="'EXCEPTED_USERS'"><th:block th:replace="~{ous/assign/steps/exceptedUsers :: exceptedUsers}"></th:block></th:block>
+				<th:block th:case="'TITLES'"><th:block th:replace="~{ous/assign/steps/titles :: titles}"></th:block></th:block>
+				<th:block th:case="'FUNCTIONS'"><th:block th:replace="~{ous/assign/steps/functions :: functions}"></th:block></th:block>
+				<th:block th:case="'MANAGER'"><th:block th:replace="~{ous/assign/steps/manager :: manager}"></th:block></th:block>
+				<th:block th:case="'RECEIPT'"><th:block th:replace="~{ous/assign/steps/receipt :: receipt}"></th:block></th:block>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-footer">
+		<button id="backButton" type="button" class="btn btn-default pull-left"
+		        th:if="${previousStepBackUrl != null}"
+		        th:attr="data-back-url=${previousStepBackUrl}"
+		        th:text="#{html.page.ou.assign.modal.back}">
+		</button>
+		<button id="progressButton" type="button" class="btn btn-primary"
+		        th:text="${finalStep} ? #{html.page.ou.assign.modal.assign} : #{html.page.ou.assign.modal.next}"
+		        th:attr="data-final-step=${finalStep},
+		                 data-success-message=#{html.page.ou.assign.receipt.success}">
+		</button>
+	</div>
+</th:block>

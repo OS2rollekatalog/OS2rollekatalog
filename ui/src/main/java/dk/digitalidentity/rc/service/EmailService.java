@@ -157,7 +157,7 @@ public class EmailService {
 		try {
 			Properties props = System.getProperties();
 			props.put("mail.transport.protocol", "smtps");
-			props.put("mail.smtp.port", 25);
+			props.put("mail.smtp.port", "" + configuration.getIntegrations().getEmail().getPort());
 			props.put("mail.smtp.auth", "true");
 			props.put("mail.smtp.starttls.enable", "true");
 			props.put("mail.smtp.starttls.required", "true");

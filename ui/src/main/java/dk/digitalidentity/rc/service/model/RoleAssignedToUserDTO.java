@@ -92,7 +92,8 @@ public class RoleAssignedToUserDTO {
 				break;
 		}
 
-		if (assignment.getTitle() != null) {
+		// only when the title is the reason for the role - a NEGATIVE assignment carries the holder's own
+		if (assignment.getTitle() != null && assignedThrough == AssignedThrough.TITLE) {
 			dto.setTitleUuids(Collections.singletonList(assignment.getTitle().getUuid()));
 			dto.setTitleName(assignment.getTitle().getName());
 		}
@@ -139,7 +140,8 @@ public class RoleAssignedToUserDTO {
 		}
 		dto.setCaseNumber(assignment.getCaseNumber());
 
-		if (assignment.getTitle() != null) {
+		// only when the title is the reason for the role - a NEGATIVE assignment carries the holder's own
+		if (assignment.getTitle() != null && assignedThrough == AssignedThrough.TITLE) {
 			dto.setTitleUuids(Collections.singletonList(assignment.getTitle().getUuid()));
 			dto.setTitleName(assignment.getTitle().getName());
 		}

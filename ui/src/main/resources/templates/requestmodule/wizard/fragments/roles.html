@@ -17,11 +17,11 @@
 				</li>
 			</th:block>
 			<th:block th:if="${showCombinedTable}">
-				<li>
+				<li th:if="${showRecommendedTab}">
 					<a class="nav-link active" data-toggle="tab" href="#recommendedCombinedTab" th:text="#{requestmodule.html.request.wizard.roles.recommendedAllTab}"></a>
 				</li>
-				<li>
-					<a class="nav-link" data-toggle="tab" href="#allCombinedTab" th:text="#{requestmodule.html.request.wizard.roles.all}"></a>
+				<li th:if="${showAllTab}">
+					<a class="nav-link" th:classappend="${!showRecommendedTab} ? ' active'" data-toggle="tab" href="#allCombinedTab" th:text="#{requestmodule.html.request.wizard.roles.all}"></a>
 				</li>
 			</th:block>
 			<!-- "Eksisterende" is always its own tab pair, independent of combined mode -->
@@ -54,12 +54,12 @@
             	</div>
 			</th:block>
 			<th:block th:if="${showCombinedTable}">
-				<div role="tabpanel" id="recommendedCombinedTab" class="tab-pane active">
+				<div th:if="${showRecommendedTab}" role="tabpanel" id="recommendedCombinedTab" class="tab-pane active">
 					<div class="panel-body">
 						<div th:replace="~{requestmodule/wizard/fragments/recommended_roles_tables :: recommendedCombinedFragment}"></div>
 					</div>
 				</div>
-				<div role="tabpanel" id="allCombinedTab" class="tab-pane">
+				<div th:if="${showAllTab}" role="tabpanel" id="allCombinedTab" th:class="${!showRecommendedTab} ? 'tab-pane active' : 'tab-pane'">
 					<div class="panel-body">
 						<div th:replace="~{requestmodule/wizard/fragments/all_roles_tables :: allCombinedFragment}"></div>
 					</div>

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.log.SecurityLogger;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -23,6 +24,7 @@ public class SecurityLogCleaner {
 	// run every 5 minutes between 02:00 and 03:59 (so 24 times, deleting 25.000 rows each time, for a total of 600.000 rows in total)
 	// as this is a heavy operation, we spread the load across the various running instances
 	@Scheduled(cron = "#{new java.util.Random().nextInt(59)} #{new java.util.Random().nextInt(4)}/5 2-3 * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void cleanupAuditLogs() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.info("Scheduled jobs are disabled on this instance");

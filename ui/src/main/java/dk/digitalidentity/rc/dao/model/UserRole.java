@@ -1,11 +1,11 @@
 package dk.digitalidentity.rc.dao.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import dk.digitalidentity.rc.config.ApprovableByListConverter;
-import dk.digitalidentity.rc.config.RequestableByListConverter;
+import dk.digitalidentity.rc.config.ApproverPermissionConverter;
+import dk.digitalidentity.rc.config.RequesterPermissionConverter;
 import dk.digitalidentity.rc.log.AuditLoggable;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -26,7 +26,6 @@ import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.ToString;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.hibernate.annotations.BatchSize;
@@ -102,12 +101,12 @@ public class UserRole implements AuditLoggable {
 	private boolean roleAssignmentAttestationByAttestationResponsible;
 
 	@Column
-	@Convert(converter = RequestableByListConverter.class)
-	private List<RequestableBy> requesterPermission = new ArrayList<>(List.of(RequestableBy.INHERIT));
+	@Convert(converter = RequesterPermissionConverter.class)
+	private RequesterPermission requesterPermission = RequesterPermission.inherit();
 
 	@Column
-	@Convert(converter = ApprovableByListConverter.class)
-	private List<ApprovableBy> approverPermission = new ArrayList<>(List.of(ApprovableBy.INHERIT));
+	@Convert(converter = ApproverPermissionConverter.class)
+	private ApproverPermission approverPermission = ApproverPermission.inherit();
 
 	@Column
 	private String contactEmail;

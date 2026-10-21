@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task.assignment;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,7 @@ public class SyncRoleAssignmentOrgUnitTask {
 
 	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(59)} 3 ? * *")
 //	@Scheduled(fixedDelay = 20 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void syncOrgUnitOnRoleAssignments() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

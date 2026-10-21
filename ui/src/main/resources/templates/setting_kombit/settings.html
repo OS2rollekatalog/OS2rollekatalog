@@ -8,7 +8,7 @@
 
 	<section>
 		<div class="content-wrapper">
-			<h3 th:text="#{html.setting.title}"></h3>
+			<div th:replace="~{fragments/saveHeader :: saveHeader(title=#{html.setting.title}, formId='setting-form')}"></div>
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<form id="setting-form" class="form-horizontal" method="post" th:object="${settingsForm}" th:action="@{/ui/kombit/settings}">
 					<input type="hidden" th:field="*{itSystemsHiddenByDefault}" />
@@ -34,13 +34,6 @@
 						</fieldset>
 					</div>
 
-					<fieldset>
-						<div class="form-group">
-							<div class="col-md-offset-1 col-md-10">
-							<button type="submit" class="btn btn-primary btn-block" th:text="#{html.control.button.save}"></button>
-							</div>
-						</div>
-					</fieldset>
 				</form>
 			</div>
 		</div>

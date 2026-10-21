@@ -14,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
+import org.springframework.data.jpa.repository.Modifying;
 
 public interface HistoricExceptedAssignmentDao extends JpaRepository<HistoricExceptedAssignment, Long> {
 	Set<HistoricExceptedAssignment> findByExceptionUserUuid(String userUuid);
@@ -65,4 +66,27 @@ public interface HistoricExceptedAssignmentDao extends JpaRepository<HistoricExc
 		@Param("startOfDay") LocalDateTime startOfDay,
 		@Param("endOfDay") LocalDateTime endOfDay,
 		@Param("itSystemIds") Collection<Long> itSystemIds);
+
+	/**
+	 * Stamps assignedWhen on the open rows versioned off one current exception, see
+	 * {@link HistoricAssignmentDao#setAssignedWhenOnOpenByRecordHash} for why validTo IS NULL matters.
+	 * <p>
+	 * The exception hash is 32 bit (Objects.hash), not SHA-256, so assignment, user and role are
+	 * matched as well rather than trusting the hash alone.
+	 */
+	@Modifying
+	@Query("""
+		UPDATE HistoricExceptedAssignment h SET h.assignedWhen = :assignedWhen
+		WHERE h.recordHash = :recordHash
+		  AND h.exceptionAssignmentId = :exceptionAssignmentId
+		  AND h.exceptionUserUuid = :exceptionUserUuid
+		  AND h.exceptionUserRoleId = :exceptionUserRoleId
+		  AND h.validTo IS NULL
+		  AND h.assignedWhen IS NULL
+		""")
+	int setAssignedWhenOnOpen(@Param("recordHash") String recordHash,
+			@Param("exceptionAssignmentId") long exceptionAssignmentId,
+			@Param("exceptionUserUuid") String exceptionUserUuid,
+			@Param("exceptionUserRoleId") long exceptionUserRoleId,
+			@Param("assignedWhen") LocalDateTime assignedWhen);
 }

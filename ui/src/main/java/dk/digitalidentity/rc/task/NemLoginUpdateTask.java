@@ -8,6 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
+import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.nemlogin.NemLoginService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,8 +24,12 @@ public class NemLoginUpdateTask {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 	
+	@Autowired
+	private UserService userService;
+	
 	// run every 5 minutes in the day time
 	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)}/5 6-23 * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void syncDirtyUserRolesAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -40,6 +46,7 @@ public class NemLoginUpdateTask {
 
 	// run ~4-5 times during "daytime" (every 5 hours from 6 AM to 11 PM)
 	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)} 23 * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void syncAdminRoles() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -56,6 +63,7 @@ public class NemLoginUpdateTask {
 
 	// run once every "night" - they don't like being called before 10:00 - too many errors
 	@Scheduled(cron = "${cron.nemlogin.fullSync:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 10 * * ?}")
+	@WarnIfSlowerThan(millis = 5 * 60 * 1000)
 	public void fullSyncRoleAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -72,6 +80,7 @@ public class NemLoginUpdateTask {
 
 	// period sync of systemRoles and AdminRoles from MitID Erhverv to OS2rollekatalog
 	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 3,10,14 * * ?")
+	@WarnIfSlowerThan(millis = 5 * 60 * 1000)
 	public void syncNemLoginRoles() throws Exception {
 		if (!configuration.getScheduled().isEnabled() || !configuration.getIntegrations().getNemLogin().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
@@ -94,13 +103,19 @@ public class NemLoginUpdateTask {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
+		
+		if (!nemLoginService.initialized()) {
 
-		// false ensures it only runs once
-		nemLoginService.syncNemLoginRoles(false);
-		nemLoginService.syncNemLoginAdminRoles();
-
-		// this will only really work once, as the moment any assignments are present in DB, nothing will be read from MitID Erhverv
-		nemLoginService.syncExistingRoleAssignments();
-		nemLoginService.syncAdminRoleAssignments();
+			// false ensures it only runs once
+			nemLoginService.syncNemLoginRoles(false);
+			nemLoginService.syncNemLoginAdminRoles();
+	
+			// this will only really work once, as the moment any assignments are present in DB, nothing will be read from MitID Erhverv
+			nemLoginService.syncExistingRoleAssignments();
+			nemLoginService.syncAdminRoleAssignments();
+			
+			// ensure all assignments are correctly calculated (we do some bypass operations during migration)
+			userService.queueAllForRecalculation();
+		}
 	}
 }

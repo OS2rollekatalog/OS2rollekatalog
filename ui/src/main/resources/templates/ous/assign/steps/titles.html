@@ -1,0 +1,29 @@
+<th:block th:fragment="titles" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div id="titlesStepContent" th:attr="data-title-mode=${titleMode}">
+		<label class="control-label"
+		       th:text="${titleMode == 'EXCEPT_SELECTED'} ? #{html.page.ou.assign.titles.except.label} : #{html.page.ou.assign.titles.select.label}"></label>
+
+		<table id="titlesStepTable" class="table table-striped">
+			<thead>
+				<tr>
+					<th class="col-md-2" th:text="#{html.entity.title.checked}"></th>
+					<th class="col-md-10" th:text="#{html.entity.title.name}"></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr th:each="title : ${titles}">
+					<td>
+						<div class="checkbox c-checkbox">
+							<label>
+								<input class="titles-step-checkbox" type="checkbox" th:attr="data-id=${title.uuid}"
+							       th:checked="${selectedTitleUuids != null and selectedTitleUuids.contains(title.uuid)}" />
+								<span class="fa fa-check"></span>
+							</label>
+						</div>
+					</td>
+					<td th:text="${title.name}"></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</th:block>

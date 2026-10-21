@@ -16,4 +16,5 @@ import java.time.LocalDateTime;
 public class UpdateUserAssignmentsMessage {
 	private String userUuid;
 	private LocalDateTime timestamp;
+	private String changedBy;
 }

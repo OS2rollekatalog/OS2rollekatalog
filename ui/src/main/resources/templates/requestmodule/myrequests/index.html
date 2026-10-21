@@ -29,6 +29,7 @@
 										<th th:text="#{requestmodule.html.myrequests.groups.reciever}"></th>
 										<th th:text="#{requestmodule.html.myrequests.groups.frame}"></th>
 										<th th:text="#{requestmodule.html.myrequests.groups.contains}"></th>
+										<th th:text="#{requestmodule.html.pending.table.header.reason}"></th>
 										<th th:text="#{requestmodule.html.myrequests.groups.status}"></th>
 										<th hidden></th>
 									</tr>
@@ -42,6 +43,7 @@
 										<td th:text="${requestGroup.recieverName}"></td>
 										<td th:text="${requestGroup.timeFrame}"></td>
 										<td th:text="${requestGroup.userroleCount + ' jobfunktionsroller, '+ requestGroup.rolegroupCount + ' rollebuketter'}"></td>
+										<td th:replace="~{requestmodule/fragments/assignment_reason :: reasonCell(${requestGroup.reason})}"></td>
 										<td th:text="#{${requestGroup.status}}"></td>
 										<!-- Detailview for row-->
 										<td hidden class="detailview">

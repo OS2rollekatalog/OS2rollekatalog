@@ -1,0 +1,29 @@
+<th:block th:fragment="manager" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<fieldset id="managerStepContent" class="d-flex gap-3 flex-column">
+		<div class="form-group pb-5">
+			<label class="col-sm-12 control-label" th:text="#{html.page.ou.assign.manager.select.label}"></label>
+			<div class="col-sm-12">
+				<div class="btn-group">
+					<label class="btn btn-default active">
+						<input type="radio"
+						       class="btn-group-radio"
+						       id="include-substitutes"
+						       name="substituteIncluded"
+						       value="true"
+						       th:checked="${selectedIncludeSubstitutes == null or selectedIncludeSubstitutes}">
+						<span th:text="#{html.page.ou.assign.manager.option.include}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio"
+						       class="btn-group-radio"
+						       id="exclude-substitutes"
+						       name="substituteIncluded"
+						       value="false"
+						       th:checked="${selectedIncludeSubstitutes != null and !selectedIncludeSubstitutes}">
+						<span th:text="#{html.page.ou.assign.manager.option.exclude}"></span>
+					</label>
+				</div>
+			</div>
+		</div>
+	</fieldset>
+</th:block>

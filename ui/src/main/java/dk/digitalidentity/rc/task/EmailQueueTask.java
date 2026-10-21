@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.SettingsService;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class EmailQueueTask {
 	private SettingsService settingsService;
 
 	@Scheduled(cron = "0 0/5 * * * ?")
+	@WarnIfSlowerThan(millis = 2 * 60 * 1000)
 	public void processEmails() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ManualAssignmentEffectuationService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,6 +22,7 @@ public class ManualAssignmentEffectuationNotificationTask {
 	private ManualAssignmentEffectuationService manualAssignmentEffectuationService;
 
 	@Scheduled(cron = "0 0/15 * * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void notifyPendingEffectuations() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

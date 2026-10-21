@@ -66,6 +66,13 @@ public class HistoricAssignment {
 	 */
 	private LocalDateTime validTo;
 
+	/**
+	 * When the role was assigned, as opposed to {@link #validFrom} which is the row's version date.
+	 * Null on closed versions and where the source assignment is gone, so consumers fall back to
+	 * {@link #validFrom}. See AssignedWhenRepairService for what the repair covers.
+	 */
+	private LocalDateTime assignedWhen;
+
 	private String userUuid;
 
 	private String userId;

@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -11,9 +12,11 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.projections.FunctionOrgUnit;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerUuid;
-import dk.digitalidentity.rc.dao.projections.OrgUnitUuidAndName;
+import dk.digitalidentity.rc.dao.projections.OrgUnitParentAndManager;
+import dk.digitalidentity.rc.dao.projections.OrgUnitUuidNameAndParent;
 import org.springframework.data.repository.query.Param;
 
 public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
@@ -55,6 +58,8 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 	List<OrgUnit> findByActiveTrueAndManagerNotNull();
 
 	List<OrgUnit> findByUuidIn(List<String> uuids);
+
+	<T> List<T> findByUuidIn(Collection<String> uuids, Class<T> projectionType);
 
 	Optional<OrgUnit> getByUuid(String uuid);
 
@@ -99,6 +104,23 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 		""", nativeQuery = true)
 	Set<String> findDescendantOuUuids(@Param("ouUuid") String ouUuid);
 
+	// UNION (not UNION ALL) terminates the recursion on cyclic OU data
+	@Query(value = """
+		WITH RECURSIVE ou_tree AS (
+		    SELECT uuid
+		    FROM ous
+		    WHERE uuid IN (:rootUuids)
+
+		    UNION
+
+		    SELECT o.uuid
+		    FROM ous o
+		    INNER JOIN ou_tree t ON o.parent_uuid = t.uuid
+		)
+		SELECT uuid FROM ou_tree
+		""", nativeQuery = true)
+	Set<String> findOuUuidsIncludingDescendants(@Param("rootUuids") Collection<String> rootUuids);
+
     @Query(value = """
             WITH RECURSIVE ancestor_tree AS (
                 SELECT *
@@ -132,23 +154,6 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
             """,
             nativeQuery = true)
     List<String> findAllAncestorUuids(@Param("uuid") String uuid);
-
-	@Query(value = """
-			WITH RECURSIVE descendant_tree AS (
-			    SELECT uuid, name
-			    FROM ous
-			    WHERE uuid = :uuid
-
-			    UNION ALL
-
-			    SELECT ou.uuid, ou.name
-			    FROM ous ou
-			    INNER JOIN descendant_tree dt ON ou.parent_uuid = dt.uuid
-			)
-			SELECT uuid, name FROM descendant_tree WHERE uuid != :uuid
-			""",
-			nativeQuery = true)
-	List<OrgUnitUuidAndName> findDescendantUuidsAndNames(@Param("uuid") String uuid);
 
 	@Query(value = """
     WITH RECURSIVE ou_hierarchy AS (
@@ -228,4 +233,29 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
     """, nativeQuery = true)
 	Set<String> findUserUuidsByOrgUnit(@Param("ouUuid") String ouUuid);
 
+
+	<T> Set<T> findByUuid(String uuid, Class<T> projectionType);
+
+	@Query("""
+		SELECT new dk.digitalidentity.rc.dao.projections.OrgUnitUuidNameAndParent(ou.uuid, ou.name, parent.uuid)
+		FROM ous ou LEFT JOIN ou.parent parent
+		WHERE ou.uuid IN :uuids
+		""")
+	List<OrgUnitUuidNameAndParent> findUuidNameAndParentByUuidIn(@Param("uuids") Collection<String> uuids);
+
+	@Query("""
+		SELECT new dk.digitalidentity.rc.dao.projections.OrgUnitParentAndManager(ou.uuid, parent.uuid, manager.uuid)
+		FROM ous ou LEFT JOIN ou.parent parent LEFT JOIN ou.manager manager
+		""")
+	List<OrgUnitParentAndManager> findAllParentAndManager();
+
+	@Query("SELECT ou.uuid FROM ous ou WHERE ou.manager.uuid = :managerUuid")
+	Set<String> findUuidsByManagerUuid(@Param("managerUuid") String managerUuid);
+
+	@Query("""
+		SELECT new dk.digitalidentity.rc.dao.projections.FunctionOrgUnit(f.function.uuid, f.orgUnit.uuid)
+		FROM user_ou_function f
+		WHERE f.user.uuid = :userUuid AND f.function.uuid IN :functionUuids
+		""")
+	List<FunctionOrgUnit> findFunctionOrgUnitsByUser(@Param("userUuid") String userUuid, @Param("functionUuids") Collection<String> functionUuids);
 }

@@ -1,6 +1,9 @@
 package dk.digitalidentity.rc.service.entraid;
 
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.test.integration.setup.BaseIntegrationTest;
 import dk.digitalidentity.rc.test.integration.setup.BasicTestDataFactory;
 import dk.digitalidentity.rc.test.integration.setup.BasicTestDataFactory.BasicTestData;
@@ -25,6 +28,9 @@ class EntraIDServiceBackSyncIntegrationTest extends BaseIntegrationTest {
 
 	@Autowired
 	private BasicTestDataFactory testDataFactory;
+
+	@Autowired
+	private UserRoleService userRoleService;
 
 	@BeforeEach
 	void login() {
@@ -81,6 +87,25 @@ class EntraIDServiceBackSyncIntegrationTest extends BaseIntegrationTest {
 		flushAndClear();
 
 		assertThat(countDirectAssignments(userUuid, userRoleId)).isZero();
+	}
+
+	@Test
+	void savingADetachedUserRoleAuditsTheRename() {
+		BasicTestData data = testDataFactory.createBasicTestData();
+		UserRole userRole = data.urViaParentOUInherited();
+		String oldName = userRole.getName();
+		flushAndClear();
+
+		userRole.setName("Renamed in EntraID");
+		userRoleService.save(userRole);
+		flushAndClear();
+
+		String description = entityManager.createQuery(
+				"select a.description from AuditLog a where a.entityId = :id and a.eventType = :type", String.class)
+			.setParameter("id", userRole.getEntityId())
+			.setParameter("type", EventType.UPDATE)
+			.getSingleResult();
+		assertThat(description).contains(oldName + " → Renamed in EntraID");
 	}
 
 	private long countDirectAssignments(String userUuid, long userRoleId) {

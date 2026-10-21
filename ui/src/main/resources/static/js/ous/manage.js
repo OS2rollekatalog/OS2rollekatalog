@@ -59,18 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem(pageConfig.ou, id);
     });
 
-    // for loading titles in the javascript fragment
-    ouRolesModalService.ouUuid = pageConfig.ou;
-    ouRolesModalService.parentService = rolesService;
-
-    ouRolesEditModalService.ouUuid = pageConfig.ou;
-    ouRolesEditModalService.parentService = rolesService;
-
     // Initialize tabs
     rolesService.loadRolesFragment();
-
-    // set parentService for editing roleassignments
-    window.ouRoleAssignmentService.parentService = rolesService;
 
     // init table
     fragShowDataTableFun('#ousUsersTable', 0, 100, "ou_manage_list_of_users");

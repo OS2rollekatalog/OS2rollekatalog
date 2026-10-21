@@ -25,8 +25,4 @@ public class ItSystemChangeService {
 	public void delete(List<ItSystemChange> entities) {
 		itSystemChangeDao.deleteAll(entities);
 	}
-
-	public void deleteAll() {
-		itSystemChangeDao.deleteAll();
-	}
 }

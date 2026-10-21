@@ -1,11 +1,40 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserView;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserAssignStatus;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleGridView;
 import dk.digitalidentity.rc.controller.rest.model.BulkAddRoleRequestDTO;
 import dk.digitalidentity.rc.controller.rest.model.BulkRemoveAssignmentRequestDTO;
 import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
@@ -48,34 +77,6 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -962,10 +963,10 @@ public class UserRestController {
 	}
 
 	@PostMapping("/rest/users/{userUuid}/available")
-	public DataTablesOutput<UserRoleDTO> getUserRoleDatatableForUser(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable String userUuid) {
+	public DataTablesOutput<UserRoleGridView> getUserRoleDatatableForUser(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable String userUuid) {
 
 		if (bindingResult.hasErrors()) {
-			DataTablesOutput<UserRoleDTO> error = new DataTablesOutput<>();
+			DataTablesOutput<UserRoleGridView> error = new DataTablesOutput<>();
 			error.setError(bindingResult.toString());
 			return error;
 		}

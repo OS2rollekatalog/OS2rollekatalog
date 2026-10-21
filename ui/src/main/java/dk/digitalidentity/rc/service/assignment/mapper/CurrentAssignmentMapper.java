@@ -17,7 +17,9 @@ import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -26,6 +28,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public abstract class CurrentAssignmentMapper {
+
+	/** Null is preserved so the read side falls back to validFrom instead of showing an invented date. */
+	static LocalDateTime toLocalDateTime(Date assignedTimestamp) {
+		return assignedTimestamp == null
+			? null
+			: assignedTimestamp.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+	}
 
 	public static CurrentAssignment toCurrentAssignment(UserUserRoleAssignment userRoleAssignment, User user, OrgUnit attestationResponsibleOrgUnit) {
 		CurrentAssignment currentAssignment = new CurrentAssignment();
@@ -37,6 +46,7 @@ public abstract class CurrentAssignmentMapper {
 		currentAssignment.setUserRole(userRoleAssignment.getUserRole());
 		currentAssignment.setItSystem(userRoleAssignment.getUserRole().getItSystem());
 		currentAssignment.setAssignmentId(userRoleAssignment.getId());
+		currentAssignment.setAssignedWhen(toLocalDateTime(userRoleAssignment.getAssignedTimestamp()));
 		currentAssignment.setResponsibleOrgUnit(attestationResponsibleOrgUnit);
 		currentAssignment.setCaseNumber(userRoleAssignment.getCaseNumber());
 		currentAssignment.setAssignedBy(userRoleAssignment.getAssignedByName() + " (" + userRoleAssignment.getAssignedByUserId() + ")");
@@ -69,6 +79,7 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignment.setItSystem(userRoleAssignment.getUserRole().getItSystem());
 			currentAssignment.setRoleGroup(assignment.getRoleGroup());
 			currentAssignment.setAssignmentId(assignment.getId());
+			currentAssignment.setAssignedWhen(toLocalDateTime(assignment.getAssignedTimestamp()));
 			currentAssignment.setResponsibleOrgUnit(attestationResponsibleOrgUnit);
 			currentAssignment.setAssignedBy(assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")");
 			currentAssignment.setCaseNumber(assignment.getCaseNumber());
@@ -84,7 +95,7 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignments.add(roleGroupOnlyAssignment(assignment.getRoleGroup(), user, assignment.getId(),
 				assignment.getStartDate(), assignment.getStopDate(),
 				assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")",
-				assignment.getCaseNumber(), null, attestationResponsibleOrgUnit));
+				assignment.getCaseNumber(), null, null, attestationResponsibleOrgUnit, assignment.getAssignedTimestamp()));
 		}
 
 		return currentAssignments;
@@ -105,10 +116,13 @@ public abstract class CurrentAssignmentMapper {
 		currentAssignment.setItSystem(userRole.getItSystem());
 		currentAssignment.setOrgUnit(orgunit);
 		currentAssignment.setAssignmentId(assignment.getId());
+		currentAssignment.setAssignedWhen(toLocalDateTime(assignment.getAssignedTimestamp()));
 		currentAssignment.setResponsibleOrgUnit(attestationResponsibleOrgUnit);
 		currentAssignment.setAssignedBy(assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")");
-		if (assignment.getContainsTitles() != null && assignment.getContainsTitles() != ContainsTitles.NO) {
+		// stamped for NEGATIVE too, so the report can tell the user's positions apart; managers get no title
+		if (title != null && assignment.getContainsTitles() != null && assignment.getContainsTitles() != ContainsTitles.NO) {
 			currentAssignment.setTitle(title);
+			currentAssignment.setContainsTitles(assignment.getContainsTitles());
 		}
 		currentAssignment.setManager(assignment.isManager());
 		currentAssignment.setSubstitutes(assignment.isSubstitutes());
@@ -118,11 +132,12 @@ public abstract class CurrentAssignmentMapper {
 		return currentAssignment;
 	}
 
-	public static Set<CurrentAssignment> toCurrentAssignment(OrgUnitRoleGroupAssignment assignment, User user, OrgUnit positionOrgUnit) {
+	public static Set<CurrentAssignment> toCurrentAssignment(OrgUnitRoleGroupAssignment assignment, User user, Title title, OrgUnit positionOrgUnit) {
 		Set<CurrentAssignment> currentAssignments = new HashSet<>();
 
 		OrgUnit orgunit = assignment.getOrgUnit();
 		RoleGroup roleGroup = assignment.getRoleGroup();
+		boolean stampTitle = title != null && assignment.getContainsTitles() != null && assignment.getContainsTitles() != ContainsTitles.NO;
 
 		for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
 			UserRole userRole = userRoleAssignment.getUserRole();
@@ -138,8 +153,13 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignment.setOrgUnit(orgunit);
 			currentAssignment.setRoleGroup(roleGroup);
 			currentAssignment.setAssignmentId(assignment.getId());
+			currentAssignment.setAssignedWhen(toLocalDateTime(assignment.getAssignedTimestamp()));
 			currentAssignment.setResponsibleOrgUnit(positionOrgUnit);
 			currentAssignment.setAssignedBy(assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")");
+			if (stampTitle) {
+				currentAssignment.setTitle(title);
+				currentAssignment.setContainsTitles(assignment.getContainsTitles());
+			}
 			currentAssignment.setManager(assignment.isManager());
 			currentAssignment.setSubstitutes(assignment.isSubstitutes());
 
@@ -151,10 +171,14 @@ public abstract class CurrentAssignmentMapper {
 
 		if (currentAssignments.isEmpty()) {
 			// a role group with no userroles must still be represented so the assignment stays visible
-			currentAssignments.add(roleGroupOnlyAssignment(roleGroup, user, assignment.getId(),
+			CurrentAssignment roleGroupOnly = roleGroupOnlyAssignment(roleGroup, user, assignment.getId(),
 				assignment.getStartDate(), assignment.getStopDate(),
 				assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")",
-				null, orgunit, positionOrgUnit));
+				null, orgunit, stampTitle ? title : null, positionOrgUnit, assignment.getAssignedTimestamp());
+			if (stampTitle) {
+				roleGroupOnly.setContainsTitles(assignment.getContainsTitles());
+			}
+			currentAssignments.add(roleGroupOnly);
 		}
 		return currentAssignments;
 	}
@@ -164,8 +188,8 @@ public abstract class CurrentAssignmentMapper {
 	 * assignment is still represented (userRole/itSystem stay null - see {@link CurrentAssignment#isRoleGroupOnly()}).
 	 */
 	private static CurrentAssignment roleGroupOnlyAssignment(RoleGroup roleGroup, User user, long assignmentId,
-			LocalDate startDate, LocalDate stopDate, String assignedBy, String caseNumber, OrgUnit orgUnit,
-			OrgUnit responsibleOrgUnit) {
+			LocalDate startDate, LocalDate stopDate, String assignedBy, String caseNumber,
+			OrgUnit orgUnit, Title title, OrgUnit responsibleOrgUnit, Date assignedTimestamp) {
 		CurrentAssignment currentAssignment = new CurrentAssignment();
 		currentAssignment.setCreatedAt(LocalDateTime.now());
 		currentAssignment.setUpdatedAt(LocalDateTime.now());
@@ -174,7 +198,9 @@ public abstract class CurrentAssignmentMapper {
 		currentAssignment.setUser(user);
 		currentAssignment.setRoleGroup(roleGroup);
 		currentAssignment.setAssignmentId(assignmentId);
+		currentAssignment.setAssignedWhen(toLocalDateTime(assignedTimestamp));
 		currentAssignment.setOrgUnit(orgUnit);
+		currentAssignment.setTitle(title);
 		currentAssignment.setResponsibleOrgUnit(responsibleOrgUnit);
 		currentAssignment.setAssignedBy(assignedBy);
 		currentAssignment.setCaseNumber(caseNumber);

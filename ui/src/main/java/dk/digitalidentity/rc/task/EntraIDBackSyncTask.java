@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.entraid.EntraIDService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ public class EntraIDBackSyncTask {
 
 	// every 30 minutes
 	@Scheduled(cron = "${rc.integrations.entraID.backSyncTask.cron:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(30)}/30 * * * ?}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void sync() throws ReflectiveOperationException {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

@@ -33,6 +33,7 @@ public class ItSystemAttestationController {
 	@Autowired
 	private SettingsService settingsService;
 
+	@SuppressWarnings("removal")
 	@GetMapping(value = "/ui/attestation/v2/itsystems/{id}")
 	@Timed("attestation.controller.mvc.it_system_attestation_controller.index.timer")
 	public String index(Model model, @PathVariable long id) {

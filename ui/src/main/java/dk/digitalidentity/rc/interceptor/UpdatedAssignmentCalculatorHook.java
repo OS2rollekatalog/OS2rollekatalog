@@ -229,6 +229,28 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 	}
 
 	/**
+	 * Fired @Before OrgUnitService.removeUserRoleAssignment — only the history of this one assignment
+	 * is closed, other assignments of the same role on the OU keep their open rows.
+	 */
+	@Override
+	public void interceptRemoveUserRoleAssignmentOnOrgUnit(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
+		historicOuAssignmentService.recordUserRoleAssignmentRemoved(ou, assignment);
+		Set<String> userUuids = orgUnitService.findUserUuidsForOu(ou, true);
+		addMultipleUsersToAssignmentCalculatorQueue(userUuids);
+	}
+
+	/**
+	 * Fired @Before OrgUnitService.removeRoleGroupAssignment — only the history of this one assignment
+	 * is closed, other assignments of the same role group on the OU keep their open rows.
+	 */
+	@Override
+	public void interceptRemoveRoleGroupAssignmentOnOrgUnit(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
+		historicOuAssignmentService.recordRoleGroupAssignmentRemoved(ou, assignment);
+		Set<String> userUuids = orgUnitService.findUserUuidsForOu(ou, assignment.isInherit());
+		addMultipleUsersToAssignmentCalculatorQueue(userUuids);
+	}
+
+	/**
 	 * Fired @Before OrgUnitService.updateUserRoleAssignment — assignment carries pre-update state,
 	 * used to compute the hash of the open record to close. Use forEach in case the same role is
 	 * assigned multiple times on the same OU with different constraints.
@@ -278,6 +300,9 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 	 */
 	@Override
 	public void interceptAddUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole) {
+		if (roleGroup.getId() == 0) {
+			return;
+		}
 		historicOuAssignmentService.recordUserRoleAddedToRoleGroup(roleGroup, userRole);
 		addUsersWithRoleGroup(roleGroup);
 	}
@@ -299,6 +324,12 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 	@Override
 	public void interceptAddSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		historicItSystemAssignmentService.recordSystemRoleAssignmentAdded(userRole, systemRoleAssignment);
+		addAddUsersWithUserRole(userRole);
+	}
+
+	/** History is written by UserRoleService itself, so only the recalculation is missing here. */
+	@Override
+	public void interceptEditSystemRoleConstraintsOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		addAddUsersWithUserRole(userRole);
 	}
 
@@ -353,5 +384,15 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 
 	private void addMultipleUsersToAssignmentCalculatorQueue(final Set<String> userUuids) {
 		userService.queueMultipleForRecalculation(userUuids);
+	}
+
+	@Override
+	public void interceptManagerRoleChange(User user) {
+		addUserUuidToAssignmentCalculatorQueue(user.getUuid());
+	}
+
+	@Override
+	public void interceptSubstituteRoleChange(User user) {
+		addUserUuidToAssignmentCalculatorQueue(user.getUuid());
 	}
 }

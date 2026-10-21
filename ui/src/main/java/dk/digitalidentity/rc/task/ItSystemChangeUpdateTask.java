@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ItSystemChangeUpdateService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,6 +22,7 @@ public class ItSystemChangeUpdateTask {
 	private ItSystemChangeUpdateService itSystemChangeUpdateService;
 	
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 8,12,16 * * *")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void notifyAboutItSystemChanges() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

@@ -6,7 +6,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import dk.digitalidentity.rc.config.ApprovableByListConverter;
+import dk.digitalidentity.rc.config.RequestApproverOptionConverter;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
@@ -14,7 +14,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.log.AuditLoggable;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -110,8 +110,12 @@ public class RoleRequest implements AuditLoggable {
 	private RequestAction requestAction;
 
 	@Column
-	@Convert(converter = ApprovableByListConverter.class)
-	private List<ApprovableBy> approverOption;
+	@Convert(converter = RequestApproverOptionConverter.class)
+	private ApproverPermission approverOption;
+
+	@JsonIgnore
+	@Column(name = "approverOption", insertable = false, updatable = false)
+	private String approverOptionValue;
 
     @OneToMany(mappedBy = "roleRequest", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RequestPostponedConstraint> requestPostponedConstraints;

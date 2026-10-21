@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.rest;
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
 import dk.digitalidentity.rc.controller.rest.model.ExceptionResponseDTO;
+import dk.digitalidentity.rc.controller.rest.orgunit.assign.OrgUnitAssignmentRestController;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -18,7 +19,8 @@ import java.time.LocalDateTime;
 @Slf4j
 @ControllerAdvice(assignableTypes = {AuditLogRestController.class, OrgUnitRestController.class, EmailTemplateRestController.class,
         FrontPageConfigurationRestController.class, ItSystemRestController.class, ManagerRestController.class, MyRestController.class,
-        RolegroupRestController.class, UserRestController.class, UserRoleRestController.class})
+        RolegroupRestController.class, UserRestController.class, UserRoleRestController.class,
+        OrgUnitAssignmentRestController.class})
 public class RestControllerAdvice {
 
     @ExceptionHandler(BadRequestException.class)

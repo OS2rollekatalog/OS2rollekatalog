@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * JDBC Notice!
@@ -32,8 +34,10 @@ public class OuAssignmentsUpdaterJdbc {
     @Transactional
     public void updateOuAssignments(final LocalDate when) {
         progressCount = 0;
+        final Map<Long, RoleMetadata> userRoles = temporalDao.currentUserRoleMetadata();
+        final Map<Long, RoleMetadata> roleGroups = temporalDao.currentRoleGroupMetadata();
         List<HistoricOuAssignment> ouAssignments = temporalDao.listHistoricOuAssignmentsByDate(when);
-        ouAssignments.stream().map(OuAssignmentsUpdaterJdbc::toOuRoleAssignment)
+        ouAssignments.stream().map(h -> toOuRoleAssignment(h, userRoles, roleGroups))
                 .filter(Objects::nonNull)
                 .forEach(a -> {
 					logProgress();
@@ -51,13 +55,41 @@ public class OuAssignmentsUpdaterJdbc {
         if (existingRecord != null) {
             TemporalFieldUpdater.updateFields(existingRecord, assignment);
             existingRecord.setUpdatedAt(now);
-            if (temporalDao.updateAttestationOuRoleAssignment(existingRecord) == 0) {
-                log.error("Failed to update AttestationOuRoleAssignment with id=" + assignment.getId());
-            }
-        } else {
-            assignment.setValidFrom(now);
-            assignment.setUpdatedAt(now);
-            temporalDao.saveAttestationOuRoleAssignment(assignment);
+            update(existingRecord);
+            return;
+        }
+
+        final Optional<AttestationOuRoleAssignment> recordUnderOlderIdentity = findUnderOlderIdentity(now, assignment);
+        if (recordUnderOlderIdentity.isPresent()) {
+            moveToCurrentIdentity(now, recordUnderOlderIdentity.get(), assignment);
+            return;
+        }
+
+        assignment.setValidFrom(now);
+        assignment.setUpdatedAt(now);
+        temporalDao.saveAttestationOuRoleAssignment(assignment);
+    }
+
+    private Optional<AttestationOuRoleAssignment> findUnderOlderIdentity(final LocalDate now, final AttestationOuRoleAssignment assignment) {
+        return TemporalHasher.olderHashes(assignment).stream()
+                .map(hash -> temporalDao.findValidOuRoleAssignmentWithHash(now, hash))
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    /** Takes over the row hashed before the newest identity fields existed, instead of versioning it. */
+    private void moveToCurrentIdentity(final LocalDate now, final AttestationOuRoleAssignment existingRecord,
+                                       final AttestationOuRoleAssignment assignment) {
+        assignment.setId(existingRecord.getId());
+        assignment.setValidFrom(existingRecord.getValidFrom());
+        assignment.setValidTo(existingRecord.getValidTo());
+        assignment.setUpdatedAt(now);
+        update(assignment);
+    }
+
+    private void update(final AttestationOuRoleAssignment assignment) {
+        if (temporalDao.updateAttestationOuRoleAssignment(assignment) == 0) {
+            log.error("Failed to update AttestationOuRoleAssignment with id=" + assignment.getId());
         }
     }
 
@@ -72,7 +104,9 @@ public class OuAssignmentsUpdaterJdbc {
         }
     }
 
-    private static AttestationOuRoleAssignment toOuRoleAssignment(final HistoricOuAssignment h) {
+    private static AttestationOuRoleAssignment toOuRoleAssignment(final HistoricOuAssignment h,
+                                                                  final Map<Long, RoleMetadata> userRoles,
+                                                                  final Map<Long, RoleMetadata> roleGroups) {
         if (h.isItSystemAttestationExempt()) {
             return null;
         }
@@ -89,14 +123,15 @@ public class OuAssignmentsUpdaterJdbc {
         List<String> exceptedTitles = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.NEGATIVE_TITLES);
         List<String> exceptedUsers  = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.EXCEPTED_USERS);
         List<String> functionUuids  = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.FUNCTIONS);
+        List<String> exceptedOus    = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.EXCEPTED_OUS);
 
         return AttestationOuRoleAssignment.builder()
                 .roleId(h.getRoleId())
-                .roleName(h.getRoleName())
-                .roleDescription(h.getRoleDescription())
+                .roleName(RoleMetadata.nameOf(userRoles, h.getRoleId(), h.getRoleName()))
+                .roleDescription(RoleMetadata.descriptionOf(userRoles, h.getRoleId(), h.getRoleDescription()))
                 .roleGroupId(h.getRoleRoleGroupId())
-                .roleGroupName(h.getRoleRoleGroupName())
-                .roleGroupDescription(h.getRoleGroupDescription())
+                .roleGroupName(RoleMetadata.nameOf(roleGroups, h.getRoleRoleGroupId(), h.getRoleRoleGroupName()))
+                .roleGroupDescription(RoleMetadata.descriptionOf(roleGroups, h.getRoleRoleGroupId(), h.getRoleGroupDescription()))
                 .ouUuid(h.getOuUuid())
                 .ouName(h.getOuName())
                 .responsibleCollectionId(h.getResponsibleCollectionId())
@@ -106,6 +141,7 @@ public class OuAssignmentsUpdaterJdbc {
                 .exceptedTitleUuids(exceptedTitles)
                 .exceptedUserUuids(exceptedUsers)
                 .functionUuids(functionUuids)
+                .exceptedOuUuids(exceptedOus)
                 .itSystemId(h.getItSystemId())
                 .itSystemName(h.getItSystemName())
                 .assignedThroughType(toAssignedThroughType(h.getAssignedThroughType()))

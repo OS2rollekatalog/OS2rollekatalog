@@ -1,7 +1,9 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +70,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashSet;
 import java.util.Set;
 
 @Slf4j
@@ -90,6 +91,7 @@ public class ItSystemController {
 	private final Select2Service select2Service;
 	private final RoleCatalogueConfiguration configuration;
 	private final ADGroupMappingService adGroupMappingService;
+	private final ResolvedPermissionService resolvedPermissionService;
 
 	private static final Section permissionEntity = Section.IT_SYSTEM;
 	private final UserPermissionContext userPermissionContext;
@@ -120,8 +122,8 @@ public class ItSystemController {
 
 		ItemPermissionDTO allowedActions = userPermissionContext.getAllowedActionsForSection(permissionEntity);
 
-		List<ApprovableBy> globalApprovables = settingsService.getRolerequestApprover();
-		List<RequestableBy> globalRequestables = settingsService.getRolerequestRequester();
+		Map<Long, RequesterPermission> requesterPermissions = resolvedPermissionService.itSystemRequesterPermissions(itSystems.stream().map(ItSystem::getId).toList());
+		Map<Long, ApproverPermission> approverPermissions = resolvedPermissionService.itSystemApproverPermissions(itSystems.stream().map(ItSystem::getId).toList());
 		Map<Long, List<String>> mappingsForLabel = adGroupMappingService.getItSystemToADGroupsMap();
 		List<ITSystemListDTO> listDTOS = itSystems.stream()
 				.map(i -> {
@@ -139,16 +141,8 @@ public class ItSystemController {
 							|| systemType == ItSystemType.KSPCICS
 							|| systemType == ItSystemType.NEMLOGIN);
 					ItemPermissionDTO specificAllowedActions = new ItemPermissionDTO(canCreate, canRead, canUpdate, canDelete);
-                    final Set<ApprovableBy> approvers = new HashSet<>(i.getApproverPermission());
-                    final Set<RequestableBy> requesters = new HashSet<>(i.getRequesterPermission());
-                    if (approvers.contains(ApprovableBy.INHERIT)) {
-                        approvers.addAll(globalApprovables);
-                        approvers.remove(ApprovableBy.INHERIT);
-                    }
-                    if (requesters.contains(RequestableBy.INHERIT)) {
-                        requesters.addAll(globalRequestables);
-                        requesters.remove(RequestableBy.INHERIT);
-                    }
+                    final Set<ApprovableBy> approvers = Set.copyOf(approverPermissions.get(i.getId()).getApprovableBy());
+                    final Set<RequestableBy> requesters = Set.copyOf(requesterPermissions.get(i.getId()).getRequestableBy());
 					return new ITSystemListDTO(
 							i.getId(),
 							i.getName(),
@@ -300,8 +294,8 @@ public class ItSystemController {
 						userRole.isSensitiveRole(),
 						userRole.isExtraSensitiveRole(),
 						userRole.isRoleAssignmentAttestationByAttestationResponsible(),
-						userRole.getRequesterPermission(),
-						userRole.getApproverPermission(),
+						userRole.getRequesterPermission().getRequestableBy(),
+						userRole.getApproverPermission().getApprovableBy(),
 						userPermissionContext.getSpecificAllowedActionsForITsystem(Section.USER_ROLE, itSystem.getId())
 				))
 				.toList()
@@ -372,8 +366,8 @@ public class ItSystemController {
 				userRole.isSensitiveRole(),
 				userRole.isExtraSensitiveRole(),
 				userRole.isRoleAssignmentAttestationByAttestationResponsible(),
-				userRole.getRequesterPermission(),
-				userRole.getApproverPermission(),
+				userRole.getRequesterPermission().getRequestableBy(),
+				userRole.getApproverPermission().getApprovableBy(),
 				userPermissionContext.getSpecificAllowedActionsForITsystem(Section.USER_ROLE, itSystem.getId())
 			))
 			.toList()
@@ -434,8 +428,8 @@ public class ItSystemController {
 					userRole.isSensitiveRole(),
 					userRole.isExtraSensitiveRole(),
 					userRole.isRoleAssignmentAttestationByAttestationResponsible(),
-					userRole.getRequesterPermission(),
-					userRole.getApproverPermission(),
+					userRole.getRequesterPermission().getRequestableBy(),
+					userRole.getApproverPermission().getApprovableBy(),
 					userPermissionContext.getSpecificAllowedActionsForITsystem(Section.USER_ROLE, itSystem.getId())
 				))
 				.toList()
@@ -537,8 +531,8 @@ public class ItSystemController {
 		for (SystemRole systemRole : systemRoles) {
 			UserRole userRole = new UserRole();
 			userRole.setName(convertSystemRolesForm.getPrefix() + systemRole.getName());
-			userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
-			userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
+			userRole.setApproverPermission(ApproverPermission.inherit());
+			userRole.setRequesterPermission(RequesterPermission.inherit());
 
 			// TODO: must be a better way to safely ensure this length max (maybe setter on UserRole)
 			// TODO TODO: KBP - Yes there is multiple.... but for now I have to hotfix this, added to stuff that needs refactor

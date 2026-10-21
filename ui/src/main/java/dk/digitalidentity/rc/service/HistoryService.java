@@ -21,7 +21,6 @@ import dk.digitalidentity.rc.dao.history.HistoryKleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryManagerDao;
 import dk.digitalidentity.rc.dao.history.HistoryOUDao;
 import dk.digitalidentity.rc.dao.history.HistoryOUKleAssignmentDao;
-import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryTitleDao;
 import dk.digitalidentity.rc.dao.history.HistoryUserDao;
@@ -31,7 +30,6 @@ import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryManager;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
@@ -65,9 +63,6 @@ public class HistoryService {
 
 	@Autowired
 	private HistoryManagerDao historyManagerDao;
-
-	@Autowired
-	private HistoryOURoleAssignmentDao historyOURoleAssignmentDao;
 
 	@Autowired
 	private HistoryDateDao historyDateDao;
@@ -157,19 +152,6 @@ public class HistoryService {
 				.collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
 	}
 
-	public Map<String, List<HistoryOURoleAssignment>> getOURoleAssignments(LocalDate localDate) {
-		return historyOURoleAssignmentDao.findByDate(localDate)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
-	}
-
-	public Map<String, List<HistoryOURoleAssignment>> getOURoleAssignments(LocalDate localDate, List<Long> itSystemIds) {
-		return historyOURoleAssignmentDao.findByDateAndItSystems(localDate, itSystemIds)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
-	}
-
-
 	@Transactional
 	public void generateOrganisationHistory() {
 		jdbcTemplate.update("CALL SP_InsertHistoryOrganisation();");
@@ -188,11 +170,6 @@ public class HistoryService {
 	@Transactional
 	public void generateKleAssignmentHistory() {
 		jdbcTemplate.update("CALL SP_InsertHistoryKleAssignments();");
-	}
-
-	@Transactional
-	public void generateOURoleAssignmentHistory() {
-		jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignments();");
 	}
 
 	@Transactional
@@ -221,7 +198,6 @@ public class HistoryService {
 		jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_managers WHERE dato = ?", date);
-		jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_titles WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_functions WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_user_roles_system_roles");
@@ -237,7 +213,6 @@ public class HistoryService {
 		jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 		jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 		jdbcTemplate.update("DELETE FROM history_managers WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-		jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 		jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 		jdbcTemplate.update("DELETE FROM history_functions WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 		jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28)) LIMIT 50000;");

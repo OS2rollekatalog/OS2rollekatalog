@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
     window.fieldUpdatedMsg = config.fieldUpdatedMsg;
     window.fieldNotUpdatedMsg = config.fieldNotUpdatedMsg;
     window.txtQueueSpinner = config.txtQueueSpinner;
-    window.titlesEnabled = config.titlesEnabled;
 
     window.notificationService = window.notificationService || new NotificationService();
 

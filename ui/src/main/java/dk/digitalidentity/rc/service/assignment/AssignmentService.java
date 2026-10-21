@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,11 +22,11 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentExceptedAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.UserRoleMemberCountProjection;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
+import dk.digitalidentity.rc.service.assignment.mapper.HistoricAssignmentMapper;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +64,36 @@ public class AssignmentService {
 
 	public Set<CurrentAssignment> getByUserWithEagerRolesAndSystemsIncludingInactive(User user) {
 		return currentAssignmentService.findByUserWithEagerRolesAndSystemsIncludingInactive(user);
+	}
+
+	public List<CurrentAssignment> getDuplicateUserRoleAssignments() {
+		List<CurrentAssignment> result = new ArrayList<>();
+
+		List<Long> duplicateIds = currentAssignmentService.findDuplicateUserRoleAssignments();
+		List<Long> unique = new ArrayList<>(new LinkedHashSet<>(duplicateIds));
+
+		for (int from = 0; from < unique.size(); from += 500) {
+		    int to = Math.min(from + 500, unique.size());
+
+		    result.addAll(currentAssignmentService.findByIdIn(unique.subList(from, to)));
+		}
+
+		return result;
+	}
+
+	public List<CurrentAssignment> getDuplicateRoleGroupAssignments() {
+		List<CurrentAssignment> result = new ArrayList<>();
+
+		List<Long> duplicateIds = currentAssignmentService.findDuplicateRoleGroupAssignments();
+		List<Long> unique = new ArrayList<>(new LinkedHashSet<>(duplicateIds));
+
+		for (int from = 0; from < unique.size(); from += 500) {
+		    int to = Math.min(from + 500, unique.size());
+
+		    result.addAll(currentAssignmentService.findByIdIn(unique.subList(from, to)));
+		}
+
+		return result;
 	}
 
 	/**
@@ -121,7 +152,7 @@ public class AssignmentService {
 	 * @return a set of Users
 	 */
 	public Set<User> getUsersWithRoleGroupDirectlyAssignedIncludingInactive(RoleGroup roleGroup) {
-		return currentAssignmentService.findByDirectlyAssignedRoleGroupIncludingInactive(roleGroup).stream().map(CurrentAssignment::getUser).collect(Collectors.toSet());
+		return currentAssignmentService.findByDirectlyAssignedRoleGroupIncludingInactiveUsersOnly(roleGroup);
 	}
 
 	/**
@@ -295,17 +326,8 @@ public class AssignmentService {
 		return currentAssignmentService.findActiveByUserRoleDirectlyAssignedOrFromRoleGroup(userRole);
 	}
 
-	/**
-	 * Finds all active assignments for the given userRoles
-	 * @param userRoles the collection of userRoles
-	 * @return a set of active CurrentAssignments
-	 */
-	public Set<CurrentAssignment> getActiveByUserRoles(Set<UserRole> userRoles) {
-		return currentAssignmentService.findActiveByUserRoles(userRoles);
-	}
-
-	public Set<CurrentAssignmentSmallProjection> getActiveByUserRolesAsProjection(Set<UserRole> userRoles) {
-		return currentAssignmentService.findActiveByUserRolesAsProjection(userRoles);
+	public Set<String> getActiveUserIds(Collection<UserRole> userRoles, long domainId) {
+		return currentAssignmentService.findActiveUserIds(userRoles, domainId);
 	}
 
 	/**
@@ -452,7 +474,7 @@ public class AssignmentService {
 		AssignedThrough assignedThrough = AssignedThrough.DIRECT;
 
 		boolean isFromRoleGroup = currentAssignment.getRoleGroup() != null;
-		boolean isFromTitle = currentAssignment.getTitle() != null;
+		boolean isFromTitle = HistoricAssignmentMapper.assignedThroughForOrgUnitAssignment(currentAssignment) == AssignedThrough.TITLE;
 		boolean isFromOrgUnit = currentAssignment.getOrgUnit() != null;
 
 		// userRoler nedarvet via en rollebuket vises som ROLEGROUP uanset om buketten
@@ -517,27 +539,6 @@ public class AssignmentService {
 		return assignedThroughName;
 	}
 
-	/**
-	 * Helper method to get an AssignmentType enum from an assignment
-	 * @param currentAssignment the assignment to check
-	 * @return the corresponding AssignmentType value for this assignment
-	 */
-	public AssignmentType getAssignmentType(CurrentAssignment currentAssignment) {
-		if (currentAssignment.getOrgUnit() == null) {
-			if (currentAssignment.getRoleGroup() == null) {
-				return AssignmentType.USER_USER_ROLE;
-			} else {
-				return AssignmentType.USER_ROLE_GROUP;
-			}
-		} else {
-			if (currentAssignment.getRoleGroup() == null) {
-				return AssignmentType.OU_USER_ROLE;
-			} else {
-				return AssignmentType.OU_ROLE_GROUP;
-			}
-		}
-	}
-
 	record UserRoleAssignmentKey(String userUuid, long assignmentId, long roleId,
 			AssignedThrough assignedThrough, String assignedThroughName,
 			LocalDate startDate, LocalDate stopDate, boolean manager, boolean substitutes) {}
@@ -595,7 +596,7 @@ public class AssignmentService {
 				continue;
 			}
 
-			AssignmentType assignmentType = getAssignmentType(assignment);
+			AssignmentType assignmentType = AssignmentType.from(assignment);
 			RoleGroupKey key = new RoleGroupKey(
 				assignment.getUser().getUuid(),
 				assignment.getAssignmentId(),

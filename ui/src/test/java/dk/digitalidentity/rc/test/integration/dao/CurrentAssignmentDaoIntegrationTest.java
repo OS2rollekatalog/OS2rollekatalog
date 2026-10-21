@@ -2,9 +2,9 @@ package dk.digitalidentity.rc.test.integration.dao;
 
 import dk.digitalidentity.rc.dao.assignment.CurrentAssignmentDao;
 import dk.digitalidentity.rc.dao.assignment.HistoricAssignmentDao;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
 import dk.digitalidentity.rc.event.AssignmentChangeEventHandlerService;
 import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
@@ -74,16 +74,18 @@ class CurrentAssignmentDaoIntegrationTest extends BaseIntegrationTest {
 	}
 
 	@Test
-	@DisplayName("AD-sync query (Collection overload) does not return deleted users after recalc")
+	@DisplayName("AD-sync query does not return deleted users after recalc")
 	void adSyncQueryExcludesDeletedUserAfterRecalc() {
 		BasicTestDataFactory.BasicTestData testData = testDataFactory.createBasicTestData();
 		UserRole userRole = testData.urDirectlyAssigned();
+		long domainId = testData.itSystem().getDomain().getId();
 
 		User activeUser = testData.user();
 		User deletedUser = testDataFactory.createUser(
 			"deleted-user-uuid", "deleted-user-id", "Deleted User", testData.itSystem().getDomain());
 		testDataFactory.assignUserRoleToUser(userRole.getIdentifier(), deletedUser);
 		testDataFactory.updateUserAssignmentCalculation(deletedUser);
+		assertThat(currentAssignmentDao.findByUser(deletedUser)).isNotEmpty();
 
 		deletedUser.setDeleted(true);
 		flushAndClear();
@@ -92,12 +94,34 @@ class CurrentAssignmentDaoIntegrationTest extends BaseIntegrationTest {
 		assignmentChangeEventHandlerService.updateUsers(Set.of(deletedUser.getUuid()));
 		flushAndClear();
 
-		Set<CurrentAssignment> active = currentAssignmentDao.findActiveAssigned(Set.of(userRole), LocalDate.now());
+		assertThat(currentAssignmentDao.findActiveAssignedUserIds(Set.of(userRole), domainId, LocalDate.now()))
+			.contains(activeUser.getUserId())
+			.doesNotContain(deletedUser.getUserId());
+	}
 
-		assertThat(active)
-			.extracting(ca -> ca.getUser().getUuid())
-			.contains(activeUser.getUuid())
-			.doesNotContain(deletedUser.getUuid());
+	@Test
+	@DisplayName("AD-sync query only returns users in the requested domain")
+	void adSyncQueryFiltersOnDomain() {
+		BasicTestDataFactory.BasicTestData testData = testDataFactory.createBasicTestData();
+		UserRole userRole = testData.urDirectlyAssigned();
+
+		Domain otherDomain = new Domain();
+		otherDomain.setName("Andet domæne");
+		entityManager.persist(otherDomain);
+
+		User otherDomainUser = testDataFactory.createUser(
+			"other-domain-uuid", "other-domain-id", "Other Domain User", otherDomain);
+		testDataFactory.assignUserRoleToUser(userRole.getIdentifier(), otherDomainUser);
+		testDataFactory.updateUserAssignmentCalculation(otherDomainUser);
+		flushAndClear();
+
+		assertThat(currentAssignmentDao.findActiveAssignedUserIds(Set.of(userRole), testData.itSystem().getDomain().getId(), LocalDate.now()))
+			.contains(testData.user().getUserId())
+			.doesNotContain(otherDomainUser.getUserId());
+
+		// tildelingen i det andet domæne findes, den blev filtreret væk ovenfor
+		assertThat(currentAssignmentDao.findActiveAssignedUserIds(Set.of(userRole), otherDomain.getId(), LocalDate.now()))
+			.containsExactly(otherDomainUser.getUserId());
 	}
 
 	@Test

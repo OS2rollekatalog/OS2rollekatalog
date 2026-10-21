@@ -44,6 +44,7 @@ public class AttestationOuRoleAssignmentRowMapper implements RowMapper<Attestati
 		assignment.setManager(rs.getBoolean("manager"));
 		assignment.setSubstitutes(rs.getBoolean("substitutes"));
 		assignment.setFunctionUuids(RowMapperUtils.explodeToList(rs.getString("function_uuids")));
+        assignment.setExceptedOuUuids(RowMapperUtils.explodeToList(rs.getString("excepted_ou_uuids")));
         return assignment;
     }
 

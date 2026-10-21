@@ -1,27 +1,60 @@
 package dk.digitalidentity.rc.dao.assignment;
 
-import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
-import jakarta.persistence.QueryHint;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.repository.QueryHints;
-import org.springframework.data.repository.query.Param;
-
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
+import org.springframework.data.repository.query.Param;
+
+import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import jakarta.persistence.QueryHint;
+
 public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment, Long> {
 	Set<HistoricAssignment> findByUserUuid(String userUuid);
 
 	Set<HistoricAssignment> findAllByRecordHashIn(Collection<String> recordHashes);
 
-	@org.springframework.data.jpa.repository.Modifying
-	@org.springframework.data.jpa.repository.Query("UPDATE HistoricAssignment ha SET ha.validTo = :validTo, ha.updatedAt = CURRENT_TIMESTAMP WHERE ha.recordHash IN :recordHashes AND ha.validTo IS NULL")
-	void updateValidToByRecordHashIn(@org.springframework.data.repository.query.Param("recordHashes") Collection<String> recordHashes,
-	                                 @org.springframework.data.repository.query.Param("validTo") java.time.LocalDateTime validTo);
+	/** Relabels open rows in place: the assignment is unchanged, so nothing closes - only what it is called has changed. */
+	@Modifying
+	@Query("UPDATE HistoricAssignment ha SET ha.assignedThroughType = :assignedThroughType WHERE ha.recordHash IN :recordHashes AND ha.validTo IS NULL")
+	void updateAssignedThroughTypeByRecordHashIn(@Param("recordHashes") Collection<String> recordHashes,
+	                                             @Param("assignedThroughType") AssignedThrough assignedThroughType);
+
+	@Modifying
+	@Query("UPDATE HistoricAssignment ha SET ha.validTo = :validTo, ha.updatedAt = CURRENT_TIMESTAMP WHERE ha.recordHash IN :recordHashes AND ha.validTo IS NULL")
+	void updateValidToByRecordHashIn(@Param("recordHashes") Collection<String> recordHashes,
+	                                 @Param("validTo") LocalDateTime validTo);
+
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		UPDATE historic_assignment ha
+		JOIN current_assignment ca ON ca.record_hash = ha.record_hash
+		SET ha.valid_to = :validTo, ha.updated_at = CURRENT_TIMESTAMP
+		WHERE ha.valid_to IS NULL AND ca.assignment_user_role_id IN (:userRoleIds)""")
+	void closeOpenByUserRoleIdIn(@Param("userRoleIds") Collection<Long> userRoleIds, @Param("validTo") LocalDateTime validTo);
+
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		UPDATE historic_assignment ha
+		JOIN current_assignment ca ON ca.record_hash = ha.record_hash
+		SET ha.valid_to = :validTo, ha.updated_at = CURRENT_TIMESTAMP
+		WHERE ha.valid_to IS NULL AND ca.assignment_role_group_id = :roleGroupId""")
+	void closeOpenByRoleGroupId(@Param("roleGroupId") long roleGroupId, @Param("validTo") LocalDateTime validTo);
+
+	@Modifying
+	@Query(nativeQuery = true, value = """
+		UPDATE historic_assignment ha
+		JOIN current_assignment ca ON ca.record_hash = ha.record_hash
+		SET ha.valid_to = :validTo, ha.updated_at = CURRENT_TIMESTAMP
+		WHERE ha.valid_to IS NULL AND ca.assignment_it_system_id IN (:itSystemIds)""")
+	void closeOpenByItSystemIdIn(@Param("itSystemIds") Collection<Long> itSystemIds, @Param("validTo") LocalDateTime validTo);
 
 	/**
 	 * Backfills responsible_collection_id for all open historic_assignment rows that belong to this IT system
@@ -30,14 +63,14 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	 * This covers both: rows written before the collection existed (responsible_collection_id was null),
 	 * and rows written before responsibles were set (fell back to OU routing).
 	 */
-	@org.springframework.data.jpa.repository.Modifying
-	@org.springframework.data.jpa.repository.Query(nativeQuery = true, value =
+	@Modifying
+	@Query(nativeQuery = true, value =
 		"UPDATE historic_assignment ha " +
 		"JOIN user_roles ur ON ur.id = ha.user_role_id " +
 		"SET ha.responsible_collection_id = :collectionId, ha.responsible_ou_uuid = NULL, ha.responsible_ou_name = NULL, ha.updated_at = CURRENT_TIMESTAMP " +
 		"WHERE ha.it_system_id = :itSystemId AND ha.valid_to IS NULL AND ur.role_assignment_attestation_by_attestation_responsible = true")
-	void backfillResponsibleCollectionId(@org.springframework.data.repository.query.Param("itSystemId") Long itSystemId,
-	                                     @org.springframework.data.repository.query.Param("collectionId") Long collectionId);
+	void backfillResponsibleCollectionId(@Param("itSystemId") Long itSystemId,
+	                                     @Param("collectionId") Long collectionId);
 
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :endOfDay " +
@@ -101,7 +134,8 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	})
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :endOfDay " +
-		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay)")
+		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay) " +
+		"ORDER BY ha.userUuid, ha.id")
 	Stream<HistoricAssignment> streamActiveAtDate(
 		@Param("startOfDay") LocalDateTime startOfDay,
 		@Param("endOfDay") LocalDateTime endOfDay);
@@ -113,7 +147,8 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :endOfDay " +
 		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay) " +
-		"AND ha.itSystemId IN :itSystemIds")
+		"AND ha.itSystemId IN :itSystemIds " +
+		"ORDER BY ha.userUuid, ha.id")
 	Stream<HistoricAssignment> streamActiveAtDateAndItSystemIdIn(
 		@Param("startOfDay") LocalDateTime startOfDay,
 		@Param("endOfDay") LocalDateTime endOfDay,
@@ -231,23 +266,6 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 		@Param("validAt") LocalDateTime validAt);
 
 	/**
-	 * Returns one representative row per (responsibleOUUuid, sensitiveRole) group valid at {@code validAt}.
-	 * Coarser grouping than {@link #findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole}
-	 * — used where only the responsible OU and sensitivity matter.
-	 * <p>
-	 * See {@link #findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem} for why grouping is needed.
-	 */
-	@Query(nativeQuery = true, value =
-		"SELECT ha2.* FROM historic_assignment ha2 " +
-		"INNER JOIN (SELECT max(ha.id) AS sid FROM historic_assignment ha " +
-		"  WHERE ha.valid_from <= :validAt AND (ha.valid_to > :validAt OR ha.valid_to IS NULL) " +
-		"  AND ha.responsible_ou_uuid IS NOT NULL " +
-		"  AND NOT EXISTS (SELECT 1 FROM it_systems its WHERE its.id = ha.it_system_id AND its.attestation_exempt = 1) " +
-		"  GROUP BY ha.responsible_ou_uuid, ha.sensitive_role) AS sub ON sub.sid = ha2.id")
-	List<HistoricAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(
-		@Param("validAt") LocalDateTime validAt);
-
-	/**
 	 * IDs of assignments valid at any point between {@code from} and {@code to} for a given IT-system.
 	 * Ordered for deterministic paging.
 	 */
@@ -285,4 +303,40 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 
 	/** Fetch full entities for that has been updated after the given timestamp */
 	List<HistoricAssignment> findByUpdatedAtAfter(LocalDateTime tts);
-}
+
+	/**
+	 * Stamps assignedWhen on the open rows versioned off one current assignment.
+	 * <p>
+	 * validTo IS NULL is required: the same hash can sit on both a closed and an open row, and the
+	 * source re-stamps its timestamp on every edit, so a closed row could end up with a date after
+	 * its own validTo. updatedAt is deliberately left alone - PublishAssignmentService fires one
+	 * webhook per row whose updatedAt moved.
+	 */
+	@Modifying
+	@Query("UPDATE HistoricAssignment h SET h.assignedWhen = :assignedWhen WHERE h.recordHash = :recordHash AND h.validTo IS NULL AND h.assignedWhen IS NULL")
+	int setAssignedWhenOnOpenByRecordHash(@Param("recordHash") String recordHash, @Param("assignedWhen") LocalDateTime assignedWhen);
+
+
+	@QueryHints({
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_FETCH_SIZE, value = "5000"),
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_READ_ONLY, value = "true")
+	})
+	@Query("SELECT DISTINCT ha.userUuid, ha.itSystemName, ha.userRoleId, ha.startDate, ha.stopDate FROM HistoricAssignment ha " +
+		"WHERE ha.validFrom <= :endOfDay " +
+		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay)")
+	Stream<Object[]> streamWeightTriples(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay);
+
+	@QueryHints({
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_FETCH_SIZE, value = "5000"),
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_READ_ONLY, value = "true")
+	})
+	@Query("SELECT DISTINCT ha.userUuid, ha.itSystemName, ha.userRoleId, ha.startDate, ha.stopDate FROM HistoricAssignment ha " +
+		"WHERE ha.validFrom <= :endOfDay " +
+		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay) " +
+		"AND ha.itSystemId IN :itSystemIds")
+	Stream<Object[]> streamWeightTriplesForItSystems(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay,
+		@Param("itSystemIds") Collection<Long> itSystemIds);}

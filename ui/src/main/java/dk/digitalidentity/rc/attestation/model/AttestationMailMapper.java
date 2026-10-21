@@ -36,7 +36,7 @@ public class AttestationMailMapper {
                 .map(r -> AttestationSentMailReceiverDTO.builder()
                         .cc(r.getReceiverType() == AttestationMailReceiver.ReceiverType.CC)
                         .email(r.getEmail())
-                        .userName(cachedUserService.userNameFromUuidCached(r.getUserUuid()))
+                        .userName(r.getUserUuid() == null ? r.getEmail() : cachedUserService.userNameFromUuidCached(r.getUserUuid()))
                         .message(r.getMessage())
                         .title(r.getTitle())
                         .build())
@@ -55,10 +55,16 @@ public class AttestationMailMapper {
             case ATTESTATION_SENSITIVE_REMINDER2 -> "overview.enum.email.message.type.attestation_sensitive_reminder2";
             case ATTESTATION_SENSITIVE_REMINDER3 -> "overview.enum.email.message.type.attestation_sensitive_reminder3";
             case ATTESTATION_SENSITIVE_REMINDER_THIRDPARTY -> "overview.enum.email.message.type.attestation_sensitive_reminder_thirdparty";
+            case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_NOTIFICATION -> "overview.enum.email.message.type.attestation_sensitive_it_system_assignment_notification";
+            case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER1 -> "overview.enum.email.message.type.attestation_sensitive_it_system_assignment_reminder1";
+            case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER2 -> "overview.enum.email.message.type.attestation_sensitive_it_system_assignment_reminder2";
+            case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER3 -> "overview.enum.email.message.type.attestation_sensitive_it_system_assignment_reminder3";
+            case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY -> "overview.enum.email.message.type.attestation_sensitive_it_system_assignment_reminder_thirdparty";
             case ATTESTATION_MANAGERDELEGATE_NOTIFICATION -> "html.enum.email.message.type.managerdelegate.attestation_notification";
-            case ATTESTATION_MANAGERDELEGATE_REMINDER2-> "html.enum.email.message.type.managerdelegate.attestation_reminder2";
-            case ATTESTATION_MANAGERDELEGATE_REMINDER3-> "html.enum.email.message.type.managerdelegate.attestation_reminder3";
-            case ATTESTATION_MANAGERDELEGATE_REMINDER_THIRDPARTY-> "html.enum.email.message.type.managerdelegate.attestation_reminder_thirdparty";
+            case ATTESTATION_MANAGERDELEGATE_REMINDER1 -> "html.enum.email.message.type.managerdelegate.attestation_reminder1";
+            case ATTESTATION_MANAGERDELEGATE_REMINDER2 -> "html.enum.email.message.type.managerdelegate.attestation_reminder2";
+            case ATTESTATION_MANAGERDELEGATE_REMINDER3 -> "html.enum.email.message.type.managerdelegate.attestation_reminder3";
+            case ATTESTATION_MANAGERDELEGATE_REMINDER_THIRDPARTY -> "html.enum.email.message.type.managerdelegate.attestation_reminder_thirdparty";
             case ATTESTATION_IT_SYSTEM_NOTIFICATION -> "overview.enum.email.message.type.attestation_it_system_notification";
             case ATTESTATION_IT_SYSTEM_REMINDER1 -> "overview.enum.email.message.type.attestation_it_system_reminder1";
             case ATTESTATION_IT_SYSTEM_REMINDER2 -> "overview.enum.email.message.type.attestation_it_system_reminder2";
@@ -69,7 +75,15 @@ public class AttestationMailMapper {
             case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER2 -> "overview.enum.email.message.type.attestation_it_system_assignment_reminder2";
             case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER3 -> "overview.enum.email.message.type.attestation_it_system_assignment_reminder3";
             case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY -> "overview.enum.email.message.type.attestation_it_system_assignment_reminder_thirdparty";
-            default -> "";
+            case ATTESTATION_REQUEST_FOR_CHANGE, ATTESTATION_REQUEST_FOR_REMOVAL, ATTESTATION_REQUEST_FOR_ROLE_CHANGE,
+                 ATTESTATION_SUMMARY, SUBSTITUTE, ROLE_EXPIRING,
+                 APPROVED_ROLE_REQUEST_USER, APPROVED_ROLE_REQUEST_REMOVAL_USER, APPROVED_ROLE_REQUEST_MANAGER,
+                 APPROVED_MANUAL_ROLE_REQUEST_USER, APPROVED_MANUAL_ROLE_REQUEST_MANAGER, REJECTED_ROLE_REQUEST_MANAGER,
+                 WAITING_REQUESTS_ROLE_ASSIGNERS, WAITING_REQUESTS_SERVICEDESK, WAITING_REQUESTS_ROLE_ASSIGNERS_DAILY,
+                 USER_WITH_MANUAL_ITSYSTEM_DELETED, ORGUNIT_NEW_PARENT, USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT,
+                 SYSTEM_ROLE_EXCEEDED_MAX_ASSIGNMENTS, MANUAL_SYSTEM_CONTACT_PERFORMER, MANUAL_SYSTEM_CONTACT_ADVIS,
+                 MANUAL_ROLE_CONTACT_PERFORMER, MANUAL_ROLE_CONTACT_ADVIS, MANUAL_ITSYSTEM_ASSIGNMENT_PENDING ->
+                    throw new IllegalArgumentException("Not an attestation mail template type: " + type);
         };
         return messageSource.getMessage(messageLookupKey, null, Locale.ENGLISH);
     }

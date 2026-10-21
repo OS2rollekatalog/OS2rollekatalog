@@ -69,8 +69,11 @@ document.addEventListener("DOMContentLoaded", () => {
     select2Service.initSelect("#requesterSettingsSelect, #approverSettingsSelect", {
         placeholder: "",
         allowClear: true,
-        multiple: true
+        multiple: true,
+        templateResult: requestApproveService.templateResult
     });
+
+    requestApproveService.rememberSelection($("#requesterSettingsSelect, #approverSettingsSelect").toArray());
 
     if (config.subscribedToMaster) {
         $("#subscribedTo").show();
@@ -159,22 +162,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function handleChangeOnITSystemRequesterPermission() {
         const requesterSelect = document.getElementById("requesterSettingsSelect");
-        requestApproveService.handleRequesterRestrictions();
-
-        const newRequesters = [];
-        for (const option of requesterSelect.selectedOptions) {
-            if (option.value !== undefined) {
-                newRequesters.push(option.value);
-            }
-        }
+        requestApproveService.handleRequesterRestrictions(requesterSelect);
 
         $.ajax({
             url: config.urls.requesterChange,
             method: "POST",
             data: {
-                "requesterPermissions[]": newRequesters,
+                "requesterPermissions": requestApproveService.selectedPermissions(requesterSelect),
                 "id": config.itSystemId
             },
+            traditional: true,
             headers: { "X-CSRF-TOKEN": token },
             error: errorHandler(config.messages.fieldNotUpdated),
             success: () => {
@@ -185,22 +182,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function handleChangeOnITsystemApproverPermission() {
         const approverSelect = document.getElementById("approverSettingsSelect");
-        requestApproveService.handleApproverRestrictions();
-
-        const newApprovers = [];
-        for (const option of approverSelect.selectedOptions) {
-            if (option.value !== undefined) {
-                newApprovers.push(option.value);
-            }
-        }
+        requestApproveService.handleApproverRestrictions(approverSelect);
 
         $.ajax({
             url: config.urls.approverChange,
             method: "POST",
             data: {
-                "approverPermissions": newApprovers,
+                "approverPermissions": requestApproveService.selectedPermissions(approverSelect),
                 "id": config.itSystemId
             },
+            traditional: true,
             headers: { "X-CSRF-TOKEN": token },
             error: errorHandler(config.messages.fieldNotUpdated),
             success: () => {
@@ -215,7 +206,9 @@ document.addEventListener("DOMContentLoaded", () => {
         $(".approver-role-select.select2-hidden-accessible").select2("destroy");
 
         select2Service.initSelect(".requester-role-select", { placeholder: "", allowClear: true, width: "100%" });
-        select2Service.initSelect(".approver-role-select", { placeholder: "", allowClear: true, width: "100%" });
+        select2Service.initSelect(".approver-role-select", { placeholder: "", allowClear: true, width: "100%", templateResult: requestApproveService.templateResult });
+
+        requestApproveService.rememberSelection($(".requester-role-select, .approver-role-select").toArray());
 
         // Unbind first to avoid duplicate handlers
         $(".requester-role-select").off("change.requestApprove");
@@ -223,7 +216,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         $(".requester-role-select").on("change.requestApprove", function () {
             const roleId = this.dataset.roleid;
-            const selected = $(this).val() || [];
+            requestApproveService.handleRequesterRestrictions(this);
+            const selected = requestApproveService.selectedPermissions(this);
 
             $.ajax({
                 url: `${config.urls.userRole}${roleId}/requester`,
@@ -240,7 +234,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         $(".approver-role-select").on("change.requestApprove", function () {
             const roleId = this.dataset.roleid;
-            const selected = $(this).val() || [];
+            requestApproveService.handleApproverRestrictions(this);
+            const selected = requestApproveService.selectedPermissions(this);
 
             $.ajax({
                 url: `${config.urls.userRole}${roleId}/approver`,

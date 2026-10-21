@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.entraid.EntraIDService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,6 +23,7 @@ public class EntraIDlMembershipSyncTask {
 
 	// every 10 minutes
 	@Scheduled(cron = "${rc.integrations.entraID.membershipSyncTask.cron:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(10)}/10 * * * ?}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void sync() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

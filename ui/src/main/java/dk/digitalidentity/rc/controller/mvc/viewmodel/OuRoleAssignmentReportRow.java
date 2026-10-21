@@ -21,10 +21,12 @@ public class OuRoleAssignmentReportRow implements GenericRoleAssignment {
 	private final String ouUuid;
 	private final long roleId;
 	private final String roleName;
+	private final String roleDescription;
 	private final Long itSystemId;
 	private final String itSystemName;
 	private final String roleRoleGroup;
 	private final Long roleRoleGroupId;
+	private final String roleGroupDescription;
 	private final String assignedByUserId;
 	private final String assignedByName;
 	private final LocalDateTime assignedWhen;
@@ -40,6 +42,9 @@ public class OuRoleAssignmentReportRow implements GenericRoleAssignment {
 	private final boolean inherit;
 
 	private final List<String> exceptedUserUuids;
-	private final List<String> titleUuids;
+	private final List<String> selectedTitleUuids;
+	private final List<String> excludedTitleUuids;
 	private final List<String> functionUuids;
+	private final List<String> positionTitleUuids;
+	private final List<String> excludedPositionTitleUuids;
 }

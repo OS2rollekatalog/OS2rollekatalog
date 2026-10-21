@@ -257,8 +257,12 @@ class RoleFragmentService {
                 this.initAllRolegroupsTable();
             }
         } else {
-            this.initAllRolesAndRoleGroupsRecommendedTable();
-            this.initAllRolesAndRoleGroupsTable();
+            if (this.config.showRecommendedTab) {
+                this.initAllRolesAndRoleGroupsRecommendedTable();
+            }
+            if (this.config.showAllTab) {
+                this.initAllRolesAndRoleGroupsTable();
+            }
         }
 
         if (this.config.showExistingTab) {

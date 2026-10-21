@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.controller.api.model;
 
+import java.util.List;
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
@@ -41,13 +44,14 @@ public class ReportAM extends ReportForm {
 	@Schema(description = "Show Negative Roles column")
 	@Builder.Default
 	private boolean showNegativeRoles = false;
-	@Schema(description = "Show KLE column")
-	@Builder.Default
-	private boolean showKLE = true;
 	@Schema(description = "Show ItSystems column")
 	@Builder.Default
 	private boolean showItSystems = true;
 	@Schema(description = "Show Inactive Users column")
 	@Builder.Default
 	private boolean showInactiveUsers = false;
+
+	@Schema(description = "Per content-type column selection. Keys: ShowUsers, ShowOUs, ShowOUKLE, ShowUserRoles, ShowKLE, ShowItSystems, ShowSystemRoles. A missing key means all columns for that type. An empty list for a key excludes that sheet from the report entirely.")
+	@Builder.Default
+	private Map<String, List<String>> selectedColumns = null;
 }

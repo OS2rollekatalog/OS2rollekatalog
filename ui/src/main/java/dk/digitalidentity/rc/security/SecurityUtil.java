@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,14 +27,18 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
 import dk.digitalidentity.saml.service.model.TokenUser;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RequiredArgsConstructor
 @Component
 public class SecurityUtil {
 	private static final String SYSTEM_USERID = "system";
 	private static final String SYSTEM_USERNAME = "Systembruger";
+	public static final String SYSTEM_ACTOR = SYSTEM_USERNAME + " (" + SYSTEM_USERID + ")";
 
 	private final UserService userService;
+	private final AdminStatusChecker adminStatusChecker;
 
 	public static List<String> getRoles() {
 		List<String> roles = new ArrayList<>();
@@ -144,6 +149,29 @@ public class SecurityUtil {
 		return false;
 	}
 
+	/**
+	 * Evaluates whether the given user has the Administrator role.
+	 * @return true if the given user has the Administrator role, false otherwise or on failure
+	 */
+	public boolean isAdmin(User user) {
+		if (user == null) {
+			log.warn("isAdmin called with null user - denying by default");
+			return false;
+		}
+
+		if (isLoggedInUser(user)) {
+			return hasDirectAdminRole();
+		}
+
+		try {
+			return adminStatusChecker.checkAdminInDatabase(user);
+		}
+		catch (Exception ex) {
+			log.warn("Failed to determine admin status for user {} via database fallback - denying by default", user.getUuid(), ex);
+			return false;
+		}
+	}
+
 	@Deprecated(forRemoval = true)
 	// Usage should be replaced with an section-specific method ( hasPermission with READ permission)
 	public static boolean isAttestationAdminOrAdmin() {
@@ -152,6 +180,13 @@ public class SecurityUtil {
 						.map(GrantedAuthority::getAuthority)
 						.anyMatch(a -> a.equals(Constants.ROLE_ATTESTATION_ADMINISTRATOR)
 								|| a.equals(Constants.ROLE_ADMINISTRATOR));
+	}
+
+	/**
+	 * True when the given user is the one logged in to this session, so the session's authorities describe them.
+	 */
+	public static boolean isLoggedInUser(User user) {
+		return isLoggedIn() && Objects.equals(user.getUuid(), getUserUuid());
 	}
 
 	private static boolean isLoggedIn() {
@@ -207,6 +242,16 @@ public class SecurityUtil {
 		}
 
 		return SYSTEM_USERNAME;
+	}
+
+	/** "Name (userId)" of the logged-in person, or null when the change is made by the system. */
+	public static String getPersonActor() {
+		String userId = getUserId();
+		if (SYSTEM_USERID.equals(userId)) {
+			return null;
+		}
+
+		return getUserFullname() + " (" + userId + ")";
 	}
 
 	public static Client getClient() {

@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.dmp.DMPService;
 import dk.digitalidentity.rc.service.dmp.DMPStub;
 
@@ -24,6 +25,7 @@ public class DMPTasks {
 
 	// tokens for calling DMP is wiped from cache every 30 minutes
 	@Scheduled(fixedRate = 30 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 1000)
 	public void cleanUpTask() {
 		if (config.getScheduled().isEnabled() && config.getIntegrations().getDmp().isEnabled()) {
 			stub.cleanUpToken();
@@ -31,7 +33,8 @@ public class DMPTasks {
 	}
 	
 	// every 4 hours we pull fresh roles from DMP
-	@Scheduled(fixedRate = 4 * 60 * 60 * 1000)
+	@Scheduled(fixedRate = 4 * 60 * 60 * 1000, initialDelay = 5 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 60 * 1000)
 	public void synchronizeDmpItSystem() {
 		if (config.getScheduled().isEnabled() && config.getIntegrations().getDmp().isEnabled()) {
 			dmpService.synchronizeDMPRoles();
@@ -40,6 +43,7 @@ public class DMPTasks {
 	
 	// every 5 minutes we perform a deltasync of pending role-changes in DMP
 	@Scheduled(cron = "#{new java.util.Random().nextInt(55)} #{new java.util.Random().nextInt(4)}/5 4-20 * * ?")
+	@WarnIfSlowerThan(millis = 60 * 1000)
 	public void deltaSyncRoles() {
 		if (config.getScheduled().isEnabled() && config.getIntegrations().getDmp().isEnabled()) {
 			dmpService.deltaSyncRoles();
@@ -48,6 +52,7 @@ public class DMPTasks {
 	
 	// every night we delete users from DMP without roles
 	@Scheduled(cron = "${cron.dmp.cleanup:0 #{new java.util.Random().nextInt(55)} 21 * * ?}")
+	@WarnIfSlowerThan(millis = 60 * 1000)
 	public void deleteUsers() {
 		if (config.getScheduled().isEnabled() && config.getIntegrations().getDmp().isEnabled()) {
 			dmpService.deleteUsers();
@@ -56,6 +61,7 @@ public class DMPTasks {
 	
 	// every night we perform a full sync of assigned userroles
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 22 * * ?")
+	@WarnIfSlowerThan(millis = 5 * 60 * 1000)
 	public void fullSyncRoles() {
 		if (config.getScheduled().isEnabled() && config.getIntegrations().getDmp().isEnabled()) {
 			dmpService.fullSyncRoles();

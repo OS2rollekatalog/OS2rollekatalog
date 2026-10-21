@@ -59,11 +59,13 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 										   th:text="#{html.entity.itsystem.approversetting}"></label>
 									<div class="col-sm-8">
 										<select id="approverSettingsSelect" class="form-control" disabled multiple
-												th:field="*{approverPermission}"
+												name="approverPermission"
 												th:attr="data-groupid=${rolegroup.id}">
+											<option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(rolegroup.approverPermission)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
 											<option th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
 													th:value="${approverOpt}"
-													th:text="#{__${approverOpt.getMessage()}__}"></option>
+													th:text="#{__${approverOpt.getMessage()}__}"
+													th:selected="${#lists.contains(rolegroup.approverPermission, approverOpt)}"></option>
 										</select>
 									</div>
 								</div>
@@ -145,7 +147,6 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 			"deleteAssignmentConfirmTxt": [[#{html.control.button.yes}]],
 			"deleteAssignmentCancelTxt": [[#{html.control.button.cancel}]],
 			"txtQueueSpinner": [[#{html.common.queue.spinner.working}]],
-			"titlesEnabled": [[${titlesEnabled}]],
 			"infoMessage": [[${infoMessage}]],
 			"errorMessage": [[${errorMessage}]]
 		}

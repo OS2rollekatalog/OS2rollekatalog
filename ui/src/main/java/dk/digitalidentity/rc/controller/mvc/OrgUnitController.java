@@ -22,9 +22,7 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableUserRoleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ExceptedUsersDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserListDTO;
-import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -32,7 +30,6 @@ import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
@@ -47,13 +44,11 @@ import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
-import dk.digitalidentity.rc.service.FunctionService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
-import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.TitleService;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
@@ -72,10 +67,8 @@ public class OrgUnitController {
 	private final AccessConstraintService accessConstraintService;
 	private final UserService userService;
     private final RoleCatalogueConfiguration configuration;
-	private final TitleService titleService;
 	private final UserPermissionContext userPermissionContext;
-	private final ManagerSubstituteService managerSubstituteService;
-	private final FunctionService functionService;
+	private final SettingsService settingsService;
 
 	private static final Section permissionEntity = Section.ORGUNIT;
 	private final ItSystemService itSystemService;
@@ -97,9 +90,6 @@ public class OrgUnitController {
 		return "ous/list";
 	}
 
-	record ManagerOrSubstituteDTO(String name, String userId) {}
-	record FunctionDTO(String uuid, String name, boolean checked) {}
-	record OuDTO(String uuid, String name, boolean checked) {}
 
 	@RequirePermission(section = Section.ORGUNIT, permission = Permission.READ)
 	@GetMapping("/ui/ous/manage/{uuid}")
@@ -148,69 +138,6 @@ public class OrgUnitController {
 		model.addAttribute("canEditKle", isAssigner || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		model.addAttribute("allowAccessToOu", accessConstraintService.isAssignmentAllowed(ou));
 
-		//Titles
-		boolean titlesEnabled = configuration.getTitles().isEnabled();
-		if (titlesEnabled) {
-			List<Title> titles = orgUnitService.getTitles(ou);
-
-			List<TitleListForm> titleForms = titles
-					.stream()
-					.map(title -> new TitleListForm(title, false))
-					.collect(Collectors.toList());
-
-			List<String> titleFormsUuids = titleForms.stream().map(TitleListForm::getId).toList();
-			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).toList());
-
-			// add titles without positions if they are used for assignments
-			List<String> newTitleFormsUuids = titleForms.stream().map(TitleListForm::getId).collect(Collectors.toList());
-			for (OrgUnitUserRoleAssignment userRoleAssignment : ou.getUserRoleAssignments()) {
-				for (Title title : userRoleAssignment.getTitles()) {
-					if (!newTitleFormsUuids.contains(title.getUuid())) {
-						titleForms.add(new TitleListForm(title, false, true));
-						newTitleFormsUuids.add(title.getUuid());
-					}
-				}
-			}
-			for (OrgUnitRoleGroupAssignment roleGroupAssignment : ou.getRoleGroupAssignments()) {
-				for (Title title : roleGroupAssignment.getTitles()) {
-					if (!newTitleFormsUuids.contains(title.getUuid())) {
-						titleForms.add(new TitleListForm(title, false, true));
-						newTitleFormsUuids.add(title.getUuid());
-					}
-				}
-			}
-
-			model.addAttribute("titles", titleForms);
-
-			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
-			model.addAttribute("allTitles", allTitles);
-		}
-		else {
-			model.addAttribute("titles", null);
-		}
-		model.addAttribute("titlesEnabled", titlesEnabled);
-
-		User manager = orgUnitService.getManager(ou);
-		model.addAttribute("manager", manager == null ? null : new ManagerOrSubstituteDTO(manager.getName(), manager.getUserId()));
-		List<User> substitutesForOrgUnit = managerSubstituteService.getSubstitutesForOrgUnit(ou);
-		model.addAttribute("substitutes", substitutesForOrgUnit
-				.stream()
-				.map(s -> new ManagerOrSubstituteDTO(s.getName(), s.getUserId()))
-				.collect(Collectors.toList())
-		);
-
-		List<Function> functions = functionService.getAllActive();
-		model.addAttribute("functions", functions
-				.stream()
-				.map(f -> new FunctionDTO(f.getUuid(), f.getName(), false))
-				.collect(Collectors.toList())
-		);
-
-		List<OuDTO> children = orgUnitService.getAllDescendantsOfOu(ou).stream()
-			.map(orgUnit -> new OuDTO(orgUnit.getUuid(), orgUnit.getName(), false))
-			.collect(Collectors.toList());
-		model.addAttribute("childOus", children);
-
 		return "ous/manage";
 	}
 
@@ -241,57 +168,6 @@ public class OrgUnitController {
 		model.addAttribute("users", userDTOs);
 		model.addAttribute("canEditKle", false);
 		model.addAttribute("allowAccessToOu", accessConstraintService.isAssignmentAllowed(ou));
-
-		//Titles
-		boolean titlesEnabled = configuration.getTitles().isEnabled();
-		if (titlesEnabled) {
-			List<Title> titles = orgUnitService.getTitles(ou);
-
-			List<TitleListForm> titleForms = titles
-					.stream()
-					.map(title -> new TitleListForm(title, false))
-					.collect(Collectors.toList());
-
-			List<String> titleFormsUuids = titleForms.stream().map(TitleListForm::getId).toList();
-			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).toList());
-
-			// add titles without positions if they are used for assignments
-			List<String> newTitleFormsUuids = titleForms.stream().map(TitleListForm::getId).collect(Collectors.toList());
-			for (OrgUnitUserRoleAssignment userRoleAssignment : ou.getUserRoleAssignments()) {
-				for (Title title : userRoleAssignment.getTitles()) {
-					if (!newTitleFormsUuids.contains(title.getUuid())) {
-						titleForms.add(new TitleListForm(title, false, true));
-						newTitleFormsUuids.add(title.getUuid());
-					}
-				}
-			}
-			for (OrgUnitRoleGroupAssignment roleGroupAssignment : ou.getRoleGroupAssignments()) {
-				for (Title title : roleGroupAssignment.getTitles()) {
-					if (!newTitleFormsUuids.contains(title.getUuid())) {
-						titleForms.add(new TitleListForm(title, false, true));
-						newTitleFormsUuids.add(title.getUuid());
-					}
-				}
-			}
-
-			model.addAttribute("titles", titleForms);
-
-			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
-			model.addAttribute("allTitles", allTitles);
-		}
-		else {
-			model.addAttribute("titles", null);
-		}
-		model.addAttribute("titlesEnabled", titlesEnabled);
-
-		User manager = orgUnitService.getManager(ou);
-		model.addAttribute("manager", manager == null ? null : new UserRoleController.ManagerOrSubstituteDTO(manager.getName(), manager.getUserId()));
-		List<User> substitutesForOrgUnit = managerSubstituteService.getSubstitutesForOrgUnit(ou);
-		model.addAttribute("substitutes", substitutesForOrgUnit
-				.stream()
-				.map(s -> new UserRoleController.ManagerOrSubstituteDTO(s.getName(), s.getUserId()))
-				.collect(Collectors.toList())
-		);
 
 		return "ous/manage";
 	}
@@ -349,6 +225,8 @@ public class OrgUnitController {
 		List<AvailableUserRoleDTO> roles = getAvailableUserRoles(ou);
 
 		model.addAttribute("roles", roles);
+		model.addAttribute("preventDuplicates", settingsService.isPreventDuplicateRoles());
+
 		return "ous/fragments/manage_add_userrole :: addUserRole";
 	}
 
@@ -363,6 +241,8 @@ public class OrgUnitController {
 		List<AvailableRoleGroupDTO> roleGroups = getAvailableRoleGroups(ou);
 
 		model.addAttribute("roleGroups", roleGroups);
+		model.addAttribute("preventDuplicates", settingsService.isPreventDuplicateRoles());
+		
 		return "ous/fragments/manage_add_rolegroup :: addRoleGroup";
 	}
 

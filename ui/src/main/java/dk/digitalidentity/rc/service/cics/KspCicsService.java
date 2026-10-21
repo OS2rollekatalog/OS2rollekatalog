@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.service.cics;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -45,8 +47,6 @@ import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KspCicsUnmatchedUserService;
@@ -268,8 +268,8 @@ public class KspCicsService {
 						existingUserRole.setItSystem(itSystem);
 						existingUserRole.setName(namePrefix + userProfile.getName());
 						existingUserRole.setSystemRoleAssignments(new ArrayList<>());
-						existingUserRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
-						existingUserRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
+						existingUserRole.setApproverPermission(ApproverPermission.inherit());
+						existingUserRole.setRequesterPermission(RequesterPermission.inherit());
 						existingUserRole = userRoleService.save(existingUserRole);
 
 						log.info("Creating " + existingUserRole.getId() + " / " + existingUserRole.getName() + " / " + existingUserRole.getIdentifier());
@@ -544,6 +544,10 @@ public class KspCicsService {
 							// TODO: also we do not flag it as processed for now - might do that later, once we know that KMD is working
 							log.error("Could not find dirty userProfile in KSP/CICS: " + dirtyProfile.getIdentifier());
 						}
+					}
+					else {
+						// if it does not exist anymore, just mark it as processed
+						processed.add(dirtyProfile);
 					}
 				}
 				catch (Exception ex) {

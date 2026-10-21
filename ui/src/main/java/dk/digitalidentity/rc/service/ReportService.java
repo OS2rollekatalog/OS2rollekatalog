@@ -14,15 +14,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
-import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
-import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
-import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
-import dk.digitalidentity.rc.service.assignment.HistoricExceptedAssignmentService;
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
@@ -33,6 +26,7 @@ import dk.digitalidentity.rc.attestation.service.temporal.TemporalDao;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OuRoleAssignmentReportRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.GenericRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
@@ -41,8 +35,16 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
+import dk.digitalidentity.rc.service.StreamingReportContext.UserPosition;
+import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
+import dk.digitalidentity.rc.service.assignment.HistoricExceptedAssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -96,7 +98,7 @@ public class ReportService {
 	 * @param queryDate       Date used for the DB query (capped at today)
 	 * @param displayDate     Date used for start/stop-date filtering
 	 * @param allowedUserUuids If non-null, only assignments for these user UUIDs are included (OU filter)
-	 * @param allowedDisplayOuUuids If non-null, only rows whose displayed OU (assignedThroughOUUuid, or position OU) is in this set are included — the org-unit filter (reportForm.getOrgUnits())
+	 * @param allowedDisplayOuUuids If non-null, only rows whose displayed OU (the position OU, or assignedThroughOUUuid as fallback) is in this set are included — the org-unit filter (reportForm.getOrgUnits())
 	 * @param allowedResponsibleOuUuids If non-null, only assignments with a responsibleOU in this set (or null responsibleOU) are included — the manager filter (reportForm.getManager())
 	 * @param itSystemIds     If non-null/non-empty, only assignments for these IT systems are fetched from DB
 	 */
@@ -119,25 +121,36 @@ public class ReportService {
 		Map<Long, Long> userRoleIdWeight = ReportSystemRoleWeightService.computeUserRoleWeights(itSystems);
 
 		// Lightweight first pass: compute max weight per (userId, itSystemName) without loading full entities
-		List<Object[]> weightTriples = (itSystemIds != null && !itSystemIds.isEmpty())
-			? historicAssignmentService.getWeightTriplesForItSystems(queryDate, itSystemIds)
-			: historicAssignmentService.getWeightTriples(queryDate);
-
 		Map<String, Map<String, Long>> userItSystemMaxWeight = new HashMap<>();
-		for (Object[] triple : weightTriples) {
-			String userUuid = (String) triple[0];
-			String itSystemName = (String) triple[1];
-			Long userRoleId = (Long) triple[2];
-			LocalDate startDate = (LocalDate) triple[3];
-			LocalDate stopDate = (LocalDate) triple[4];
-			if (!shouldIncludeByDate(displayDate, startDate, stopDate, "weight-triple", userRoleId)) continue;
-			if (allowedUserUuids != null && !allowedUserUuids.contains(userUuid)) continue;
-			HistoryUser user = users.get(userUuid);
-			if (user == null || (!showInactiveUsers && !user.isUserActive())) continue;
-			long weight = userRoleIdWeight.getOrDefault(userRoleId, 1L);
-			userItSystemMaxWeight
-				.computeIfAbsent(user.getUserUserId(), _ -> new HashMap<>())
-				.merge(itSystemName, weight, Math::max);
+
+		try (Stream<Object[]> weightTriples = (itSystemIds != null && !itSystemIds.isEmpty())
+			? historicAssignmentService.streamWeightTriplesForItSystems(queryDate, itSystemIds)
+			: historicAssignmentService.streamWeightTriples(queryDate)) {
+
+			weightTriples.forEach(triple -> {
+				String userUuid = (String) triple[0];
+				String itSystemName = (String) triple[1];
+				Long userRoleId = (Long) triple[2];
+				LocalDate startDate = (LocalDate) triple[3];
+				LocalDate stopDate = (LocalDate) triple[4];
+
+				if (!shouldIncludeByDate(displayDate, startDate, stopDate, "weight-triple", userRoleId)) {
+					return;
+				}
+				if (allowedUserUuids != null && !allowedUserUuids.contains(userUuid)) {
+					return;
+				}
+
+				HistoryUser user = users.get(userUuid);
+				if (user == null || (!showInactiveUsers && !user.isUserActive())) {
+					return;
+				}
+
+				long weight = userRoleIdWeight.getOrDefault(userRoleId, 1L);
+				userItSystemMaxWeight
+					.computeIfAbsent(user.getUserUserId(), _ -> new HashMap<>())
+					.merge(itSystemName, weight, Math::max);
+			});
 		}
 
 		// Pre-load constraints in one bulk query — avoids N+1 lazy loads per streamed entity.
@@ -154,6 +167,7 @@ public class ReportService {
 		// responsibleOU (e.g. manager of one OU + substitute for another OU, both inheriting a role from
 		// a common ancestor OU)
 		Set<HistoricUserRoleAssignmentKey> seenAssignments = new HashSet<>();
+		String[] currentUserUuid = new String[1];
 
 		// Second pass: stream full entities from DB and emit report entries
 		try (var stream = (itSystemIds != null && !itSystemIds.isEmpty())
@@ -162,6 +176,12 @@ public class ReportService {
 
 			stream.forEach(ha -> {
 				try {
+					if (!Objects.equals(currentUserUuid[0], ha.getUserUuid())) {
+						// Duplicates only occur within one user, so the set can be reset per user
+						seenAssignments.clear();
+						currentUserUuid[0] = ha.getUserUuid();
+					}
+
 					if (!shouldIncludeByDate(displayDate, ha.getStartDate(), ha.getStopDate(), "HistoricAssignment", ha.getUserRoleId())) return;
 					if (allowedUserUuids != null && !allowedUserUuids.contains(ha.getUserUuid())) return;
 					if (allowedResponsibleOuUuids != null && ha.getResponsibleOUUuid() != null
@@ -171,7 +191,7 @@ public class ReportService {
 
 					HistoryUser user = ctx.users.get(ha.getUserUuid());
 					if (user == null) {
-						log.warn("User not found for assignment: {}", ha.getUserUuid());
+						log.debug("User not found for assignment: {}", ha.getUserUuid());
 						return;
 					}
 					if (!showInactiveUsers && !user.isUserActive()) return;
@@ -187,12 +207,13 @@ public class ReportService {
 					if (onlyResponsibleOU) {
 						streamReportEntry(ha, user, allowedDisplayOuUuids, ctx, locale, consumer);
 					} else {
-						List<HistoryOU> positions = ctx.userPositionsMap.get(ha.getUserUuid());
-						if (positions == null || positions.isEmpty()) {
+						List<HistoryOU> positionOus = employmentOusReachedBy(
+							null, null, ctx.userPositionsMap.get(ha.getUserUuid()), ctx.ouSelfAndAncestors);
+						if (positionOus.isEmpty()) {
 							streamReportEntry(ha, user, allowedDisplayOuUuids, ctx, locale, consumer);
 						} else {
-							for (HistoryOU position : positions) {
-								streamReportEntry(ha, user, position, allowedDisplayOuUuids, ctx, locale, consumer);
+							for (HistoryOU positionOu : positionOus) {
+								streamReportEntry(ha, user, positionOu, allowedDisplayOuUuids, ctx, locale, consumer);
 							}
 						}
 					}
@@ -243,7 +264,7 @@ public class ReportService {
 
 					HistoryUser user = users.get(hea.getExceptionUserUuid());
 					if (user == null) {
-						log.warn("User not found for excepted assignment: {}", hea.getExceptionUserUuid());
+						log.debug("User not found for excepted assignment: {}", hea.getExceptionUserUuid());
 						return;
 					}
 					if (!showInactiveUsers && !user.isUserActive()) return;
@@ -268,7 +289,7 @@ public class ReportService {
 					row.setRoleId(hea.getExceptionUserRoleId());
 					row.setItSystem(hea.getExceptionItSystemName());
 					row.setAssignedBy(hea.getAssignedBy());
-					row.setAssignedWhen(hea.getValidFrom());
+					row.setAssignedWhen(hea.getAssignedWhen() != null ? hea.getAssignedWhen() : hea.getValidFrom());
 					row.setAssignedThrough(assignedThroughStr);
 					row.setPostponedConstraints("");
 					row.setStartDate(hea.getStartDate());
@@ -283,6 +304,11 @@ public class ReportService {
 
 	/**
 	 * Resolves the display OU for the report entry, and applies the org-unit filter against it.
+	 * <p>
+	 * The displayed OU is the user's employment OU. The OU the role was assigned on is already shown
+	 * in the "assigned through" column, so we display the positions the assignment reached the user
+	 * through rather than the assignment OU itself. Only when there is no such position — managers and
+	 * substitutes attached to the OU from outside — do we fall back to the assignment OU.
 	 */
 	private void streamReportEntry(
 		HistoricAssignment ha,
@@ -292,21 +318,85 @@ public class ReportService {
 		Locale locale,
 		Consumer<UserRoleAssignmentReportEntry> consumer) {
 
-		if (ha.getAssignedThroughOUUuid() != null) {
+		// the title is taken whatever the assignment is called, or the role lands on the excluded positions too
+		List<HistoryOU> displayOus = employmentOusReachedBy(
+			ha.getAssignedThroughOUUuid(), ha.getAssignedThroughTitleUuid(), ctx.userPositionsMap.get(ha.getUserUuid()), ctx.ouSelfAndAncestors);
+
+		if (!displayOus.isEmpty()) {
+			for (HistoryOU ou : displayOus) {
+				streamReportEntryInternal(ha, user, ou.getOuName(), ou.getOuUuid(), allowedDisplayOuUuids, ctx, locale, consumer);
+			}
+		} else if (ha.getAssignedThroughOUUuid() != null) {
 			HistoryOU ou = ctx.orgUnits.get(ha.getAssignedThroughOUUuid());
 			String name = ou != null ? ou.getOuName() : ha.getAssignedThroughOUName();
 			String uuid = ou != null ? ou.getOuUuid() : ha.getAssignedThroughOUUuid();
 			streamReportEntryInternal(ha, user, name, uuid, allowedDisplayOuUuids, ctx, locale, consumer);
 		} else {
-			List<HistoryOU> positions = ctx.userPositionsMap.get(ha.getUserUuid());
-			if (positions == null || positions.isEmpty()) {
-				streamReportEntryInternal(ha, user, null, null, allowedDisplayOuUuids, ctx, locale, consumer);
-			} else {
-				for (HistoryOU position : positions) {
-					streamReportEntryInternal(ha, user, position.getOuName(), position.getOuUuid(), allowedDisplayOuUuids, ctx, locale, consumer);
-				}
+			streamReportEntryInternal(ha, user, null, null, allowedDisplayOuUuids, ctx, locale, consumer);
+		}
+	}
+
+	/**
+	 * The distinct employment OUs an assignment reaches the user through.
+	 * <p>
+	 * A null {@code assignmentOuUuid} means the assignment is not tied to an OU (direct or role group),
+	 * so every position counts. Otherwise the position must sit in or below the assignment OU, must not
+	 * opt out of inheritance, and — for title assignments — must hold the title the role was assigned to.
+	 * <p>
+	 * Two things the rule engine also weighs cannot be reconstructed from the history tables: whether the
+	 * assignment inherits to children at all, and excepted OUs. A user with several positions below the
+	 * assignment OU can therefore get a row for a position the assignment did not actually reach.
+	 */
+	static List<HistoryOU> employmentOusReachedBy(
+		String assignmentOuUuid,
+		String assignmentTitleUuid,
+		List<UserPosition> positions,
+		Map<String, Set<String>> ouSelfAndAncestors) {
+
+		if (positions == null || positions.isEmpty()) {
+			return List.of();
+		}
+
+		// Fast path: one position is the norm, and this runs per streamed assignment
+		if (positions.size() == 1) {
+			UserPosition position = positions.getFirst();
+			return reaches(assignmentOuUuid, assignmentTitleUuid, position, ouSelfAndAncestors)
+				? List.of(position.ou())
+				: List.of();
+		}
+
+		List<HistoryOU> displayOus = new ArrayList<>(positions.size());
+		Set<String> seenOuUuids = new HashSet<>();
+		for (UserPosition position : positions) {
+			// Two positions in the same OU are one row, not two
+			if (reaches(assignmentOuUuid, assignmentTitleUuid, position, ouSelfAndAncestors) && seenOuUuids.add(position.ou().getOuUuid())) {
+				displayOus.add(position.ou());
 			}
 		}
+
+		return displayOus;
+	}
+
+	private static boolean reaches(
+		String assignmentOuUuid,
+		String assignmentTitleUuid,
+		UserPosition position,
+		Map<String, Set<String>> ouSelfAndAncestors) {
+
+		if (assignmentTitleUuid != null && !assignmentTitleUuid.equals(position.titleUuid())) {
+			return false;
+		}
+
+		if (assignmentOuUuid == null) {
+			return true;
+		}
+
+		// AssignmentRule rejects a doNotInherit position for every OU assignment, its own OU included
+		if (position.doNotInherit()) {
+			return false;
+		}
+
+		return ouSelfAndAncestors.getOrDefault(position.ou().getOuUuid(), Set.of()).contains(assignmentOuUuid);
 	}
 
 	/** Uses an explicit position OU (for users with multiple positions), then delegates. */
@@ -356,7 +446,10 @@ public class ReportService {
 		row.setRoleId(historicAssignment.getUserRoleId());
 		row.setItSystem(historicAssignment.getItSystemName());
 		row.setAssignedBy(historicAssignment.getAssignedBy());
-		row.setAssignedWhen(historicAssignment.getValidFrom());
+		// validFrom is only the version date, so it is a fallback for a missing assignment date
+		row.setAssignedWhen(historicAssignment.getAssignedWhen() != null
+			? historicAssignment.getAssignedWhen()
+			: historicAssignment.getValidFrom());
 		row.setAssignedThrough(assignedThroughStr);
 		row.setPostponedConstraints(postponedConstraints);
 		row.setStartDate(historicAssignment.getStartDate());

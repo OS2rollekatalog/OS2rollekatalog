@@ -26,6 +26,11 @@
 	<link rel="stylesheet" th:href="@{/vendor/select2/css/select2.min.css}" />
 
 	<link rel="stylesheet" th:href="@{/css/styles.css}" />
+	<link rel="stylesheet" th:href="@{/css/bootstrap-3-bandaids.css}" />
+
+	<th:block th:if="${ouAssignment == true}">
+		<link rel="stylesheet" th:href="@{/css/ous/assign/ou-assignment-builder.css}" />
+	</th:block>
 </head>
 <body>
 

@@ -10,8 +10,10 @@
 				</div>
 
 				<div class="modal-body">
+					<div th:if="${autoApproveRemoval}" class="alert alert-warning" th:text="#{requestmodule.html.removal.modal.autoApprove}"></div>
+
 					<div class="form-group">
-						<textarea id="removal_reason" class="form-control col-sm-12" rows="5"></textarea>
+						<textarea id="removal_reason" class="form-control col-sm-12" rows="5" th:maxlength="${T(dk.digitalidentity.rc.rolerequest.RequestConstants).REASON_MAX_LENGTH}"></textarea>
 						<div id="reasonEmptyError" class="text-danger mt-3" th:text="#{requestmodule.html.removal.modal.reasonrequired}" hidden="hidden"></div>
 					</div>
 

@@ -102,4 +102,10 @@ public class AttestationOuRoleAssignment extends TemporalAssignmentBase {
     @Builder.Default
     private List<String> exceptedTitleUuids = Collections.emptyList();
 
+    @Column
+    @Convert(converter = StringListConverter.class)
+    @PartOfNaturalKey(since = 2)
+    @Builder.Default
+    private List<String> exceptedOuUuids = Collections.emptyList();
+
 }

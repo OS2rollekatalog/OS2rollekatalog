@@ -3,8 +3,10 @@ package dk.digitalidentity.rc.attestation.service.temporal;
 import static org.springframework.transaction.TransactionDefinition.ISOLATION_READ_UNCOMMITTED;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @Slf4j
 public class UserAssignmentsUpdaterJdbc {
+    static final int PAGE_SIZE = 2000;
 
     @Autowired
     private PlatformTransactionManager transactionManager;
@@ -50,27 +53,37 @@ public class UserAssignmentsUpdaterJdbc {
 
 		long recordCount = 0;
 
+		final Map<Long, RoleMetadata> userRoles = temporalDao.currentUserRoleMetadata();
+		final Map<Long, RoleMetadata> roleGroups = temporalDao.currentRoleGroupMetadata();
 		final List<Long> itSystemIds = temporalDao.getDistinctAssignedItSystems(when);
 		for (final Long itSystemId : itSystemIds) {
 			log.info("Processing it-system id: " + itSystemId);
-			final Long cnt = transactionTemplate.execute(_ -> {
-				final List<Long> updatedIds = new ArrayList<>();
-				List<AttestationUserRoleAssignment> assignments = temporalDao
-					.findHistoricAssignmentsByItSystemAndDate(when, itSystemId).stream()
-					.map(r -> toUserRoleAssignment(r, when))
-					.toList();
-
-				assignments.forEach(a -> {
-					logProgress();
-					updateOrCreate(when, a, updatedIds);
+			long afterId = 0;
+			long itSystemCount = 0;
+			while (true) {
+				final long pageAfterId = afterId;
+				final List<HistoricAssignment> page = transactionTemplate.execute(_ -> {
+					final List<HistoricAssignment> historicAssignments = temporalDao
+						.findHistoricAssignmentsByItSystemAndDate(when, itSystemId, pageAfterId, PAGE_SIZE);
+					final List<Long> updatedIds = new ArrayList<>();
+					historicAssignments.stream()
+						.map(r -> toUserRoleAssignment(r, when, userRoles, roleGroups))
+						.forEach(a -> updateOrCreate(when, a, updatedIds));
+					Lists.partition(updatedIds, 500)
+						.forEach(updatedId -> temporalDao.setUpdatedTimestampForUserRoleAssignmentsWithIdsIn(updatedId, when));
+					return historicAssignments;
 				});
-
-				long processedCount = assignments.size();
-				Lists.partition(updatedIds, 500)
-					.forEach(updatedId -> temporalDao.setUpdatedTimestampForUserRoleAssignmentsWithIdsIn(updatedId, when));
-				return processedCount;
-			});
-			recordCount += cnt != null ? cnt : 0;
+				if (page == null || page.isEmpty()) {
+					break;
+				}
+				itSystemCount += page.size();
+				if (page.size() < PAGE_SIZE) {
+					break;
+				}
+				afterId = page.getLast().getId();
+			}
+			log.info("Processed {} assignments for it-system id: {}", itSystemCount, itSystemId);
+			recordCount += itSystemCount;
 		}
 
         if (recordCount == 0) {
@@ -140,8 +153,12 @@ public class UserAssignmentsUpdaterJdbc {
         };
     }
 
-    private static AttestationUserRoleAssignment toUserRoleAssignment(final HistoricAssignment r, final LocalDate when) {
-        final LocalDate assignedFrom = r.getValidFrom() != null ? r.getValidFrom().toLocalDate() : null;
+    private static AttestationUserRoleAssignment toUserRoleAssignment(final HistoricAssignment r, final LocalDate when,
+                                                                      final Map<Long, RoleMetadata> userRoles,
+                                                                      final Map<Long, RoleMetadata> roleGroups) {
+        // validFrom is the version date, fallback only
+        final LocalDateTime assignedWhen = r.getAssignedWhen() != null ? r.getAssignedWhen() : r.getValidFrom();
+        final LocalDate assignedFrom = assignedWhen != null ? assignedWhen.toLocalDate() : null;
 
 		AssignedThroughPair assignedThroughPair = resolveAssignedThroughValues(r);
 
@@ -154,11 +171,11 @@ public class UserAssignmentsUpdaterJdbc {
                 .userId(r.getUserId())
                 .userName(r.getUserName())
                 .userRoleId(r.getUserRoleId())
-                .userRoleName(r.getUserRoleName())
-                .userRoleDescription(r.getUserRoleDescription())
+                .userRoleName(RoleMetadata.nameOf(userRoles, r.getUserRoleId(), r.getUserRoleName()))
+                .userRoleDescription(RoleMetadata.descriptionOf(userRoles, r.getUserRoleId(), r.getUserRoleDescription()))
                 .roleGroupId(r.getRoleGroupId())
-                .roleGroupName(r.getRoleGroupName())
-                .roleGroupDescription(r.getRoleGroupDescription())
+                .roleGroupName(RoleMetadata.nameOf(roleGroups, r.getRoleGroupId(), r.getRoleGroupName()))
+                .roleGroupDescription(RoleMetadata.descriptionOf(roleGroups, r.getRoleGroupId(), r.getRoleGroupDescription()))
                 .responsibleOuName(r.getResponsibleOUName())
                 .responsibleOuUuid(r.getResponsibleOUUuid())
                 .responsibleCollectionId(r.getResponsibleCollectionId())
@@ -212,13 +229,6 @@ public class UserAssignmentsUpdaterJdbc {
         return r.getConstraints().stream()
                 .map(c -> c.getConstraintTypeName() + ": " + String.join(",", c.getValue()))
                 .collect(Collectors.joining("\n"));
-    }
-
-    private static int progressCount = 0;
-    private void logProgress() {
-        if (++progressCount % 100 == 0) {
-            log.info("Processing user assignment, count={}", progressCount);
-        }
     }
 
 }

@@ -232,63 +232,86 @@ public class SystemRoleService {
 			.toList();
 	}
 
-	@Transactional
-	public void notifyMaximumAssignments() {
-		for (SystemRole systemRole : systemRoleDao.findByMaximumAssignmentsNotNull()) {
-			Set<UserRole> userRoles = userRoleService.findAllBySystemRole(systemRole);
-			List<CurrentAssignment> allAssignments = new ArrayList<>();
-			for (UserRole userRole : userRoles) {
-				allAssignments.addAll(assignmentService.getActiveByUserRole(userRole));
-			}
+	public record ExceededSystemRole(
+	        String systemRoleName,
+	        String itSystemName,
+	        String notificationEmail,
+	        long count,
+	        long maximumAssignments
+	) {}
 
-			Map<User, List<CurrentAssignment>> assignmentsByUser = allAssignments.stream()
-				.collect(Collectors.groupingBy(CurrentAssignment::getUser));
+    @Transactional(readOnly = true)
+    public List<ExceededSystemRole> findExceededSystemRoles() {
+        List<ExceededSystemRole> result = new ArrayList<>();
 
-			long count = 0;
+        for (SystemRole systemRole : systemRoleDao.findByMaximumAssignmentsNotNull()) {
+            Set<UserRole> userRoles = userRoleService.findAllBySystemRole(systemRole);
 
-			for (Map.Entry<User, List<CurrentAssignment>> entry : assignmentsByUser.entrySet()) {
-				List<CurrentAssignment> userAssignments = entry.getValue();
-				User user = entry.getKey();
-				Set<CurrentAssignment> allUserAssignments = assignmentService.getByUser(user);
+            List<CurrentAssignment> allAssignments = new ArrayList<>();
+            for (UserRole userRole : userRoles) {
+                allAssignments.addAll(assignmentService.getActiveByUserRole(userRole));
+            }
 
-				boolean hasActiveRole = userAssignments.stream()
-					.anyMatch(a -> !isIneffectiveDueToWeight(a, allUserAssignments));
+            Map<User, List<CurrentAssignment>> assignmentsByUser = allAssignments.stream().collect(Collectors.groupingBy(CurrentAssignment::getUser));
 
-				if (hasActiveRole) {
-					count++;
-				}
-			}
+            long count = 0;
+            for (Map.Entry<User, List<CurrentAssignment>> entry : assignmentsByUser.entrySet()) {
+                User user = entry.getKey();
+                List<CurrentAssignment> userAssignments = entry.getValue();
+                Set<CurrentAssignment> allUserAssignments = assignmentService.getByUser(user);
 
-			if (count <= systemRole.getMaximumAssignments()) {
-				continue;
-			}
+                boolean hasActiveRole = userAssignments.stream().anyMatch(a -> !isIneffectiveDueToWeight(a, allUserAssignments));
 
-			if (!StringUtils.hasLength(systemRole.getItSystem().getNotificationEmail())) {
-				log.warn("Maximum system role assignment mail for " + systemRole.getName() + " will not be sent. NotificationEmail on itsystem: " + systemRole.getItSystem().getName() + " is null");
-				continue;
-			}
+                if (hasActiveRole) {
+                    count++;
+                }
+            }
 
-			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SYSTEM_ROLE_EXCEEDED_MAX_ASSIGNMENTS);
-			if (template.isEnabled()) {
-				String title = template.getTitle();
-				title = title.replace(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER.getPlaceholder(), systemRole.getItSystem().getName());
-				title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), systemRole.getName());
-				title = title.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Long.toString(count));
-				title = title.replace(EmailTemplatePlaceholder.MAX_COUNT_PLACEHOLDER.getPlaceholder(), Long.toString(systemRole.getMaximumAssignments()));
+            if (count <= systemRole.getMaximumAssignments()) {
+                continue;
+            }
 
-				String message = template.getMessage();
-				message = message.replace(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER.getPlaceholder(), systemRole.getItSystem().getName());
-				message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), systemRole.getName());
-				message = message.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Long.toString(count));
-				message = message.replace(EmailTemplatePlaceholder.MAX_COUNT_PLACEHOLDER.getPlaceholder(), Long.toString(systemRole.getMaximumAssignments()));
+            String notificationEmail = systemRole.getItSystem().getNotificationEmail();
+            if (!StringUtils.hasLength(notificationEmail)) {
+                log.warn("Maximum system role assignment mail for " + systemRole.getName() + " will not be sent. NotificationEmail on itsystem: " + systemRole.getItSystem().getName() + " is null");
+                continue;
+            }
 
-				emailQueueService.queueEmail(systemRole.getItSystem().getNotificationEmail(), title, message, template, null, null);
-			}
-			else {
-				log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
-			}
-		}
-	}
+            result.add(new ExceededSystemRole(
+                systemRole.getName(),
+                systemRole.getItSystem().getName(),
+                notificationEmail,
+                count,
+                systemRole.getMaximumAssignments())
+            );
+        }
+
+        return result;
+    }
+
+    @Transactional
+    public void queueNotifications(List<ExceededSystemRole> exceededRoles) {
+        EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SYSTEM_ROLE_EXCEEDED_MAX_ASSIGNMENTS);
+        if (!template.isEnabled()) {
+            log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+            return;
+        }
+
+        for (ExceededSystemRole role : exceededRoles) {
+            String title = applyPlaceholders(template.getTitle(), role);
+            String message = applyPlaceholders(template.getMessage(), role);
+
+            emailQueueService.queueEmail(role.notificationEmail(), title, message, template, null, null);
+        }
+    }
+
+    private String applyPlaceholders(String text, ExceededSystemRole role) {
+        return text
+            .replace(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER.getPlaceholder(), role.itSystemName())
+            .replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), role.systemRoleName())
+            .replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Long.toString(role.count()))
+            .replace(EmailTemplatePlaceholder.MAX_COUNT_PLACEHOLDER.getPlaceholder(), Long.toString(role.maximumAssignments()));
+    }
 
 	public boolean isIneffectiveDueToWeight(CurrentAssignment assignment, Set<CurrentAssignment> assignments) {
 		if (assignment == null || assignment.getUserRole() == null) {

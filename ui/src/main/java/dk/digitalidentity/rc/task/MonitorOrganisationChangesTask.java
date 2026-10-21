@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,6 +28,7 @@ public class MonitorOrganisationChangesTask {
 	// sometimes the local integration at the customer stops running,
 	// so we monitor for missing updates weekly
 	@Scheduled(cron = "0 0 14 * * WED")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void verifyTaskIsRunning() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

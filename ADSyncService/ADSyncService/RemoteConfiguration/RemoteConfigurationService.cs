@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ADSyncService.Email;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 
@@ -15,6 +16,7 @@ namespace ADSyncService
         private bool initialized = false;
         private RemoteConfiguration remoteConfiguration = null;
         private RemoteConfiguration localConfiguration = null;
+        private string lastEmailedValidationError = null;
 
         private RemoteConfigurationService() {}
 
@@ -26,21 +28,28 @@ namespace ADSyncService
 
         public RemoteConfiguration GetConfiguration()
         {
-            if (!initialized) { init(); }
-
-            if (featureEnabled)
+            RemoteConfiguration configuration = GetConfigurationIfAvailable();
+            if (configuration == null)
             {
-                if (remoteConfiguration == null)
-                {
-                    throw new Exception("ADSyncService depends on remote configuration, but it is null");
-                }
-                else
-                {
-                    return remoteConfiguration;
-                }
+                throw new Exception("ADSyncService depends on remote configuration, but it is null");
             }
 
-            return localConfiguration;
+            return configuration;
+        }
+
+        public RemoteConfiguration GetConfigurationIfAvailable()
+        {
+            if (!initialized) { init(); }
+
+            return featureEnabled ? remoteConfiguration : localConfiguration;
+        }
+
+        // must not throw: used to report errors caused by a missing remote configuration
+        public RemoteConfiguration GetEmailConfiguration()
+        {
+            if (!initialized) { init(); }
+
+            return remoteConfiguration ?? localConfiguration;
         }
 
         public void FetchConfiguration(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
@@ -135,12 +144,20 @@ namespace ADSyncService
 
             if (!valid)
             {
+                log.Error("Remote configuration rejected. " + errorMsg);
                 roleCatalogueStub.SendConfigurationError(errorMsg);
-            } 
+
+                if (errorMsg != lastEmailedValidationError)
+                {
+                    EmailService.Instance.EnqueueMail(errorMsg);
+                    lastEmailedValidationError = errorMsg;
+                }
+            }
             else
             {
                 // Clear the error if configuration is valid
                 roleCatalogueStub.SendConfigurationError("");
+                lastEmailedValidationError = null;
             }
 
             return valid;

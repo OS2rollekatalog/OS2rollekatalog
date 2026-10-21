@@ -39,4 +39,10 @@ public class ManualAssignmentNotificationMap {
 
 	@Column(length = 64)
 	private String constraintFingerprint;
+
+	@Column
+	private String removalReason;
+
+	@Column
+	private String removedBy;
 }

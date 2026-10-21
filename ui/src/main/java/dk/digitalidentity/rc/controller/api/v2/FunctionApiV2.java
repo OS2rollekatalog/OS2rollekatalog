@@ -100,7 +100,8 @@ public class FunctionApiV2 {
 	@Operation(
 		summary = "Sync functions",
 		description = """
-        Synchronizes the full list of functions. Functions not present in the payload will be deactivated.
+        Synchronizes the full list of functions. Functions not present in the payload will be deactivated,
+        so an empty payload deactivates all functions.
 
         Resolution order for each entry:
         1. Look up by UUID if present
@@ -117,21 +118,20 @@ public class FunctionApiV2 {
 	@PostMapping(value = "/api/v2/function/sync")
 	@Transactional
 	public List<FunctionDTO> sync(@RequestBody @Valid @NotNull List<FunctionDTO> functions) {
-		if (functions == null || functions.isEmpty()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "List must not be empty");
-		}
-
 		final Set<String> incomingUuids = functions.stream()
 			.map(FunctionDTO::getUuid)
 			.filter(Objects::nonNull)
 			.collect(Collectors.toSet());
 
-		// Deaktiver alle der ikke er med i den indkommende liste
-		functionService.getAllActive().stream()
+		// deactivate everything the source system left out - an empty payload therefore deactivates all functions,
+		// which is the only way a source system can retire its last function
+		final List<Function> deactivated = functionService.getAllActive().stream()
 			.filter(f -> !incomingUuids.contains(f.getUuid()))
-			.forEach(f -> f.setActive(false));
+			.toList();
+		deactivated.forEach(f -> f.setActive(false));
+		functionService.saveAll(deactivated);
 
-		// Opret eller genaktiver + opdater dem der er med
+		// create or reactivate + update the ones that are present
 		final List<Function> synced = functions.stream()
 			.map(dto -> {
 				final Function f = resolve(dto);

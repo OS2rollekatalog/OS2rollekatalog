@@ -213,6 +213,14 @@ i[class^="icon-question"]:before {
 /* ========================================================================
    Component: button overrides
  ========================================================================== */
+.btn-primary {
+ 	background-color: #4765a0;
+}
+
+.btn-primary:hover {
+ 	background-color: #4765a0;
+}
+
 .btn-lg {
 	width: 160px;
 	font-weight: bold;
@@ -247,10 +255,17 @@ i[class^="icon-question"]:before {
 #dataTabs.nav-tabs {
   align-items: stretch;
 }
+
 #dataTabs.nav-tabs > li {
   display: flex;
 }
+
 #dataTabs.nav-tabs > li > a {
   display: flex;
   align-items: center;
+}
+
+.pagination > .active > a, .pagination > .active > span, .pagination > .active > a:hover, .pagination > .active > span:hover, .pagination > .active > a:focus, .pagination > .active > span:focus {
+  background-color: #4765a0;
+  border-color: #4765a0;
 }

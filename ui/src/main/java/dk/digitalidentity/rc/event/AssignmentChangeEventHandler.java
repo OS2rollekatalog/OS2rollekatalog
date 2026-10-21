@@ -1,7 +1,8 @@
 package dk.digitalidentity.rc.event;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
@@ -61,7 +62,9 @@ public class AssignmentChangeEventHandler implements SimpleMessageHandler {
 			return true;
 		}
 		
-		assignmentChangeEventHandlerService.updateUsers(Set.of(message.getUserUuid()));
+		Map<String, String> changedBy = new HashMap<>();
+		changedBy.put(message.getUserUuid(), message.getChangedBy());
+		assignmentChangeEventHandlerService.updateUsers(changedBy);
 		return true;
 	}
 
@@ -70,13 +73,13 @@ public class AssignmentChangeEventHandler implements SimpleMessageHandler {
 		// Do not do endless flushing
 		entityManager.setFlushMode(FlushModeType.COMMIT);
 
-		Set<String> userUuids = new HashSet<>();
+		Map<String, String> changedBy = new HashMap<>();
 		for (final QueueMessage queueMessage : queueMessages) {
 			final UpdateUserAssignmentsMessage message = JsonSimpleMessage.fromJson(queueMessage.getBody(), UpdateUserAssignmentsMessage.class);
-			userUuids.add(message.getUserUuid());
+			changedBy.put(message.getUserUuid(), message.getChangedBy());
 		}
 
-		assignmentChangeEventHandlerService.updateUsers(userUuids);
+		assignmentChangeEventHandlerService.updateUsers(changedBy);
 		return true;
 	}
 

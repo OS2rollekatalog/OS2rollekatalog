@@ -77,7 +77,8 @@ public class AttestationAdminController {
         return "attestationmodule/admin/index_tabcontent_fragment :: index_tabcontent";
     }
 
-    @Transactional
+    @SuppressWarnings("removal")
+	@Transactional
     @GetMapping(value = "/ui/attestation/v2/admin/details/{attestationId}")
     public String ouDetails(final Model model, final @PathVariable("attestationId") Long attestationId) {
         boolean attestationAdminOrAdmin = SecurityUtil.isAttestationAdminOrAdmin();

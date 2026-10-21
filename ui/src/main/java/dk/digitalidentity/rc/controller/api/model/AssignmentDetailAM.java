@@ -45,9 +45,8 @@ public class AssignmentDetailAM {
 	private OrgUnitShallowAM responsibleOrgUnit;
 
 	@Schema(
-		description = "Stillingen tildelingen er afgrænset til. Sættes kun for jobfunktionsroller tildelt via "
-			+ "stillingskryds (assignedThrough = TITLE). Er altid null for rollegruppe-tildelinger, da "
-			+ "stillingsafgrænsningen ikke bæres med over på de beregnede rækker for rollegrupper"
+		description = "Stillingen tildelingen er afgrænset til. Sættes for jobfunktionsroller og rollegrupper "
+			+ "tildelt via stillingskryds (assignedThrough = TITLE), ellers null"
 	)
 	private TitleAM assignedThroughTitle;
 
@@ -61,8 +60,7 @@ public class AssignmentDetailAM {
 	// Genbruger enum'en fra UserUserRoleAssignmentAM, så de to endpoints rapporterer
 	// samme værdier for samme oprindelse.
 	@Schema(
-		description = "Hvordan brugeren har fået tildelingen. På /rolegroup/{id}/assignments kan værdien kun være "
-			+ "DIRECT eller ORG_UNIT",
+		description = "Hvordan brugeren har fået tildelingen",
 		requiredMode = Schema.RequiredMode.REQUIRED
 	)
 	private UserUserRoleAssignmentAM.AssignedThrough assignedThrough;

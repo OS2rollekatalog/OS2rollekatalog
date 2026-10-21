@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.attestation.service.report;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,15 +56,15 @@ class AttestationReportContextServiceTest {
 			Attestation itSystemRolesAttestation = createAttestation(2L, Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION);
 			Attestation organisationAttestation = createAttestation(3L, Attestation.AttestationType.ORGANISATION_ATTESTATION);
 
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.IT_SYSTEM_ATTESTATION), eq(fromDate)))
 					.thenReturn(List.of(itSystemUserAttestation));
 
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION), eq(fromDate)))
 					.thenReturn(List.of(itSystemRolesAttestation));
 
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.ORGANISATION_ATTESTATION), eq(fromDate)))
 					.thenReturn(List.of(organisationAttestation));
 
@@ -84,7 +85,7 @@ class AttestationReportContextServiceTest {
 		@DisplayName("Should return context with empty lists when no attestations found")
 		void createContext_WhenNoAttestations_ShouldReturnEmptyLists() {
 			// Arrange
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					any(Attestation.AttestationType.class), any(LocalDate.class)))
 					.thenReturn(Collections.emptyList());
 
@@ -102,7 +103,7 @@ class AttestationReportContextServiceTest {
 		@DisplayName("Should call dao with correct attestation types")
 		void createContext_ShouldCallDaoWithCorrectAttestationTypes() {
 			// Arrange
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					any(Attestation.AttestationType.class), any(LocalDate.class)))
 					.thenReturn(Collections.emptyList());
 
@@ -110,12 +111,14 @@ class AttestationReportContextServiceTest {
 			attestationReportContextService.createContext(fromDate);
 
 			// Assert
-			verify(attestationDao).findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			verify(attestationDao).findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.IT_SYSTEM_ATTESTATION), eq(fromDate));
-			verify(attestationDao).findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			verify(attestationDao).findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION), eq(fromDate));
-			verify(attestationDao).findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			verify(attestationDao).findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.ORGANISATION_ATTESTATION), eq(fromDate));
+			verify(attestationDao).findByAttestationTypeAndCreatedAtGreaterThanEqual(
+					eq(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION), eq(fromDate));
 			verifyNoMoreInteractions(attestationDao);
 		}
 
@@ -130,15 +133,15 @@ class AttestationReportContextServiceTest {
 			Attestation organisationAttestation1 = createAttestation(5L, Attestation.AttestationType.ORGANISATION_ATTESTATION);
 			Attestation organisationAttestation2 = createAttestation(6L, Attestation.AttestationType.ORGANISATION_ATTESTATION);
 
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.IT_SYSTEM_ATTESTATION), eq(fromDate)))
 					.thenReturn(List.of(itSystemUserAttestation1, itSystemUserAttestation2));
 
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION), eq(fromDate)))
 					.thenReturn(List.of(itSystemRolesAttestation1, itSystemRolesAttestation2));
 
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					eq(Attestation.AttestationType.ORGANISATION_ATTESTATION), eq(fromDate)))
 					.thenReturn(List.of(organisationAttestation1, organisationAttestation2));
 
@@ -157,7 +160,7 @@ class AttestationReportContextServiceTest {
 		void createContext_ShouldPassFromDateCorrectly() {
 			// Arrange
 			LocalDate specificDate = LocalDate.of(2024, 6, 15);
-			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			when(attestationDao.findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					any(Attestation.AttestationType.class), any(LocalDate.class)))
 					.thenReturn(Collections.emptyList());
 
@@ -165,8 +168,35 @@ class AttestationReportContextServiceTest {
 			attestationReportContextService.createContext(specificDate);
 
 			// Assert
-			verify(attestationDao, times(3)).findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(
+			verify(attestationDao, times(4)).findByAttestationTypeAndCreatedAtGreaterThanEqual(
 					any(Attestation.AttestationType.class), eq(specificDate));
+		}
+	}
+
+	@Nested
+	@DisplayName("createContextForRun() Tests")
+	class CreateContextForRunTests {
+
+		@Test
+		@DisplayName("Should include the run's delegated attestations alongside the organisation ones")
+		void createContextForRun_ShouldIncludeDelegatedAttestations() {
+			// Arrange - an org unit with a manager delegate gets a delegated attestation instead of an organisation one
+			AttestationRun run = new AttestationRun();
+			when(attestationDao.findByAttestationTypeAndAttestationRun(
+					any(Attestation.AttestationType.class), eq(run)))
+					.thenReturn(Collections.emptyList());
+			when(attestationDao.findByAttestationTypeAndAttestationRun(
+					eq(Attestation.AttestationType.ORGANISATION_ATTESTATION), eq(run)))
+					.thenReturn(List.of(createAttestation(1L, Attestation.AttestationType.ORGANISATION_ATTESTATION)));
+			when(attestationDao.findByAttestationTypeAndAttestationRun(
+					eq(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION), eq(run)))
+					.thenReturn(List.of(createAttestation(2L, Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION)));
+
+			// Act
+			AttestationReportContextService.AttestationReportContext result = attestationReportContextService.createContextForRun(run);
+
+			// Assert
+			assertEquals(2, result.getOrganisationRolesAttestations().size());
 		}
 	}
 

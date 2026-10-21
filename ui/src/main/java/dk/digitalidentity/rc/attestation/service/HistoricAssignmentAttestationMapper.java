@@ -6,6 +6,9 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRo
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 /**
  * Converts {@link HistoricAssignment} records to {@link AttestationUserRoleAssignment} view objects
  * used throughout the attestation services.
@@ -21,6 +24,12 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 public final class HistoricAssignmentAttestationMapper {
 
     private HistoricAssignmentAttestationMapper() {}
+
+    /** Falls back to {@code validFrom} - the row's version date - where assignedWhen is missing. */
+    private static LocalDate resolveAssignedFrom(final HistoricAssignment ha) {
+        final LocalDateTime assignedFrom = ha.getAssignedWhen() != null ? ha.getAssignedWhen() : ha.getValidFrom();
+        return assignedFrom != null ? assignedFrom.toLocalDate() : null;
+    }
 
     /**
      * Converts a {@link HistoricAssignment} to an {@link AttestationUserRoleAssignment}.
@@ -57,7 +66,7 @@ public final class HistoricAssignmentAttestationMapper {
             .inherited(false)
             .sensitiveRole(Boolean.TRUE.equals(ha.getSensitiveRole()))
             .extraSensitiveRole(Boolean.TRUE.equals(ha.getExtraSensitiveRole()))
-            .assignedFrom(ha.getValidFrom() != null ? ha.getValidFrom().toLocalDate() : null)
+            .assignedFrom(resolveAssignedFrom(ha))
             // Constraints are structured in HistoricAssignment; postponedConstraints field is left null
             // as the attestation display services do not currently use it for HistoricAssignment sources.
             .postponedConstraints(null)
@@ -105,7 +114,7 @@ public final class HistoricAssignmentAttestationMapper {
             false,
             Boolean.TRUE.equals(ha.getSensitiveRole()),
             Boolean.TRUE.equals(ha.getExtraSensitiveRole()),
-            ha.getValidFrom() != null ? ha.getValidFrom().toLocalDate() : null,
+            resolveAssignedFrom(ha),
             null
         );
     }

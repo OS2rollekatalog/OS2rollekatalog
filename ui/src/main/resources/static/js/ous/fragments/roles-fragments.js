@@ -21,13 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const editAssignmentLink = event.target.closest(".js-edit-role-assignment");
-        if (editAssignmentLink) {
-            event.preventDefault();
-            window.rolesService.editRoleAssignment(editAssignmentLink);
-            return;
-        }
-
         const deleteAssignmentLink = event.target.closest(".js-delete-role-assignment");
         if (deleteAssignmentLink) {
             event.preventDefault();
@@ -51,13 +44,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const backToRolesButton = event.target.closest(".js-back-to-roles");
         if (backToRolesButton) {
             window.rolesService.loadRolesFragment();
-            return;
-        }
-
-        const addRoleAssignmentLink = event.target.closest(".js-add-role-assignment");
-        if (addRoleAssignmentLink) {
-            event.preventDefault();
-            window.rolesService.addRoleAssignment(addRoleAssignmentLink);
         }
     });
 

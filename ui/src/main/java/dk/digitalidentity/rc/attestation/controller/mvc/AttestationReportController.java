@@ -22,6 +22,7 @@ import dk.digitalidentity.rc.security.RequireAnyAttestationEligibleRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.util.ManagerSubstituteUtil;
 import io.micrometer.core.annotation.Timed;
 
 @RequireAnyAttestationEligibleRole
@@ -43,6 +44,7 @@ public class AttestationReportController {
 	record AttestationOrgUnitReportListDTO(String uuid, String name, String path) {}
 	record AttestationITSystemReportListDTO(long id, String name) {}
 	record AttestationRunReportListDTO(long id, String deadline, boolean finished, boolean sensitive, boolean extraSensitive) {}
+	@SuppressWarnings("removal")
 	@GetMapping(value = "/ui/attestation/v2/reports")
 	@Timed("attestation.controller.mvc.attestation_report_controller.reports.timer")
 	public String reports(Model model) {
@@ -73,6 +75,7 @@ public class AttestationReportController {
 					.map(i -> new AttestationITSystemReportListDTO(i.getId(), i.getName()))
 					.collect(Collectors.toSet());
 			managedOrgUnits.addAll(user.getSubstituteFor().stream()
+					.filter(ManagerSubstituteUtil::isActive)
 					.filter(managerSubstitute -> organisationAttestationService.hasAttestationWithinTheLastYear(managerSubstitute.getOrgUnit()))
 					.map(o -> new AttestationOrgUnitReportListDTO(o.getOrgUnit().getUuid(), o.getOrgUnit().getName(), buildBreadcrumbs(o.getOrgUnit()))).collect(Collectors.toSet()));
 		}

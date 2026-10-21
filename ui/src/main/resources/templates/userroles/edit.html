@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
- <head th:replace="~{fragments/header :: header (title=#{html.page.userroles.addrole.title})}"></head>
+ <head th:replace="~{fragments/header :: header (title=#{html.page.userroles.addrole.title}, ouAssignment=true)}"></head>
  <body>
 
 <div class="wrapper">
@@ -30,7 +30,9 @@
 								<div class="col-sm-8">
            							<input th:field="*{name}" class="form-control"  th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS' OR
                                ${role.systemRoleLinkType == T(dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType).NAME_ONLY} OR
-                               ${role.systemRoleLinkType == T(dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType).NAME_AND_DESCRIPTION}">
+                               ${role.systemRoleLinkType == T(dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType).NAME_AND_DESCRIPTION} OR
+                               ${nameAndDescriptionMaintainedByBackSync}">
+									<em th:if="${nameAndDescriptionMaintainedByBackSync}" class="fa fa-warning text-warning" data-toggle="popover" data-trigger="hover" data-placement="top" data-container="body" style="position: absolute; top: 10px; right: -20px;" th:attr="data-content=#{html.entity.userrole.maintainedByBackSync}"></em>
 								</div>
 							</div>
 						</fieldset>
@@ -40,7 +42,9 @@
 								<label class="col-sm-3 control-label" th:text="#{html.entity.userrole.description}"></label>
 								<div class="col-sm-8">
 									<textarea th:field="*{description}" class="form-control autosize-textarea" rows="3" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS' OR
-                                  ${role.systemRoleLinkType == T(dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType).NAME_AND_DESCRIPTION}"></textarea>
+                                  ${role.systemRoleLinkType == T(dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType).NAME_AND_DESCRIPTION} OR
+                                  ${nameAndDescriptionMaintainedByBackSync}"></textarea>
+									<em th:if="${nameAndDescriptionMaintainedByBackSync}" class="fa fa-warning text-warning" data-toggle="popover" data-trigger="hover" data-placement="top" data-container="body" style="position: absolute; top: 10px; right: -20px;" th:attr="data-content=#{html.entity.userrole.maintainedByBackSync}"></em>
 								</div>
 							</div>
 						</fieldset>
@@ -50,6 +54,7 @@
                                     <label class="col-sm-3 control-label" th:text="#{html.entity.userrole.contactEmail}"></label>
                                     <div class="col-sm-8">
                                         <input th:field="*{contactEmail}" class="form-control" th:placeholder="#{html.entity.userrole.email.placeholder}"/>
+                                        <em class="icon-question" data-toggle="popover" data-trigger="click" data-placement="top" data-container="body" style="position: absolute; top: 10px; right: -20px;" th:attr="data-content=#{html.entity.userrole.contactEmail.help}"></em>
                                         <ul th:if="${#fields.hasErrors('contactEmail')}">
                                             <li th:each="err : ${#fields.errors('contactEmail')}" th:text="${err}"></li>
                                         </ul>
@@ -62,6 +67,7 @@
                                     <label class="col-sm-3 control-label" th:text="#{html.entity.userrole.advisEmail}"></label>
                                     <div class="col-sm-8">
                                         <input th:field="*{advisEmail}" class="form-control" th:placeholder="#{html.entity.userrole.email.placeholder}"/>
+                                        <em class="icon-question" data-toggle="popover" data-trigger="click" data-placement="top" data-container="body" style="position: absolute; top: 10px; right: -20px;" th:attr="data-content=#{html.entity.userrole.advisEmail.help}"></em>
                                         <ul th:if="${#fields.hasErrors('advisEmail')}">
                                             <li th:each="err : ${#fields.errors('advisEmail')}" th:text="${err}"></li>
                                         </ul>
@@ -119,12 +125,13 @@
 								<div class="col-sm-8">
 									<select id="approverSettingsSelect" class="form-control" multiple
 											th:object="${role}"
-											th:field="*{approverPermission}"
+											name="approverPermission"
 											th:attr="data-roleid=${role.id}">
+										<option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(role.approverPermission)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
 										<option th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
 												th:value="${approverOpt}"
 												th:text="#{__${approverOpt.getMessage()}__}"
-												th:selected="${approverPermission != null and #lists.contains(approverPermission, approverOpt)}"></option>
+												th:selected="${#lists.contains(role.approverPermission, approverOpt)}"></option>
 									</select>
 								</div>
 							</div>
@@ -331,7 +338,7 @@
 								</table>
 							</div>
 
-							<div id="users_menu" class="tab-pane fade">
+							<div id="users_menu" class="tab-pane fade" th:data-load-error-message="#{html.default.message.error}">
 							</div>
 
 							<div id="ous_menu" class="tab-pane fade">
@@ -513,7 +520,8 @@
 						<div th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
 							<div class="col-sm-12">
 								<select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="itSystems[]" multiple="multiple" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
-									<option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text}"  ></option>
+									<option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text}"
+											th:selected="${selected} and ${constraintData != null} and ${constraintData.constraintValue != null} and ${#arrays.contains(#strings.arraySplit(constraintData.constraintValue, ','), #strings.toString(option.id))}"></option>
 								</select>
 							</div>
 						</div>
@@ -649,8 +657,6 @@
 </div>
 
 <div id="userUserRoleModal"></div>
-<div id="ouUserRoleModal"></div>
-<div id="ouUserRoleEditModal"></div>
 <div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
 <div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
 <div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
@@ -695,7 +701,6 @@
 <script th:replace="~{fragments/assignDatePicker :: content}"></script>
 <script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript}"></script>
 <script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')}"></script>
-<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 <script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
 <script th:replace="~{users/fragments/bulk_assign_user_role_modal :: bulkAssignUserRoleModalScript}"></script>
 
@@ -739,11 +744,8 @@
 		"infoEmptyTxt": [[#{html.datatables.info.empty}]],
 		"infoFilteredTxt": [[#{html.datatables.info.filtered}]],
 		"kleList": [[${kleList}]],
-		"orgUnitList": [[${orgUnitList}]],
-		"itSystemList": [[${itSystemList}]],
 		"treeOUs": [[${treeOUs}]],
 		"allFunctions": [[${allFunctions}]],
-		"selectedItSystems": [[${editSystemRoles}]],
 		"possibleFilterOus": [[${possibleFilterOus}]],
 		"selectedFilterOUs": [[${selectedFilterOUs}]],
 		"kleConstraintUuid": [[${kleConstraintUuid}]],
@@ -751,7 +753,6 @@
 		"internalOuConstraintUuid": [[${internalOuConstraintUuid}]],
 		"itSystemConstraintUuid": [[${itSystemConstraintUuid}]],
 		"systemRoleComboMultiConstraintUuids": [[${systemRoleComboMultiConstraintUuids}]],
-		"titlesEnabled": [[${titlesEnabled}]],
 		"baseUrl": [[@{/}]],
 		"unlinkFromSystemRoleBodyTxt": [[#{html.page.manage.roles.unlink.body}]],
 		"unlinkFromSystemRoleErrorMessage": [[#{html.page.manage.roles.unlink.error}]],
@@ -762,8 +763,12 @@
 		"swalImageText": [[#{html.page.email_template.swal.image.text}]]
 	}
 </script>
+<script type="module" th:src="@{/js/userroles/assignedUsersTab.js}"></script>
 <script th:src="@{/js/userroles/edit.js}"></script>
 <script th:src="@{/js/userroles/constraintEditor.js}"></script>
+
+	<div th:replace="~{ous/assign/modal :: assignModal}"></div>
+	<script type="module" th:src="@{/js/userroles/edit-ou-assign.js}"></script>
 </body>
 </html>
 

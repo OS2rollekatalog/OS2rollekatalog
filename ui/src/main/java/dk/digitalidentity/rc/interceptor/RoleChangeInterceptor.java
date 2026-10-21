@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.interceptor;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
@@ -158,7 +159,7 @@ public class RoleChangeInterceptor {
 	// OrgUnitService
 
 	@AfterReturning(
-		pointcut = "execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(..))",
+		pointcut = "execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(..)) || execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRoleWithInheritAndExceptedOus(..))",
 		returning = "result")
 	public void interceptAddedUserRoleAssignmentOnOrgUnit(OrgUnitUserRoleAssignment result) {
 		for (RoleChangeHook hook : hooks) {
@@ -167,7 +168,7 @@ public class RoleChangeInterceptor {
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(..))",
+		pointcut = "execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(..)) || execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroupWithInheritAndExceptedOus(..))",
 		returning = "result")
 	public void interceptAddedRoleGroupAssignmentOnOrgUnit(OrgUnitRoleGroupAssignment result) {
 		for (RoleChangeHook hook : hooks) {
@@ -177,6 +178,16 @@ public class RoleChangeInterceptor {
 
 	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set, boolean, boolean, boolean, java.util.Set, String)) && args(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, *, *, *, *, caseNumber)")
 	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, String caseNumber) {
+		notifyRoleGroupAddedOnOrgUnit(ou, roleGroup, inherit, startDate);
+	}
+
+	// The excepted-ous assignments have their own method signature, and always inherit
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroupWithInheritAndExceptedOus(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, ..)) && args(ou, roleGroup, startDate, stopDate, ..)")
+	public void interceptAddRoleGroupAssignmentWithExceptedOusOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
+		notifyRoleGroupAddedOnOrgUnit(ou, roleGroup, true, startDate);
+	}
+
+	private void notifyRoleGroupAddedOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptAddImmediateRoleGroupAssignmentOnOrgUnit(ou, roleGroup, inherit);
 			if (startDate != null && startDate.isAfter(LocalDate.now())) {
@@ -197,13 +208,22 @@ public class RoleChangeInterceptor {
 	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.removeRoleGroupAssignment(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment)) && args(ou, assignment)")
 	public void interceptRemoveRoleGroupAssignmentOnOrgUnit2(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
 		for (RoleChangeHook hook : hooks) {
-			hook.interceptRemoveRoleGroupAssignmentOnOrgUnit(ou, assignment.getRoleGroup());
+			hook.interceptRemoveRoleGroupAssignmentOnOrgUnit(ou, assignment);
 		}
 	}
 
 	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.UserRole, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set, boolean, boolean, boolean, java.util.Set, String)) && args(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles, *, *, *, *, caseNumber)")
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, String caseNumber) {
+		notifyUserRoleAddedOnOrgUnit(ou, userRole, inherit, startDate);
+	}
 
+	// The excepted-ous assignments have their own method signature, and always inherit
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRoleWithInheritAndExceptedOus(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.UserRole, ..)) && args(ou, userRole, startDate, stopDate, ..)")
+	public void interceptAddUserRoleAssignmentWithExceptedOusOnOrgUnit(OrgUnit ou, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
+		notifyUserRoleAddedOnOrgUnit(ou, userRole, true, startDate);
+	}
+
+	private void notifyUserRoleAddedOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptAddImmediateUserRoleAssignmentOnOrgUnit(ou, userRole, inherit);
 			if (startDate != null && startDate.isAfter(LocalDate.now())) {
@@ -224,7 +244,7 @@ public class RoleChangeInterceptor {
 	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.removeUserRoleAssignment(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment)) && args(ou, assignment)")
 	public void interceptRemoveUserRoleAssignmentOnOrgUnit2(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
 		for (RoleChangeHook hook : hooks) {
-			hook.interceptRemoveUserRoleAssignmentOnOrgUnit(ou, assignment.getUserRole());
+			hook.interceptRemoveUserRoleAssignmentOnOrgUnit(ou, assignment);
 		}
 	}
 
@@ -255,6 +275,35 @@ public class RoleChangeInterceptor {
 	public void interceptEditRoleGroupAssignmentOnOrgUnitAfter(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptEditRoleGroupAssignmentOnOrgUnitAfter(ou, assignment.getRoleGroup());
+		}
+	}
+
+	// The excepted-ous updates take the assignment without the org unit, so the org unit is read off the assignment
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateUserRoleWithInheritAndExceptedOus(dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment, ..)) && args(assignment, ..)")
+	public void interceptEditUserRoleAssignmentWithExceptedOusOnOrgUnit(OrgUnitUserRoleAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditUserRoleAssignmentOnOrgUnit(assignment.getOrgUnit(), assignment.getUserRole());
+		}
+	}
+
+	@AfterReturning("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateUserRoleWithInheritAndExceptedOus(dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment, ..)) && args(assignment, ..)")
+	public void interceptEditUserRoleAssignmentWithExceptedOusOnOrgUnitAfter(OrgUnitUserRoleAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditUserRoleAssignmentOnOrgUnitAfter(assignment.getOrgUnit(), assignment.getUserRole());
+		}
+	}
+
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateRoleGroupWithInheritAndExceptedOus(dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment, ..)) && args(assignment, ..)")
+	public void interceptEditRoleGroupAssignmentWithExceptedOusOnOrgUnit(OrgUnitRoleGroupAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditRoleGroupAssignmentOnOrgUnit(assignment.getOrgUnit(), assignment.getRoleGroup());
+		}
+	}
+
+	@AfterReturning("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateRoleGroupWithInheritAndExceptedOus(dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment, ..)) && args(assignment, ..)")
+	public void interceptEditRoleGroupAssignmentWithExceptedOusOnOrgUnitAfter(OrgUnitRoleGroupAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditRoleGroupAssignmentOnOrgUnitAfter(assignment.getOrgUnit(), assignment.getRoleGroup());
 		}
 	}
 
@@ -295,6 +344,39 @@ public class RoleChangeInterceptor {
 		}
 	}
 
+	// Notifying costs a recalculation of every user holding the role, so a call that leaves the values
+	// untouched - a removal of a constraint that is not there, a bulk replace with what is already stored - must not fire
+	@Around("(execution(* dk.digitalidentity.rc.service.UserRoleService.addSystemRoleConstraint(dk.digitalidentity.rc.dao.model.SystemRoleAssignment, ..))"
+		+ " || execution(* dk.digitalidentity.rc.service.UserRoleService.updateSystemRoleConstraint(dk.digitalidentity.rc.dao.model.SystemRoleAssignment, ..))"
+		+ " || execution(* dk.digitalidentity.rc.service.UserRoleService.removeSystemRoleConstraint(dk.digitalidentity.rc.dao.model.SystemRoleAssignment, ..))"
+		+ " || execution(* dk.digitalidentity.rc.service.UserRoleService.replaceSystemRoleConstraints(dk.digitalidentity.rc.dao.model.SystemRoleAssignment, ..)))"
+		+ " && args(systemRoleAssignment, ..)")
+	public Object interceptEditSystemRoleConstraintsOnUserRole(ProceedingJoinPoint joinPoint, SystemRoleAssignment systemRoleAssignment) throws Throwable {
+		String before = constraintSignature(systemRoleAssignment);
+		Object result = joinPoint.proceed();
+
+		if (!before.equals(constraintSignature(systemRoleAssignment))) {
+			for (RoleChangeHook hook : hooks) {
+				hook.interceptEditSystemRoleConstraintsOnUserRole(systemRoleAssignment.getUserRole(), systemRoleAssignment);
+			}
+		}
+
+		return result;
+	}
+
+	// Order-independent: the values arrive in whatever order the join table hands them out
+	private static String constraintSignature(SystemRoleAssignment assignment) {
+		if (assignment.getConstraintValues() == null) {
+			return "";
+		}
+
+		return assignment.getConstraintValues().stream()
+			.map(value -> value.getConstraintType().getUuid() + "|" + value.getConstraintValueType()
+				+ "|" + value.getConstraintValue() + "|" + value.getConstraintIdentifier() + "|" + value.isPostponed())
+			.sorted()
+			.collect(Collectors.joining(","));
+	}
+
 	@Before("execution(* dk.digitalidentity.rc.service.UserRoleService.removeSystemRoleAssignment(dk.digitalidentity.rc.dao.model.UserRole, dk.digitalidentity.rc.dao.model.SystemRoleAssignment)) && args(userRole, systemRoleAssignment)")
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		for (RoleChangeHook hook : hooks) {
@@ -325,6 +407,18 @@ public class RoleChangeInterceptor {
 	public void interceptDeleteRoleGroup(RoleGroup roleGroup) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptDeleteRoleGroup(roleGroup);
+		}
+	}
+
+	public void mangerRoleChange(User user) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptManagerRoleChange(user);
+		}
+	}
+
+	public void substituteRoleChange(User user) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptSubstituteRoleChange(user);
 		}
 	}
 }

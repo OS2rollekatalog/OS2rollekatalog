@@ -47,3 +47,105 @@ body.loading .modal-spinner {
 	color: lightgrey;
 	cursor: not-allowed;
 }
+
+/* Per content-type column-selection panel */
+
+.column-row-flex .checkbox.c-checkbox {
+	display: inline-block;
+	vertical-align: top;
+	margin: 0 10px 0 0;
+}
+
+.column-panel-toggle {
+	display: inline-block;
+	vertical-align: top;
+	font-size: 0.9em;
+	/* We need to add padding 7px to align text with a checkbox */
+	padding-top: 7px;
+}
+
+.column-panel-toggle a {
+	cursor: pointer;
+}
+
+.column-count-tag {
+	display: inline-block;
+	margin-right: 8px;
+	padding: 1px 8px;
+	border-radius: 10px;
+	background: #f2f2f2;
+	color: #555;
+	font-size: 0.85em;
+}
+
+.column-panel {
+	margin-top: 8px;
+	padding: 10px 15px;
+	background: #f9f9f9;
+	border: 1px solid #e3e3e3;
+	border-radius: 4px;
+}
+
+/* Separates the two sub-groups when a panel covers more than one sheet (e.g. Enheder =
+   Enhedsroller + Enheds-KLE). No-op visually when a panel has only one group. */
+.column-panel-group + .column-panel-group {
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px solid #e3e3e3;
+}
+
+.column-panel-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 8px;
+}
+
+.column-panel-title {
+	font-weight: bold;
+	text-transform: uppercase;
+	font-size: 0.85em;
+	color: #555;
+}
+
+.column-panel-actions {
+	font-size: 0.9em;
+	white-space: nowrap;
+}
+
+.column-panel-actions a {
+	cursor: pointer;
+}
+
+.column-panel-item {
+	margin: 0 0 4px 0;
+}
+
+.column-panel-checkbox {
+	display: inline-block;
+	vertical-align: top;
+	margin: 0 6px 0 0;
+}
+
+.column-panel-label {
+	display: inline-block;
+	vertical-align: top;
+	font-weight: normal;
+	cursor: pointer;
+	margin-bottom: 0;
+	/* We need to add padding 7px to align text with a checkbox */
+	padding-top: 7px;
+}
+
+/* Remembered-settings info bar */
+#rememberedSettingsBar {
+	margin-top: 15px;
+}
+
+/* alert-warning's default link color override for better visibility */
+#rememberedSettingsBar a,
+#resetToDefaultLink {
+	color: #1a3e6f;
+	font-weight: bold;
+	text-decoration: underline;
+}

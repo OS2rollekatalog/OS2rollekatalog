@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
+import java.util.Map;
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.model.UserUserRoleAssignmentAM;
 import dk.digitalidentity.rc.dao.model.Domain;
@@ -42,6 +45,7 @@ public class UserApiV2 {
     private final DomainService domainService;
     private final UserService userService;
 	private final AssignmentService assignmentService;
+	private final ResolvedPermissionService resolvedPermissionService;
 
     @RequestMapping(value = "/api/v2/user/{userid}/assignments", method = RequestMethod.GET)
     public List<UserUserRoleAssignmentAM> getUserRolesAsList(@PathVariable("userid") final String userId,
@@ -55,11 +59,13 @@ public class UserApiV2 {
                 .stream().filter(its -> !its.isAccessBlocked()).collect(Collectors.toList());
 
 		final Set<CurrentAssignment> assignments = assignmentService.getByUserAndItSystems(user, itSystems);
+		final Map<Long, RequesterPermission> requesterPermissions = resolvedPermissionService.userRoleRequesterPermissions(
+			assignments.stream().map(assignment -> assignment.getUserRole().getId()).toList());
 
 		return assignments.stream()
 			.map(assignment -> {
 				AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
-				return RoleMapper.currentAssignmentToApi(assignment, user, assignedThrough);
+				return RoleMapper.currentAssignmentToApi(assignment, user, assignedThrough, requesterPermissions.get(assignment.getUserRole().getId()));
 			})
 			.toList();
     }

@@ -4,12 +4,13 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,6 +25,7 @@ import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationMailDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.exception.AttestationEmailNotificationException;
+import dk.digitalidentity.rc.attestation.model.AttestationMailRecipient;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
@@ -40,6 +42,7 @@ import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.enums.AttestationEscalationRecipients;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.service.EmailQueueService;
@@ -53,6 +56,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 public class AttestationEmailNotificationService {
+
+    /** The last mail type has no successor to close its window, so it is caught up for this many days instead. */
+    private static final int LAST_WINDOW_CATCH_UP_DAYS = 7;
 
     @Autowired
     private AttestationDao attestationDao;
@@ -171,8 +177,23 @@ public class AttestationEmailNotificationService {
         }
         final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(attestationType, mailType) : findEmailTemplate(attestationType, mailType);
         int daysBefore =  template.getDaysBeforeEvent();
-		final List<Attestation> attestations = attestationDao.findAttestationsWhichNeedsMail(attestationType, mailType, now.plusDays(daysBefore));
-		attestations.forEach(a -> self.sendEmail(a.getId(), attestationType, mailType));
+		final List<Attestation> attestations = attestationDao.findAttestationsWhichNeedsMail(attestationType, mailType, run.get(),
+				now.plusDays(daysBefore), now.plusDays(windowClosesDaysBefore(attestationType, run.get(), daysBefore)))
+				.stream()
+				.filter(att -> existedOnSendDate(att, daysBefore))
+				.toList();
+		final AtomicInteger failed = new AtomicInteger();
+		attestations.forEach(a -> {
+			try {
+				self.sendEmail(a.getId(), attestationType, mailType);
+			} catch (final Exception e) {
+				failed.incrementAndGet();
+				log.error("Failed to send {} {} for attestation {}, continuing with the rest", attestationType, mailType, a.getId(), e);
+			}
+		});
+		if (failed.get() > 0) {
+			log.error("{} of {} {} {} notifications failed", failed.get(), attestations.size(), attestationType, mailType);
+		}
 	}
 
 	void sendEmailsOrganisation(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType, final LocalDate now) {
@@ -184,49 +205,95 @@ public class AttestationEmailNotificationService {
 		final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(attestationType, mailType) : findEmailTemplate(attestationType, mailType);
 
 		int daysBefore =  template.getDaysBeforeEvent();
-		LocalDate deadlineDate = now.plusDays(daysBefore);
+		LocalDate windowOpened = now.plusDays(daysBefore);
+		LocalDate windowClosed = now.plusDays(windowClosesDaysBefore(attestationType, run.get(), daysBefore));
 
 		final List<Attestation> attestations = run.get().getAttestations().stream()
                 .filter(att -> att.getAttestationType() == attestationType)
                 .filter(att -> att.getVerifiedAt() == null)
-                .filter(a -> a.getMails().stream().noneMatch(mail -> mail.getEmailTemplateType() == template.getTemplateType()))
-                .filter(att -> att.getDeadline().isEqual(deadlineDate)).toList();
+                .filter(att -> !att.getDeadline().isAfter(windowOpened) && att.getDeadline().isAfter(windowClosed))
+                .filter(att -> existedOnSendDate(att, daysBefore)).toList();
 
-		boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
-		Map<Attestation, List<User>> attestationTargetUsers;
-		Map<Attestation, String> attestationResponsibleManagerUuid;
-		if (escalation) {
-			attestationTargetUsers = new HashMap<>();
-			attestationResponsibleManagerUuid = new HashMap<>();
-			for (Attestation att : attestations) {
-				List<User> delegates = findTargetUsers(att, true);
-				if (delegates != null) {
-					attestationTargetUsers.put(att, delegates);
-				}
-				List<User> managers = findTargetUsers(att, false);
-				attestationResponsibleManagerUuid.put(att, (managers != null && !managers.isEmpty()) ? managers.getFirst().getUuid() : "");
-			}
-		} else {
-			attestationTargetUsers = attestations.stream()
-                    .map(att -> Pair.of(att, findTargetUsers(att, false)))
-                    .filter(p -> p.getSecond() != null)
-                    .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
-			attestationResponsibleManagerUuid = Collections.emptyMap();
-		}
-
-		Map<Pair<User, String>, List<Attestation>> targetUsersAttestation = attestationTargetUsers.entrySet().stream()
-				.flatMap(entry -> {
-					Attestation attestation = entry.getKey();
-					String responsibleManagerUuid = attestationResponsibleManagerUuid.getOrDefault(attestation, "");
-					return entry.getValue().stream()
-							.map(targetUser -> Pair.of(Pair.of(targetUser, responsibleManagerUuid), attestation));
+		final boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
+		final Map<Pair<AttestationMailRecipient, String>, List<Attestation>> attestationsByRecipient = attestations.stream()
+				.flatMap(attestation -> {
+					final List<AttestationMailRecipient> recipients = findRecipients(attestation, mailType).stream()
+							.filter(recipient -> !alreadyMailed(attestation, recipient, template.getTemplateType()))
+							.toList();
+					if (recipients.isEmpty()) {
+						return Stream.empty();
+					}
+					// {bruger} names a single person, so escalations are also grouped per overdue attester
+					final String overdueAttesterUuid = escalation ? findOverdueAttester(attestation).map(User::getUuid).orElse("") : "";
+					return recipients.stream().map(recipient -> Pair.of(Pair.of(recipient, overdueAttesterUuid), attestation));
 				})
 				.collect(Collectors.toMap(
 						Pair::getFirst,
 						receiverAndAttestation -> Collections.singletonList(receiverAndAttestation.getSecond()),
 						(attestationsA, attestationsB) -> Stream.concat(attestationsA.stream(), attestationsB.stream()).collect(Collectors.toList())));
 
-		targetUsersAttestation.forEach((key, value) -> self.sendEmailsOrganisation(key.getFirst(), value.stream().map(Attestation::getId).toList(), mailType, template));
+		final AtomicInteger failed = new AtomicInteger();
+		attestationsByRecipient.forEach((key, value) -> {
+			try {
+				self.sendEmailsOrganisation(key.getFirst(), value.stream().map(Attestation::getId).toList(), mailType, template);
+			} catch (final Exception e) {
+				failed.incrementAndGet();
+				log.error("Failed to send {} to {}, continuing with the rest", template.getTemplateType(),
+						describeFailedRecipient(key.getFirst()), e);
+			}
+		});
+		if (failed.get() > 0) {
+			log.error("{} of {} receivers failed for {}", failed.get(), attestationsByRecipient.size(), template.getTemplateType());
+		}
+	}
+
+	/** A send window closes when the next mail type's opens, so a missed mail is caught up without overlapping the next. */
+	private int windowClosesDaysBefore(final Attestation.AttestationType attestationType, final AttestationRun run, final int daysBefore) {
+		return Arrays.stream(AttestationMail.MailType.values())
+				.map(type -> run.isSensitive() ? findSensitiveEmailTemplate(attestationType, type) : findEmailTemplate(attestationType, type))
+				.filter(Objects::nonNull)
+				.map(EmailTemplate::getDaysBeforeEvent)
+				.filter(Objects::nonNull)
+				.mapToInt(Integer::intValue)
+				.filter(days -> days < daysBefore)
+				.max()
+				.orElse(daysBefore - LAST_WINDOW_CATCH_UP_DAYS);
+	}
+
+	/** Catch-up is for mails that failed, not for attestations added to the run after the mail was due. */
+	private static boolean existedOnSendDate(final Attestation attestation, final int daysBefore) {
+		return attestation.getCreatedAt() == null || !attestation.getCreatedAt().isAfter(attestation.getDeadline().minusDays(daysBefore));
+	}
+
+	/** Per receiver, since each receiver is sent in its own transaction and one can fail while another on the same attestation succeeds. */
+	private static boolean alreadyMailed(final Attestation attestation, final AttestationMailRecipient recipient, final EmailTemplateType templateType) {
+		return attestation.getMails().stream()
+				.filter(mail -> mail.getEmailTemplateType() == templateType)
+				.flatMap(mail -> mail.getReceivers().stream())
+				.anyMatch(recipient::matches);
+	}
+
+	private List<AttestationMailRecipient> findRecipients(final Attestation attestation, final AttestationMail.MailType mailType) {
+		if (mailType == AttestationMail.MailType.ESCALATION_REMINDER) {
+			return findEscalationRecipients(attestation);
+		}
+		return findAttesters(attestation).stream().map(AttestationMailRecipient::forUser).toList();
+	}
+
+	private List<AttestationMailRecipient> findEscalationRecipients(final Attestation attestation) {
+		final AttestationEscalationRecipients setting = settingsService.getAttestationEscalationRecipients();
+		final List<User> managers = setting.includesManager() ? findEscalationManagers(attestation) : List.of();
+		final List<String> fixedAddresses = setting.includesFixedAddresses() ? settingsService.getAttestationEscalationEmails() : List.of();
+		return Stream.concat(
+				managers.stream().map(AttestationMailRecipient::forUser),
+				fixedAddresses.stream().map(AttestationMailRecipient::forAddress))
+				.toList();
+	}
+
+	private static String describeFailedRecipient(final AttestationMailRecipient recipient) {
+		return recipient.isUser()
+				? "%s (%s, %s)".formatted(recipient.name(), recipient.userUuid(), recipient.email())
+				: "%s (fixed address from attestation settings)".formatted(recipient.email());
 	}
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -238,28 +305,19 @@ public class AttestationEmailNotificationService {
                 : findEmailTemplate(attestationType, mailType);
         final User systemResponsible = resolveCollectionUsers(attestation).stream().findFirst().orElse(null);
         if (template.isEnabled()) {
-            boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
-            final List<User> targetUsers = findTargetUsers(attestation, escalation);
-
-            // In case this is an escalation we need to find the user that was supposed handle the attestation
-            User user;
-            if (escalation) {
-                List<User> users = findTargetUsers(attestation, false);
-                user = (users != null && !users.isEmpty()) ? users.getFirst() : null;
-            } else {
-                user = null;
-            }
-            if (targetUsers == null) {
-                log.warn("No target users was found for attestation with id: " + attestation.getId());
+            final List<AttestationMailRecipient> recipients = findRecipients(attestation, mailType);
+            if (recipients.isEmpty()) {
+                log.warn("No recipients was found for attestation with id: " + attestation.getId());
                 return;
             }
+            final User overdueAttester = mailType == AttestationMail.MailType.ESCALATION_REMINDER ? findOverdueAttester(attestation).orElse(null) : null;
 
             final List<User> systemOwners = findSystemOwner(attestation);
-            final List<AttestationMailReceiver> mailReceivers = targetUsers.stream()
+            final List<AttestationMailReceiver> mailReceivers = recipients.stream()
                     .flatMap(receiver -> {
-                        final String message = resolveMessage(attestation, receiver, user, systemResponsible, template, null);
-                        final String title = resolveTitle(attestation, receiver, user, systemResponsible, template);
-                        final String email = receiver.getEmail();
+                        final String message = resolveMessage(attestation, receiver.name(), overdueAttester, systemResponsible, template, null);
+                        final String title = resolveTitle(attestation, receiver.name(), overdueAttester, systemResponsible, template);
+                        final String email = receiver.email();
                         final List<User> ccOwners = systemOwners.stream()
                                 .filter(o -> !Objects.equals(o.getEmail(), email))
                                 .toList();
@@ -270,8 +328,8 @@ public class AttestationEmailNotificationService {
                         final List<AttestationMailReceiver> receivers = new ArrayList<>();
                         receivers.add(AttestationMailReceiver.builder()
                                 .receiverType(AttestationMailReceiver.ReceiverType.TO)
-                                .userUuid(receiver.getUuid())
-                                .email(receiver.getEmail())
+                                .userUuid(receiver.userUuid())
+                                .email(email)
                                 .title(title)
                                 .message(message)
                                 .build());
@@ -301,30 +359,21 @@ public class AttestationEmailNotificationService {
         }
     }
 
-    //New and better :)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void sendEmailsOrganisation(User targetUser, List<Long> attestationIds, AttestationMail.MailType mailType, EmailTemplate template) {
-        final User receiver = userDao.findByUuidAndDeletedFalse(targetUser.getUuid()).orElseThrow(() -> new AttestationEmailNotificationException("Failed to send notification, user with uuid %d not found", targetUser.getUuid()));
+    public void sendEmailsOrganisation(AttestationMailRecipient targetRecipient, List<Long> attestationIds, AttestationMail.MailType mailType, EmailTemplate template) {
+        final AttestationMailRecipient receiver = targetRecipient.isUser()
+                ? userDao.findByUuidAndDeletedFalse(targetRecipient.userUuid()).map(AttestationMailRecipient::forUser).orElseThrow(() -> new AttestationEmailNotificationException("Failed to send notification, user with uuid %s not found", targetRecipient.userUuid()))
+                : targetRecipient;
 
         //Build a list of attestations
         final List<Attestation> attestations = attestationIds.stream()
                 .map(id -> attestationDao.findById(id).orElseThrow(() -> new AttestationEmailNotificationException("Failed to send notification, attestation with id %d not found", id)))
                 .toList();
 		if (template.isEnabled()) {
-            boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
-
-            // In case this is an escalation we need to find the user that was supposed handle the attestation
-            User user;
-            if (escalation) {
-                List<User> users = findTargetUsers(attestations.getFirst(), false);
-                user = (users != null && !users.isEmpty()) ? users.getFirst() : null;
-            } else {
-                user = null;
-            }
-
-            final String message = resolveMessage(attestations.getFirst(), receiver, user, null, template, attestations);
-            final String title = resolveTitle(attestations.getFirst(), receiver, user, null, template);
-            final String email = receiver.getEmail();
+            final User overdueAttester = mailType == AttestationMail.MailType.ESCALATION_REMINDER ? findOverdueAttester(attestations.getFirst()).orElse(null) : null;
+            final String message = resolveMessage(attestations.getFirst(), receiver.name(), overdueAttester, null, template, attestations);
+            final String title = resolveTitle(attestations.getFirst(), receiver.name(), overdueAttester, null, template);
+            final String email = receiver.email();
             log.info("Sending attestation notification ({}, {}, {} to {})", attestations.getFirst().getItSystemName(),
                     template.getTemplateType().name(), mailType.name(), email);
             emailQueueService.queueEmail(email, title, message, template, null, null);
@@ -333,8 +382,7 @@ public class AttestationEmailNotificationService {
             for (Attestation attestation : attestations) {
                 final AttestationMailReceiver mailReceiver =  AttestationMailReceiver.builder()
                         .receiverType(AttestationMailReceiver.ReceiverType.TO)
-                        .userUuid(receiver.getUuid())
-                        .email(receiver.getEmail())
+                        .userUuid(receiver.userUuid())
                         .title(title)
                         .message(message)
                         .email(email)
@@ -355,80 +403,71 @@ public class AttestationEmailNotificationService {
         }
     }
 
-    List<User> findTargetUsers(final Attestation attestation, final boolean escalation) {
-        List<User> collectionUsers = resolveCollectionUsers(attestation);
-        boolean systemEscalation = escalation && !collectionUsers.isEmpty();
-        User responsibleUser = collectionUsers.isEmpty() ? null : collectionUsers.get(0);
-        if (responsibleUser == null && attestation.getResponsibleOuUuid() != null) {
-            responsibleUser = orgUnitDao.findById(attestation.getResponsibleOuUuid())
-                    .map(OrgUnit::getManager)
-                    .orElse(null);
-        }
+    /** Whoever must attest: the unit's manager and substitutes, the personal approvers, or the system responsibles. */
+    List<User> findAttesters(final Attestation attestation) {
+        final List<User> collectionUsers = resolveCollectionUsers(attestation);
+        return findResponsibleUser(attestation, collectionUsers)
+                .map(responsibleUser -> switch (attestation.getAttestationType()) {
+                    case ORGANISATION_ATTESTATION -> managerAndSubstitutes(attestation, responsibleUser);
+                    case MANAGER_DELEGATED_ATTESTATION -> managerDelegateService.getByManager(responsibleUser).stream()
+                            .map(ManagerDelegate::getDelegate)
+                            .toList();
+                    default -> collectionUsers;
+                })
+                .orElse(List.of());
+    }
 
-        if (systemEscalation) {
+    /** The managers an overdue attestation escalates to. */
+    private List<User> findEscalationManagers(final Attestation attestation) {
+        final List<User> collectionUsers = resolveCollectionUsers(attestation);
+        if (!collectionUsers.isEmpty()) {
             return getManagerOrSubstitute(collectionUsers.stream()
                     .flatMap(u -> u.getPositions().stream())
                     .map(Position::getOrgUnit)
                     .map(OrgUnit::getManager)
                     .filter(Objects::nonNull)
                     .distinct()
-                    .collect(Collectors.toList()));
-        } else if (escalation && responsibleUser != null) {
-            if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
-                final User fResponsibleUser = responsibleUser;
-                // Find the manager's manager(s)
-                return getManagerOrSubstitute(responsibleUser.getPositions().stream()
-                        .map(Position::getOrgUnit)
-                        .filter(ou -> ou.getManager() != null
-                                && ou.getManager().getUuid().equals(fResponsibleUser.getUuid()))
-                        .flatMap(ou -> findManagersManager(fResponsibleUser, ou, 0).stream())
-                        .collect(Collectors.toList()));
-            } else if (attestation.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION) {
-                //either target the manager, or any substitutes
-                // Find substitutes(stedfortrædere)
-                final List<User> substitutes = orgUnitDao.findById(attestation.getResponsibleOuUuid())
-                        .stream()
-                        .map(OrgUnit::getManager)
-                        .filter(Objects::nonNull)
-                        .flatMap(manager -> manager.getManagerSubstitutes().stream())
-                        .filter(s -> s.getOrgUnit().getUuid().equals(attestation.getResponsibleOuUuid()))
-                        .map(ManagerSubstitute::getSubstitute)
-                        .toList();
-                // don't send to manager if has substitutes
-                if (settingsService.isDontSendMailToManagerEnabled() && !substitutes.isEmpty()) {
-                    return substitutes;
-                }
-                return Stream.concat(Stream.of(responsibleUser), substitutes.stream())
-                        .collect(Collectors.toList());
-            }
-        } else if (responsibleUser != null) {
-            if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
-                // Find substitutes(stedfortrædere)
-                final List<User> substitutes = orgUnitDao.findById(attestation.getResponsibleOuUuid())
-                        .stream()
-                        .map(OrgUnit::getManager)
-                        .filter(Objects::nonNull)
-                        .flatMap(manager -> manager.getManagerSubstitutes().stream())
-                        .filter(s -> s.getOrgUnit().getUuid().equals(attestation.getResponsibleOuUuid()))
-                        .map(ManagerSubstitute::getSubstitute)
-                        .toList();
-                // don't send to manager if has substitutes
-                if (settingsService.isDontSendMailToManagerEnabled() && !substitutes.isEmpty()) {
-                    return substitutes;
-                }
-                return Stream.concat(Stream.of(responsibleUser), substitutes.stream())
-                        .collect(Collectors.toList());
-            } else if (attestation.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION) {
-                // Find delegates assigned to the responsible manager
-                return managerDelegateService.getByManager(responsibleUser).stream()
-                        .map(ManagerDelegate::getDelegate)
-                        .toList();
-
-            } else {
-                return collectionUsers;
-            }
+                    .toList());
         }
-        return null;
+        return findResponsibleUser(attestation, collectionUsers)
+                .map(responsibleUser -> switch (attestation.getAttestationType()) {
+                    case ORGANISATION_ATTESTATION -> getManagerOrSubstitute(responsibleUser.getPositions().stream()
+                            .map(Position::getOrgUnit)
+                            .filter(ou -> ou.getManager() != null && ou.getManager().getUuid().equals(responsibleUser.getUuid()))
+                            .flatMap(ou -> findManagersManager(responsibleUser, ou, 0).stream())
+                            .toList());
+                    case MANAGER_DELEGATED_ATTESTATION -> managerAndSubstitutes(attestation, responsibleUser);
+                    default -> List.<User>of();
+                })
+                .orElse(List.of());
+    }
+
+    private Optional<User> findOverdueAttester(final Attestation attestation) {
+        return findAttesters(attestation).stream().findFirst();
+    }
+
+    private Optional<User> findResponsibleUser(final Attestation attestation, final List<User> collectionUsers) {
+        if (!collectionUsers.isEmpty()) {
+            return Optional.of(collectionUsers.getFirst());
+        }
+        return Optional.ofNullable(attestation.getResponsibleOuUuid())
+                .flatMap(orgUnitDao::findById)
+                .map(OrgUnit::getManager);
+    }
+
+    private List<User> managerAndSubstitutes(final Attestation attestation, final User manager) {
+        final List<User> substitutes = orgUnitDao.findById(attestation.getResponsibleOuUuid())
+                .stream()
+                .map(OrgUnit::getManager)
+                .filter(Objects::nonNull)
+                .flatMap(ouManager -> ouManager.getManagerSubstitutes().stream())
+                .filter(s -> s.getOrgUnit().getUuid().equals(attestation.getResponsibleOuUuid()))
+                .map(ManagerSubstitute::getSubstitute)
+                .toList();
+        if (settingsService.isDontSendMailToManagerEnabled() && !substitutes.isEmpty()) {
+            return substitutes;
+        }
+        return Stream.concat(Stream.of(manager), substitutes.stream()).toList();
     }
 
     private List<User> getManagerOrSubstitute(List<User> targetUsers) {
@@ -462,32 +501,31 @@ public class AttestationEmailNotificationService {
             // In case the OU hierarchy have circular structure, bail out here
             return Collections.emptyList();
         }
-        if (ou != null && ou.getParent() != null) {
-            if (ou.getManager() != null && !ou.getManager().getUuid().equals(manager.getUuid())) {
-                return List.of(ou.getManager());
-            } else {
-                return findManagersManager(manager, ou.getParent(), ++depth);
-            }
+        if (ou == null) {
+            return Collections.emptyList();
         }
-        return Collections.emptyList();
+        if (ou.getManager() != null && !ou.getManager().getUuid().equals(manager.getUuid())) {
+            return List.of(ou.getManager());
+        }
+        return findManagersManager(manager, ou.getParent(), depth + 1);
     }
 
-    private String resolveTitle(Attestation attestation, User receiver, final User user, User systemResponsible, EmailTemplate template) {
+    private String resolveTitle(Attestation attestation, String receiverName, final User user, User systemResponsible, EmailTemplate template) {
         String title = template.getTitle();
         // For backwards compatibility we need to replace for {enhed} also
         final List<EmailTemplatePlaceholder> emailTemplatePlaceholders = Stream.concat(template.getTemplateType().getEmailTemplatePlaceholders().stream(), Stream.of(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER)).toList();
         for (final EmailTemplatePlaceholder placeholder : emailTemplatePlaceholders) {
-            title = title.replace(placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, null));
+            title = title.replace(placeholder.getPlaceholder(), placeholderValue(attestation, receiverName, user, systemResponsible, placeholder, null));
         }
         return title;
     }
 
-    private String resolveMessage(final Attestation attestation, final User receiver, final User user, final User systemResponsible, final EmailTemplate template, List<Attestation> attestations) {
+    private String resolveMessage(final Attestation attestation, final String receiverName, final User user, final User systemResponsible, final EmailTemplate template, List<Attestation> attestations) {
         String message = template.getMessage();
         // For backwards compatibility we need to replace for {enhed} also
         final List<EmailTemplatePlaceholder> emailTemplatePlaceholders = Stream.concat(template.getTemplateType().getEmailTemplatePlaceholders().stream(), Stream.of(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER)).toList();
         for (final EmailTemplatePlaceholder placeholder : emailTemplatePlaceholders) {
-            message = message.replace(placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, attestations));
+            message = message.replace(placeholder.getPlaceholder(), placeholderValue(attestation, receiverName, user, systemResponsible, placeholder, attestations));
         }
         return message;
     }
@@ -526,9 +564,9 @@ public class AttestationEmailNotificationService {
         return message;
     }
 
-    private String placeholderValue(final Attestation attestation, final User receiver, final User user, final User systemResponsible, final EmailTemplatePlaceholder placeholder, final List<Attestation> attestations) {
+    private String placeholderValue(final Attestation attestation, final String receiverName, final User user, final User systemResponsible, final EmailTemplatePlaceholder placeholder, final List<Attestation> attestations) {
         return switch (placeholder) {
-            case RECEIVER_PLACEHOLDER -> receiver != null ? receiver.getName() : "ukendt";
+            case RECEIVER_PLACEHOLDER -> receiverName != null ? receiverName : "ukendt";
             case ORGUNIT_PLACEHOLDER -> attestations != null ? attestations.stream().map(this::findOrgUnitName).collect(Collectors.joining(", ")) : "";
             case USER_PLACEHOLDER -> user != null ? user.getName() : placeholder.getPlaceholder();
             case ITSYSTEM_PLACEHOLDER -> attestation.getItSystemName();

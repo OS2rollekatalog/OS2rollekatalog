@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -7,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -55,12 +58,15 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+@RequiredArgsConstructor
 @RestController
 @RequireApiItSystemRole
 @SecurityRequirement(name = "ApiKey")
 @Tag(name = "IT-system API V2")
 @Transactional
 public class ItSystemApiV2 {
+
+	private final ResolvedPermissionService resolvedPermissionService;
 
 	@Autowired
 	private ItSystemService itSystemService;
@@ -229,8 +235,9 @@ public class ItSystemApiV2 {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
+		Map<Long, RequesterPermission> requesterPermissions = resolvedPermissionService.userRoleRequesterPermissions(userRoles.stream().map(UserRole::getId).toList());
 		List<UserRoleAM> result = userRoles.stream()
-				.map(RoleMapper::userRoleToApi)
+				.map(userRole -> RoleMapper.userRoleToApi(userRole, requesterPermissions.get(userRole.getId())))
 				.collect(Collectors.toList());
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
@@ -389,12 +396,14 @@ public class ItSystemApiV2 {
 				.collect(Collectors.toList());
 
 		Set<CurrentAssignment> currentAssignments = assignmentService.getActiveAssignmentsByItSystems(itSystems);
-		
+		Map<Long, RequesterPermission> requesterPermissions = resolvedPermissionService.userRoleRequesterPermissions(
+			currentAssignments.stream().map(assignment -> assignment.getUserRole().getId()).toList());
+
 		Map<User, List<CurrentAssignment>> userToAssignmentMap = currentAssignments.stream().collect(Collectors.groupingBy(CurrentAssignment::getUser));
 		List<List<UserUserRoleAssignmentAM>> result = new ArrayList<>();
 		for (User user : userToAssignmentMap.keySet()) {
 			List<UserUserRoleAssignmentAM> userAssignments = userToAssignmentMap.get(user).stream().map(assignment -> {
-				return RoleMapper.currentAssignmentToApi(assignment, assignment.getUser(), assignmentService.getAssignedThrough(assignment));
+				return RoleMapper.currentAssignmentToApi(assignment, assignment.getUser(), assignmentService.getAssignedThrough(assignment), requesterPermissions.get(assignment.getUserRole().getId()));
 			}).collect(Collectors.toList());
 
 			result.add(userAssignments);

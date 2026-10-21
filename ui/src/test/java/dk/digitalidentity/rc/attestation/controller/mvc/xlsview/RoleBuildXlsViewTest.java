@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.support.ResourceBundleMessageSource;
 
 import dk.digitalidentity.rc.attestation.model.dto.ITSystemRoleBuildAttestationDTO;
+import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
 import dk.digitalidentity.rc.attestation.service.AttestationLockService;
 import dk.digitalidentity.rc.controller.mvc.xlsview.DisposableSXSSFWorkbook;
 
@@ -49,6 +50,28 @@ class RoleBuildXlsViewTest {
 			assertEquals("", sheet.getRow(4).getCell(2).getStringCellValue());
 			assertEquals("", sheet.getRow(4).getCell(3).getStringCellValue());
 			assertEquals("Ikke attesteret", sheet.getRow(4).getCell(4).getStringCellValue());
+		}
+	}
+
+	@Test
+	@DisplayName("Should render the remark from the attestation in its own column")
+	void buildExcelDocument_WithRemark_ShouldRenderRemarkColumn() throws Exception {
+		// Arrange
+		ITSystemRoleBuildAttestationDTO row = new ITSystemRoleBuildAttestationDTO();
+		row.setItSystemName("KMD Opus");
+		row.setRole("Lønmedarbejder");
+		row.setAttestationStatus(AttestationStatus.REMARKS);
+		row.setRemark("Rollen skal ikke give adgang til borgersager");
+
+		RoleBuildXlsView view = new RoleBuildXlsView(lockService);
+
+		// Act + Assert
+		try (DisposableSXSSFWorkbook workbook = new DisposableSXSSFWorkbook()) {
+			view.buildExcelDocument(model(List.of(row)), workbook, null, null);
+
+			var sheet = workbook.getSheetAt(0);
+			assertEquals("Bemærkning", sheet.getRow(3).getCell(7).getStringCellValue());
+			assertEquals("Rollen skal ikke give adgang til borgersager", sheet.getRow(4).getCell(7).getStringCellValue());
 		}
 	}
 

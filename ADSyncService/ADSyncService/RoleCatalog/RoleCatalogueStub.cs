@@ -38,11 +38,23 @@ namespace ADSyncService
             }
         }
 
+        // RestSharp falls back to the 100 second HttpWebRequest default, which is too short for the larger sync payloads
+        private static RestClient CreateClient()
+        {
+            int timeoutMillis = Properties.Settings.Default.ApiTimeoutSeconds * 1000;
+
+            return new RestClient(baseUrl)
+            {
+                Timeout = timeoutMillis,
+                ReadWriteTimeout = timeoutMillis
+            };
+        }
+
         public OperationData GetOperationData()
         {
             try
             {
-                RestClient client = new RestClient(baseUrl);
+                RestClient client = CreateClient();
 
                 string query = "";
                 if (!String.IsNullOrEmpty(domain))
@@ -81,7 +93,7 @@ namespace ADSyncService
 
         public List<string> GetUsersInItSystem(string itSystemId)
         {
-            RestClient client = new RestClient(baseUrl);
+            RestClient client = CreateClient();
 
             string query = "";
             if (!String.IsNullOrEmpty(domain))
@@ -120,7 +132,7 @@ namespace ADSyncService
 
         public List<string> GetUsersWithRole(string roleId)
         {
-            RestClient client = new RestClient(baseUrl);
+            RestClient client = CreateClient();
 
             string query = "";
             if (!String.IsNullOrEmpty(domain))
@@ -159,7 +171,7 @@ namespace ADSyncService
 
         public ItSystemData GetItSystemData(string itSystemId)
         {
-            RestClient client = new RestClient(baseUrl);
+            RestClient client = CreateClient();
 
             var request = new RestRequest("/api/itsystem/manage/" + itSystemId, Method.GET);
             request.AddHeader("ApiKey", apiKey);
@@ -180,7 +192,7 @@ namespace ADSyncService
 
         public void SetItSystemData(string itSystemId, ItSystemData itSystemData, bool maintainDescriptionAndName)
         {
-            RestClient client = new RestClient(baseUrl);
+            RestClient client = CreateClient();
 
             string query = "";
             if (!string.IsNullOrEmpty(domain))
@@ -219,7 +231,7 @@ namespace ADSyncService
         {
             try
             {
-                RestClient client = new RestClient(baseUrl);
+                RestClient client = CreateClient();
                 NameValueCollection queryString = System.Web.HttpUtility.ParseQueryString(string.Empty);
 
                 if (!string.IsNullOrEmpty(domain))
@@ -281,7 +293,7 @@ namespace ADSyncService
         {
             try
             {
-                RestClient client = new RestClient(baseUrl);
+                RestClient client = CreateClient();
                 string query = "?maxHead=" + maxHead;
                 if (!String.IsNullOrEmpty(domain))
                 {
@@ -314,7 +326,7 @@ namespace ADSyncService
         {
             try
             {
-                RestClient client = new RestClient(baseUrl);
+                RestClient client = CreateClient();
                 string query = "";
                 if (!String.IsNullOrEmpty(domain))
                 {
@@ -345,7 +357,7 @@ namespace ADSyncService
 
         public bool GetShouldUploadLog()
         {
-            RestClient client = new RestClient(baseUrl);
+            RestClient client = CreateClient();
 
             var request = new RestRequest("/api/uploadLog", Method.GET);
             request.AddHeader("ApiKey", apiKey);
@@ -367,7 +379,7 @@ namespace ADSyncService
         {
             try
             {
-                RestClient client = new RestClient(baseUrl);
+                RestClient client = CreateClient();
 
                 var request = new RestRequest("/api/v2/ad/getConfiguration/" + domain, Method.GET);
                 request.AddHeader("ApiKey", apiKey);
@@ -401,7 +413,7 @@ namespace ADSyncService
 
         public void SetConfigurationInRC()
         {
-            RestClient client = new RestClient(baseUrl);
+            RestClient client = CreateClient();
             var request = new RestRequest("/api/v2/ad/writeConfiguration/" + domain, Method.POST);
             request.RequestFormat = DataFormat.Json;
             request.AddHeader("Content-Type", "application/json");
@@ -421,7 +433,7 @@ namespace ADSyncService
 
         public void SendConfigurationError(string errorMsg)
         {
-            RestClient client = new RestClient(baseUrl);
+            RestClient client = CreateClient();
             var request = new RestRequest("/api/v2/ad/error/" + domain, Method.POST);
             request.RequestFormat = DataFormat.Json;
             request.AddHeader("Content-Type", "application/json");

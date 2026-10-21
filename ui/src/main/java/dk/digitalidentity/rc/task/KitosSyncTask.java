@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.kitos.KitosClientService;
 import dk.digitalidentity.rc.service.kitos.KitosSyncService;
@@ -29,6 +30,7 @@ public class KitosSyncTask {
 
     @Scheduled(cron = "${rc.integrations.kitos.cron:0 0 3/6 ? * *}")
 //	@Scheduled(initialDelay = 1000, fixedRate = 100000000)
+    @WarnIfSlowerThan(millis = 2 * 60 * 1000)
 	public void sync() {
 		if (taskDisabled()) {
 			return;
@@ -66,6 +68,7 @@ public class KitosSyncTask {
 
     @Scheduled(cron = "${rc.integrations.kitos.deletion.cron:0 10 2 * * ?}")
 //	@Scheduled(initialDelay = 1000, fixedRate = 100000000)
+    @WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void syncDeletions() {
         if (taskDisabled()) {
             return;
@@ -86,6 +89,7 @@ public class KitosSyncTask {
     }
 
 	@Scheduled(cron = "${rc.integrations.kitos.users.cron:0 0 0/6 ? * *}")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void syncITSystemOwnersAndResponsibles() {
 		if (taskDisabled()) {
 			return;
@@ -113,6 +117,4 @@ public class KitosSyncTask {
         }
         return false;
     }
-
-
 }

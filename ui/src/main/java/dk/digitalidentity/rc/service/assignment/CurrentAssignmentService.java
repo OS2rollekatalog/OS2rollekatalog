@@ -2,7 +2,9 @@ package dk.digitalidentity.rc.service.assignment;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.assignment.CurrentAssignmentDao;
 import org.springframework.data.domain.PageRequest;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -23,12 +26,13 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
 import dk.digitalidentity.rc.dao.model.assignment.UserRoleMemberCountProjection;
 
 import org.hibernate.Hibernate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CurrentAssignmentService {
@@ -38,7 +42,7 @@ public class CurrentAssignmentService {
 	@Transactional
 	public CurrentAssignmentChangeResult saveAllForUsers(Map<User, Set<CurrentAssignment>> assignmentsByUser) {
 		if (assignmentsByUser.isEmpty()) {
-			return new CurrentAssignmentChangeResult(Set.of(), Set.of());
+			return new CurrentAssignmentChangeResult(Set.of(), Set.of(), Map.of());
 		}
 
 		// 1 SELECT for alle brugere
@@ -51,6 +55,8 @@ public class CurrentAssignmentService {
 
 		Set<CurrentAssignment> allToDelete = new HashSet<>();
 		Set<CurrentAssignment> allToCreate = new HashSet<>();
+		Set<CurrentAssignment> allToRelabel = new HashSet<>();
+		Map<User, Set<Long>> lostUserRoleIdsByUser = new HashMap<>();
 
 		for (Map.Entry<User, Set<CurrentAssignment>> entry : assignmentsByUser.entrySet()) {
 			Map<String, CurrentAssignment> existingByHash = existingByUserUuidAndHash.getOrDefault(entry.getKey().getUuid(), Map.of());
@@ -61,9 +67,26 @@ public class CurrentAssignmentService {
 				.map(Map.Entry::getValue)
 				.forEach(allToDelete::add);
 
-			entry.getValue().stream()
-				.filter(a -> !existingByHash.containsKey(a.getRecordHash()))
-				.forEach(allToCreate::add);
+			Set<Long> lostUserRoleIds = userRoleIds(existingByHash.values());
+			lostUserRoleIds.removeAll(userRoleIds(entry.getValue()));
+			if (!lostUserRoleIds.isEmpty()) {
+				lostUserRoleIdsByUser.put(entry.getKey(), lostUserRoleIds);
+			}
+
+			// containsTitles sits outside the record hash, so a row that survives unchanged reaches it no other way
+			for (CurrentAssignment calculated : entry.getValue()) {
+				CurrentAssignment stored = existingByHash.get(calculated.getRecordHash());
+				if (stored == null) {
+					allToCreate.add(calculated);
+				} else if (stored.getContainsTitles() != calculated.getContainsTitles()) {
+					stored.setContainsTitles(calculated.getContainsTitles());
+					allToRelabel.add(stored);
+				}
+			}
+		}
+
+		if (!allToRelabel.isEmpty()) {
+			historicAssignmentService.relabelAssignedThroughFor(allToRelabel);
 		}
 
 		if (!allToDelete.isEmpty()) {
@@ -90,7 +113,14 @@ public class CurrentAssignmentService {
 				affectedUserRoleIds.add(ca.getUserRole().getId());
 			}
 		}
-		return new CurrentAssignmentChangeResult(changedUsers, affectedUserRoleIds);
+		return new CurrentAssignmentChangeResult(changedUsers, affectedUserRoleIds, lostUserRoleIdsByUser);
+	}
+
+	private static Set<Long> userRoleIds(Collection<CurrentAssignment> assignments) {
+		return assignments.stream()
+			.filter(ca -> ca.getUserRole() != null)
+			.map(ca -> ca.getUserRole().getId())
+			.collect(Collectors.toCollection(HashSet::new));
 	}
 
 	public boolean hasRoleDirectly(String userUuid, Long userRoleId) {
@@ -103,6 +133,10 @@ public class CurrentAssignmentService {
 
 	public boolean hasUserRole(User user, UserRole userRole) {
 		return currentAssignmentDao.countByUserRole(user, userRole, LocalDate.now()) > 0;
+	}
+
+	public boolean hasRoleCatalogueSystemRole(User user, String systemRoleIdentifier) {
+		return currentAssignmentDao.existsBySystemRoleIdentifierAndActive(user, Constants.ROLE_CATALOGUE_IDENTIFIER, systemRoleIdentifier, LocalDate.now());
 	}
 
 	public Set<CurrentAssignment> findByUser(User user) {
@@ -181,10 +215,8 @@ public class CurrentAssignmentService {
 		return currentAssignmentDao.findActiveAssignedDirect(userRole, LocalDate.now());
 	}
 
-	// Note: This returns one CurrentAssignment per userRole contained in the roleGroup.
-	// To get one assignment per unique roleGroup assignment, use AssignmentService.getUniqueRoleGroupAssignments()
-	public Set<CurrentAssignment> findByDirectlyAssignedRoleGroupIncludingInactive(RoleGroup roleGroup) {
-		return currentAssignmentDao.findByRoleGroupAndOrgUnitNullAndTitleNull(roleGroup);
+	public Set<User> findByDirectlyAssignedRoleGroupIncludingInactiveUsersOnly(RoleGroup roleGroup) {
+		return currentAssignmentDao.findByRoleGroupAndOrgUnitNullAndTitleNullUsersOnly(roleGroup);
 	}
 
 	public Set<CurrentAssignment> findByItSystem(ItSystem itSystem) {
@@ -219,16 +251,16 @@ public class CurrentAssignmentService {
 		return currentAssignmentDao.countDistinctUserByRoleGroupAndOrgUnitNullAndTitleNull(roleGroup);
 	}
 
-	public Set<CurrentAssignment> findActiveByUserRoles(Set<UserRole> userRoles) {
-		return currentAssignmentDao.findActiveAssigned(userRoles, LocalDate.now());
-	}
-
-	public Set<CurrentAssignmentSmallProjection> findActiveByUserRolesAsProjection(Set<UserRole> userRoles) {
-		return currentAssignmentDao.findActiveAssignedAsProjection(userRoles, LocalDate.now());
+	public Set<String> findActiveUserIds(Collection<UserRole> userRoles, long domainId) {
+		return currentAssignmentDao.findActiveAssignedUserIds(userRoles, domainId, LocalDate.now());
 	}
 
 	public Set<CurrentAssignment> findActiveByUserRole(UserRole userRole) {
 		return currentAssignmentDao.findActiveAssigned(userRole, LocalDate.now());
+	}
+
+	public Set<String> findActiveUserUuidsByUserRoleIds(Collection<Long> userRoleIds) {
+		return currentAssignmentDao.findActiveUserUuidsByUserRoleIds(userRoleIds, LocalDate.now());
 	}
 
 	public Set<CurrentAssignment> findActiveByRoleGroup(RoleGroup roleGroup) {
@@ -287,4 +319,59 @@ public class CurrentAssignmentService {
 		return currentAssignmentDao.countDirectUserRoleHoldersAmong(userUuids, LocalDate.now());
 	}
 
+	public List<CurrentAssignment> findByIdIn(List<Long> ids) {
+		return currentAssignmentDao.findByIdIn(ids);
+	}
+
+    @Transactional(readOnly = true)
+	public List<Long> findDuplicateRoleGroupAssignments() {
+        List<String> groups = currentAssignmentDao.findDuplicateRoleGroupAssignments();
+        List<Long> ids = new ArrayList<>();
+
+        for (String group : groups) {
+            if (group == null || group.isBlank()) {
+                continue;
+            }
+
+            // current production cap on group_concat is 10240, we do not expect to get anywhere near that limit
+            if (group.length() >= 10240) {
+                log.warn("Duplicate id group is {} chars and may be truncated; verify group_concat_max_len is raised on this connection", group.length());
+            }
+
+            for (String id : group.split(",")) {
+                String trimmed = id.strip();
+                if (!trimmed.isEmpty()) {
+                    ids.add(Long.valueOf(trimmed));
+                }
+            }
+        }
+
+        return ids;
+	}
+
+    @Transactional(readOnly = true)
+	public List<Long> findDuplicateUserRoleAssignments() {
+        List<String> groups = currentAssignmentDao.findDuplicateUserRoleAssignments();
+        List<Long> ids = new ArrayList<>();
+
+        for (String group : groups) {
+            if (group == null || group.isBlank()) {
+                continue;
+            }
+
+            // current production cap on group_concat is 10240, we do not expect to get anywhere near that limit
+            if (group.length() >= 10240) {
+                log.warn("Duplicate id group is {} chars and may be truncated; verify group_concat_max_len is raised on this connection", group.length());
+            }
+
+            for (String id : group.split(",")) {
+                String trimmed = id.strip();
+                if (!trimmed.isEmpty()) {
+                    ids.add(Long.valueOf(trimmed));
+                }
+            }
+        }
+
+        return ids;
+	}
 }

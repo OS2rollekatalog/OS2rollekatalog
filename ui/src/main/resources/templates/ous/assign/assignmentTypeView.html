@@ -1,0 +1,95 @@
+<th:block th:fragment="assignmentTypeView" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<fieldset id="assignmentTypeView" class="d-flex gap-3 flex-column"
+	          th:attr="data-locked=${scopeLocked != null and scopeLocked}">
+		<p class="text-info" th:if="${scopeLocked != null and scopeLocked}"
+		   th:text="#{html.page.ou.assign.type.locked.help}"></p>
+
+		<script id="scope-rules-config" type="application/json" th:inline="javascript">
+			[[${scopeRules}]]
+		</script>
+
+		<div class="form-group pb-5">
+			<label class="col-sm-12 control-label" th:text="#{html.page.ou.assign.type.target.label}"></label>
+			<div class="col-sm-12">
+				<div class="btn-group">
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="target-everyone" name="assignTarget" value="EVERYONE"
+						       th:checked="${scopeChoice != null ? (scopeChoice.target().name() == 'EVERYONE') : true}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.target.everyone}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="target-titles" name="assignTarget" value="TITLES"
+						       th:checked="${scopeChoice != null and scopeChoice.target().name() == 'TITLES'}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.target.titles}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="target-manager" name="assignTarget" value="MANAGER"
+						       th:checked="${scopeChoice != null and scopeChoice.target().name() == 'MANAGER'}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.target.manager}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="target-function" name="assignTarget" value="FUNCTION"
+						       th:checked="${scopeChoice != null and scopeChoice.target().name() == 'FUNCTION'}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.target.function}"></span>
+					</label>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group pb-5">
+			<label class="col-sm-12 control-label" th:text="#{html.page.ou.assign.type.exception.label}"></label>
+			<div class="col-sm-12">
+				<div class="btn-group">
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="exception-none" name="assignException" value="NONE"
+						       th:checked="${scopeChoice != null ? (scopeChoice.exception().name() == 'NONE') : true}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.exception.none}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="exception-titles" name="assignException" value="TITLES"
+						       th:checked="${scopeChoice != null and scopeChoice.exception().name() == 'TITLES'}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.exception.titles}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="exception-ous" name="assignException" value="OUS"
+						       th:checked="${scopeChoice != null and scopeChoice.exception().name() == 'OUS'}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.exception.ous}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="exception-users" name="assignException" value="USERS"
+						       th:checked="${scopeChoice != null and scopeChoice.exception().name() == 'USERS'}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.exception.users}"></span>
+					</label>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group pb-5">
+			<label class="col-sm-12 control-label" th:text="#{html.page.ou.assign.type.inherit.label}"></label>
+			<div class="col-sm-12">
+				<div class="btn-group">
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="inherit-no" name="assignInherit" value="NO"
+						       th:checked="${scopeChoice == null or !scopeChoice.inherit()}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.inherit.no}"></span>
+					</label>
+					<label class="btn btn-default">
+						<input type="radio" class="btn-group-radio" id="inherit-yes" name="assignInherit" value="YES"
+						       th:checked="${scopeChoice != null and scopeChoice.inherit()}"
+						       th:disabled="${scopeLocked != null and scopeLocked}">
+						<span th:text="#{html.page.ou.assign.type.inherit.yes}"></span>
+					</label>
+				</div>
+			</div>
+		</div>
+	</fieldset>
+</th:block>

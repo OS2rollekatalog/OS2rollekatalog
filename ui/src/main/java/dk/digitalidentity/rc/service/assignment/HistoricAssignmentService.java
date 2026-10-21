@@ -2,7 +2,10 @@ package dk.digitalidentity.rc.service.assignment;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.dao.assignment.HistoricAssignmentDao;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
 import dk.digitalidentity.rc.service.assignment.mapper.HistoricAssignmentMapper;
@@ -50,10 +53,48 @@ public class HistoricAssignmentService {
 		historicAssignmentDao.saveAll(historicAssignments);
 	}
 
+	/** Relabels open rows for assignments that switched between selected and excluded titles, which leaves the hash alone. */
+	@Transactional
+	public void relabelAssignedThroughFor(Collection<CurrentAssignment> currentAssignments) {
+		currentAssignments.stream()
+			.filter(ca -> ca.getTitle() != null && ca.getOrgUnit() != null)
+			.collect(Collectors.groupingBy(
+				HistoricAssignmentMapper::assignedThroughForOrgUnitAssignment,
+				Collectors.mapping(CurrentAssignment::getRecordHash, Collectors.toSet())))
+			.forEach((assignedThrough, recordHashes) ->
+				historicAssignmentDao.updateAssignedThroughTypeByRecordHashIn(recordHashes, assignedThrough));
+	}
+
 	@Transactional
 	public void updateValidToFor(Set<CurrentAssignment> currentAssignments, LocalDateTime validTo) {
 		Set<String> recordHashes = currentAssignments.stream().map(CurrentAssignment::getRecordHash).collect(Collectors.toSet());
 		historicAssignmentDao.updateValidToByRecordHashIn(recordHashes, validTo);
+	}
+
+	/** Must run before the delete: the current_assignment rows it joins on are removed by ON DELETE CASCADE. */
+	@Transactional
+	public void closeOpenForDeletedUserRoles(Collection<UserRole> userRoles) {
+		List<Long> ids = userRoles.stream().map(UserRole::getId).filter(id -> id != 0).toList();
+		if (!ids.isEmpty()) {
+			historicAssignmentDao.closeOpenByUserRoleIdIn(ids, LocalDateTime.now());
+		}
+	}
+
+	/** Must run before the delete: the current_assignment rows it joins on are removed by ON DELETE CASCADE. */
+	@Transactional
+	public void closeOpenForDeletedRoleGroup(RoleGroup roleGroup) {
+		if (roleGroup.getId() != 0) {
+			historicAssignmentDao.closeOpenByRoleGroupId(roleGroup.getId(), LocalDateTime.now());
+		}
+	}
+
+	/** Must run before the delete: the current_assignment rows it joins on are removed by ON DELETE CASCADE. */
+	@Transactional
+	public void closeOpenForDeletedItSystems(Collection<ItSystem> itSystems) {
+		List<Long> ids = itSystems.stream().map(ItSystem::getId).filter(id -> id != 0).toList();
+		if (!ids.isEmpty()) {
+			historicAssignmentDao.closeOpenByItSystemIdIn(ids, LocalDateTime.now());
+		}
 	}
 
 	public Set<HistoricAssignment> getByUser(User user) {
@@ -153,11 +194,20 @@ public class HistoricAssignmentService {
 		return historicAssignmentDao.findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(when.plusDays(1).atStartOfDay());
 	}
 
-	public List<HistoricAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(LocalDate when) {
-		return historicAssignmentDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when.plusDays(1).atStartOfDay());
-	}
-
 	public List<HistoricAssignment> findByUpdatedAtAfter(LocalDateTime tts) {
 		return historicAssignmentDao.findByUpdatedAtAfter(tts);
+	}
+
+	/** Streams [userUuid, itSystemName, userRoleId, startDate, stopDate]. Caller must be transactional and close the stream. */
+	public Stream<Object[]> streamWeightTriples(LocalDate date) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.streamWeightTriples(startOfDay, endOfDay);
+	}
+
+	public Stream<Object[]> streamWeightTriplesForItSystems(LocalDate date, Collection<Long> itSystemIds) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.streamWeightTriplesForItSystems(startOfDay, endOfDay, itSystemIds);
 	}
 }

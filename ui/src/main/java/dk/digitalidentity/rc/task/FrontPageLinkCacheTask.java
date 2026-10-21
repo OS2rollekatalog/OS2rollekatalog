@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task;
 
 import dk.digitalidentity.rc.dao.FrontPageLinkDao;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.FrontPageLinkService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -22,6 +23,7 @@ public class FrontPageLinkCacheTask {
 	private LocalDateTime lastChecked = LocalDateTime.now();
 
 	@Scheduled(fixedRate = 10000)
+	@WarnIfSlowerThan(millis = 5 * 1000)
 	public void checkForChanges() {
 		LocalDateTime currentCheck = LocalDateTime.now();
 		if (frontPageLinkDao.existsByLastChangedAfter(lastChecked)) {

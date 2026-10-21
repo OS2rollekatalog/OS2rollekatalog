@@ -12,8 +12,14 @@ namespace ADSyncService
 
         public void Execute(IJobExecutionContext context)
         {
-            bool logUploaderEnabled = remoteConfigurationService.GetConfiguration().logUploaderEnabled;
-            if (logUploaderEnabled)
+            RemoteConfiguration configuration = remoteConfigurationService.GetConfigurationIfAvailable();
+            if (configuration == null)
+            {
+                log.Error("LogUploaderJob skipped: no valid configuration");
+                return;
+            }
+
+            if (configuration.logUploaderEnabled)
             {
                 logUploaderService.CheckForLogRequest();
             }

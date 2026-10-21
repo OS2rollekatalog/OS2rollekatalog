@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initOptInCheckbox();
     initScheduledAttestationCheckbox();
     initDontSendMailToManagerCheckbox();
+    initEscalationRecipients();
     initAdAttestationCheckbox();
     initAttestationChangesCheckbox();
     initDescriptionRequiredCheckbox();
@@ -70,6 +71,32 @@ function initScheduledAttestationCheckbox() {
 function initDontSendMailToManagerCheckbox() {
     $("#dont-send-mail-to-manager-checkbox").on("change", function () {
         $("#dontSendMailToManager").val(this.checked);
+    });
+}
+
+const emailValidator = Object.assign(document.createElement("input"), { type: "email", required: true });
+
+function isValidEmail(value) {
+    emailValidator.value = value;
+    return emailValidator.checkValidity();
+}
+
+function initEscalationRecipients() {
+    const recipientsSelect = document.getElementById("escalationRecipients");
+    const emailsSection = document.getElementById("escalationEmailsSection");
+    recipientsSelect.addEventListener("change", () => {
+        const includesFixedAddresses = recipientsSelect.selectedOptions[0].dataset.includesFixedAddresses === "true";
+        emailsSection.classList.toggle("hidden", !includesFixedAddresses);
+    });
+
+    select2Service.initSelect("#escalationEmails", {
+        tags: true,
+        tokenSeparators: [",", ";", " "],
+        width: "100%",
+        createTag: (params) => {
+            const term = params.term.trim();
+            return isValidEmail(term) ? { id: term, text: term } : null;
+        }
     });
 }
 
@@ -193,6 +220,7 @@ function saveOUs() {
     }
 
     setOrgunitSelectionTextMessages();
+    window.unsavedChangesService.setChangesMade();
     hideOUModal();
 }
 

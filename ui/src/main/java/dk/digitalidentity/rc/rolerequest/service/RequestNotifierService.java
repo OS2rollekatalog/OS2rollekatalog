@@ -3,47 +3,33 @@ package dk.digitalidentity.rc.rolerequest.service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.rolerequest.service.permission.ApprovableRequestService;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.rolerequest.dao.RoleRequestDao;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
-import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
-import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,19 +41,24 @@ public class RequestNotifierService {
 	private final EmailQueueService emailQueueService;
 	private final SettingsService settingsService;
 	private final RoleRequestDao roleRequestDao;
-	private final UserRoleService userRoleService;
-	private final SystemRoleService systemRoleService;
-	private final OrgUnitService orgUnitService;
-	private final ItSystemService itSystemService;
-	private final AssignmentService assignmentService;
-	private final RequestApproverResolver requestApproverResolver;
+	private final ApprovableRequestService approvableRequestService;
+	private final ApproverCandidates approverCandidates;
 	private final ManagerSubstituteService managerSubstituteService;
 
 	@Transactional
 	public void sendMailToRoleAssignerOnce() {
 		List<RoleRequest> allRequests = getRoleRequests(false);
-
 		if (allRequests.isEmpty()) {
+			return;
+		}
+
+		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS);
+		if (template != null && !template.isEnabled()) {
+			for (RoleRequest requestApprove : allRequests) {
+				requestApprove.setEmailSent(true);
+			}
+
+			roleRequestDao.saveAll(allRequests);
 			return;
 		}
 
@@ -78,7 +69,6 @@ public class RequestNotifierService {
 			List<RoleRequest> requests = entry.getValue();
 
 			if (!approvers.isEmpty()) {
-				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS);
 				inputMessage(requests, requests.size(), approvers, template);
 			}
 		}
@@ -91,15 +81,16 @@ public class RequestNotifierService {
 			return;
 		}
 
-		List<RoleRequest> requestApproves = roleRequestDao.findByStatusInAndEmailSentToServicedesk(
-			List.of(RequestApproveStatus.REQUESTED), false);
-
+		List<RoleRequest> requestApproves = roleRequestDao.findByStatusInAndEmailSentToServicedesk(List.of(RequestApproveStatus.REQUESTED), false);
 		if (requestApproves.isEmpty()) {
 			return;
 		}
 
 		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_SERVICEDESK);
-		if (!template.isEnabled()) {
+		if (template != null && !template.isEnabled()) {
+			requestApproves.forEach(request -> request.setEmailSentToServicedesk(true));
+			roleRequestDao.saveAll(requestApproves);
+
 			log.info("Email template with type {} is disabled. Email was not sent.", template.getTemplateType());
 			return;
 		}
@@ -141,13 +132,28 @@ public class RequestNotifierService {
 	}
 
 	private Map<Map<String, String>, List<RoleRequest>> getEmailMap(List<RoleRequest> allRequests) {
-		// Group requests by their approval path and send separate emails
-		Map<Map<String, String>, List<RoleRequest>> requestsByApprovers = new HashMap<>();
+		long start = System.currentTimeMillis();
+		// possible recipients per approver type, not yet checked against ApproverRule
+		Map<RoleRequest, List<ApproverCandidates.Candidate>> candidatesByRequest = approverCandidates.collect(allRequests);
 
-		for (RoleRequest request : allRequests) {
-			Map<String, String> approvers = getEmailsToSendTo(request);
-			requestsByApprovers.computeIfAbsent(approvers, _ -> new ArrayList<>()).add(request);
+		// one ApproverRule query per distinct candidate, covering all requests at once
+		List<Long> requestIds = allRequests.stream().map(RoleRequest::getId).toList();
+		Map<String, Set<Long>> approvableByUserUuid = new HashMap<>();
+		candidatesByRequest.values().stream()
+			.flatMap(List::stream)
+			.map(ApproverCandidates.Candidate::approver)
+			.filter(Objects::nonNull)
+			.forEach(user -> approvableByUserUuid.computeIfAbsent(user.getUuid(), _ -> approvableRequestService.emailRecipientAmong(user, requestIds)));
+
+		// requests with the same recipients share one email
+		Map<Map<String, String>, List<RoleRequest>> requestsByApprovers = new HashMap<>();
+		for (Map.Entry<RoleRequest, List<ApproverCandidates.Candidate>> entry : candidatesByRequest.entrySet()) {
+			Map<String, String> approvers = recipients(entry.getKey(), entry.getValue(), approvableByUserUuid);
+			requestsByApprovers.computeIfAbsent(approvers, _ -> new ArrayList<>()).add(entry.getKey());
 		}
+
+		log.info("Found approvers for {} pending requests among {} candidates in {} ms",
+			allRequests.size(), approvableByUserUuid.size(), System.currentTimeMillis() - start);
 		return requestsByApprovers;
 	}
 
@@ -214,6 +220,7 @@ public class RequestNotifierService {
 			return false;
 		}
 		if (orgUnit == null) {
+			log.warn("Request id:{} has no orgunit, cannot notify manager and authorization managers", request.getId());
 			return false;
 		}
 		final String action = request.getRequestAction() == RequestAction.ADD ? "tildelt" : "fjernet";
@@ -239,11 +246,15 @@ public class RequestNotifierService {
 		User manager = orgUnit.getManager();
 		sendMailToManager(manager, placeholderData, template);
 
+		for (User substitute : managerSubstituteService.getSubstitutesForOrgUnit(orgUnit)) {
+			sendMailToRecipient(substitute, placeholderData, template);
+		}
+
 		// Send to Auth managers
 		List<AuthorizationManager> authorizationManagers = orgUnit.getAuthorizationManagers();
 		if (authorizationManagers != null && !authorizationManagers.isEmpty()) {
 			for (AuthorizationManager am : authorizationManagers) {
-				sendMailToAuthorizationManager(am.getUser(), placeholderData, template);
+				sendMailToRecipient(am.getUser(), placeholderData, template);
 			}
 		}
 
@@ -260,17 +271,17 @@ public class RequestNotifierService {
 		}
 	}
 
-	private void sendMailToAuthorizationManager(User authorizationManager, EnumMap<EmailTemplatePlaceholder, String> placeholderData, EmailTemplate template){
-		if (authorizationManager == null || authorizationManager.isDeleted()) {
+	private void sendMailToRecipient(User recipient, EnumMap<EmailTemplatePlaceholder, String> placeholderData, EmailTemplate template){
+		if (recipient == null || recipient.isDeleted()) {
 			return;
 		}
 
-		if (StringUtils.hasLength(authorizationManager.getEmail())) {
-			placeholderData.put(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, authorizationManager.getName());
+		if (StringUtils.hasLength(recipient.getEmail())) {
+			placeholderData.put(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, recipient.getName());
 
 			String title = applyReplacers(template.getTitle(), placeholderData);
 			String message = applyReplacers(template.getMessage(), placeholderData);
-			emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null, null);
+			emailQueueService.queueEmail(recipient.getEmail(), title, message, template, null, null);
 		}
 	}
 
@@ -290,96 +301,17 @@ public class RequestNotifierService {
 		return result;
 	}
 
-	private Map<String, String> getEmailsToSendTo(RoleRequest request) {
-		Map<ApprovableBy, String> roleRequestApproverEmails = settingsService.getRoleRequestApproverEmails();
+	private Map<String, String> recipients(RoleRequest request, List<ApproverCandidates.Candidate> candidates, Map<String, Set<Long>> approvableByUserUuid) {
 		Map<String, String> mailsToSendTo = new LinkedHashMap<>();
-
-		for (ApprovableBy approvableBy : requestApproverResolver.resolveEffectiveOptions(request)) {
-			// First check if there's a global email for THIS specific approver option
-			String emailBySetting = roleRequestApproverEmails.get(approvableBy);
-			if (StringUtils.hasLength(emailBySetting)) {
-				mailsToSendTo.put(emailBySetting, null);
-				continue;
-			}
-
-			// No global email for this approver option, find specific users
-			switch (approvableBy) {
-				case AUTOMATIC -> {
-					// Request will be auto-approved, no email needed
-				}
-				case INHERIT -> {
-					// Should not reach here after resolution
-					log.warn("INHERIT not fully resolved for request id:{}", request.getId());
-				}
-				case AUTHRESPONSIBLE -> {
-					// Enumerate from receiver.getPositions() -> OrgUnit -> authorization managers,
-					// matching exactly the resolution canApprove() -> isAuthorizationManagerFor() uses.
-					// Enumerating from request.getOrgUnit() instead would silently drop the real approver
-					// whenever the receiver's position OU differs from the request's OU (multiple employments).
-					User receiver = request.getReceiver();
-					if (receiver != null && receiver.getPositions() != null) {
-						for (Position position : receiver.getPositions()) {
-							OrgUnit positionOrgUnit = position.getOrgUnit();
-							if (positionOrgUnit == null || positionOrgUnit.getAuthorizationManagers() == null) {
-								continue;
-							}
-							for (AuthorizationManager manager : positionOrgUnit.getAuthorizationManagers()) {
-								User authorizationManager = manager.getUser();
-								if (authorizationManager != null && !authorizationManager.isDeleted() && authorizationManager.getEmail() != null
-										&& requestApproverResolver.canApprove(request, authorizationManager)) {
-									mailsToSendTo.put(authorizationManager.getEmail(), authorizationManager.getName());
-								}
-							}
-						}
-					}
-				}
-				case MANAGERORSUBSTITUTE -> {
-					OrgUnit orgUnit = request.getOrgUnit();
-					if (orgUnit != null) {
-						// Resolve candidates the same way canApprove()/determineApprovable() does — walking to the
-						// parent OU via getEffectiveApprover — then filter through canApprove itself so who gets
-						// notified always matches who can actually approve (incl. requester/receiver exclusion).
-						OrgUnitService.EffectiveApprover effectiveApprover = orgUnitService.getEffectiveApprover(orgUnit, request.getReceiver());
-						if (effectiveApprover != null) {
-							List<User> candidates = new ArrayList<>();
-							candidates.add(effectiveApprover.manager());
-							candidates.addAll(managerSubstituteService.getSubstitutesForOrgUnit(effectiveApprover.orgUnit()));
-
-							for (User candidate : candidates) {
-								if (candidate != null && !candidate.isDeleted() && StringUtils.hasLength(candidate.getEmail())
-										&& requestApproverResolver.canApprove(request, candidate)) {
-									mailsToSendTo.put(candidate.getEmail(), candidate.getName());
-								}
-							}
-						}
-					}
-				}
-				case AUTHORIZED -> {
-					Map<String, String> authorizedEmails = getAuthorizedEmails(request);
-					mailsToSendTo.putAll(authorizedEmails);
-				}
-				case SYSTEMRESPONSIBLE -> {
-					if (request.getUserRole() != null && request.getUserRole().getItSystem() != null) {
-						addSystemResponsibleEmail(request, request.getUserRole().getItSystem(), mailsToSendTo);
-					} else if (request.getRoleGroup() != null && request.getRoleGroup().getUserRoleAssignments() != null) {
-						for (RoleGroupUserRoleAssignment assignment : request.getRoleGroup().getUserRoleAssignments()) {
-							if (assignment.getUserRole() == null || assignment.getUserRole().getItSystem() == null) {
-								continue;
-							}
-							addSystemResponsibleEmail(request, assignment.getUserRole().getItSystem(), mailsToSendTo);
-						}
-					}
-				}
+		for (ApproverCandidates.Candidate candidate : candidates) {
+			// settings emails have no approver and are always mailed
+			if (candidate.approver() == null || approvableByUserUuid.get(candidate.approver().getUuid()).contains(request.getId())) {
+				mailsToSendTo.put(candidate.email(), candidate.name());
 			}
 		}
 
 		if (mailsToSendTo.size() > 10) {
 			log.warn("Size of list of emails to send request approve email to has exceeded the 10 limit: {}", mailsToSendTo.size());
-			// Preserve insertion order rather than sorting by email — the settings-configured global
-			// approver email is inserted first (see "First check if there's a global email" above) and
-			// must take precedence over the 10-cap, not get truncated away by alphabetical sorting.
-			// Built manually rather than via Collectors.toMap, which throws NPE on null values (some
-			// entries here intentionally have a null display name).
 			Map<String, String> capped = new LinkedHashMap<>();
 			for (Map.Entry<String, String> entry : mailsToSendTo.entrySet()) {
 				if (capped.size() >= 10) {
@@ -390,7 +322,7 @@ public class RequestNotifierService {
 			return capped;
 		}
 
-		// Step 4: Fallback to global servicedesk email since no one else seems to be able to approve of this request
+		// no approver found (incl. stuck INHERIT/AUTOMATIC requests), so fall back to the servicedesk
 		if (mailsToSendTo.isEmpty()) {
 			String serviceDeskEmail = settingsService.getRequestApproveServicedeskEmail();
 			if (StringUtils.hasLength(serviceDeskEmail)) {
@@ -400,46 +332,12 @@ public class RequestNotifierService {
 
 		return mailsToSendTo;
 	}
-
-	private Map<String, String> getAuthorizedEmails(RoleRequest requestApprove) {
-		ItSystem roleCatalogue = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-		SystemRole requestAuthorizedRole = systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_REQUESTAUTHORIZED, roleCatalogue.getId());
-		Set<UserRole> allAuthorizedUserRoles = new HashSet<>(userRoleService.findAllBySystemRole(requestAuthorizedRole));
-
-		return allAuthorizedUserRoles.stream()
-			.flatMap(ur -> assignmentService.getActiveByUserRole(ur).stream())
-			.map(CurrentAssignment::getUser)
-			.filter(user -> isPermittedAccessToOuAndItSystem(requestApprove, user))
-			.filter(user -> user.getEmail() != null)
-			.filter(user -> requestApproverResolver.canApprove(requestApprove, user))
-			.sorted(Comparator.comparing(User::getEmail))
-			.collect(Collectors.toMap(User::getEmail, User::getName, (name1, _) -> name1, LinkedHashMap::new));
-	}
-
-	private void addSystemResponsibleEmail(RoleRequest request, ItSystem itSystem, Map<String, String> mailsToSendTo) {
-		List<User> responsibles = itSystemService.getAttestationResponsibles(itSystem);
-		if (responsibles.isEmpty()) {
-			log.warn("ItSystem {} has no attestation responsible, cannot send system responsible email for request id:{}", itSystem.getId(), request.getId());
-			return;
-		}
-		for (User responsible : responsibles) {
-			if (responsible.getEmail() == null) {
-				log.warn("Attestation responsible {} on itSystem {} has no email, cannot send system responsible email for request id:{}", responsible.getUuid(), itSystem.getId(), request.getId());
-				continue;
-			}
-			if (requestApproverResolver.canApprove(request, responsible)) {
-				mailsToSendTo.put(responsible.getEmail(), responsible.getName());
-			}
-		}
-	}
-
-	private boolean isPermittedAccessToOuAndItSystem(RoleRequest requestApprove, User user) {
-		return requestApproverResolver.isItSystemAccessAllowed(requestApprove, user)
-			&& requestApproverResolver.isOuAccessAllowed(requestApprove, user);
-	}
-
-
 	private void inputMessage(List<RoleRequest> requestApproves, int count, Map<String, String> mailsToSendTo, EmailTemplate template) {
+		for (RoleRequest requestApprove : requestApproves) {
+			requestApprove.setEmailSent(true);
+		}
+		roleRequestDao.saveAll(requestApproves);
+
 		if (!template.isEnabled()) {
 			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 			return;
@@ -460,17 +358,10 @@ public class RequestNotifierService {
 
 			emailQueueService.queueEmail(email, title, message, template, null, null);
 		}
-
-		for (RoleRequest requestApprove : requestApproves) {
-			requestApprove.setEmailSent(true);
-		}
-		roleRequestDao.saveAll(requestApproves);
 	}
 
-	private List<RoleRequest> getRoleRequests(boolean isEmailSent) {
-		if (!isEmailSent) {
-			return roleRequestDao.findByStatusInAndEmailSent(List.of(RequestApproveStatus.REQUESTED), false);
-		}
-		return roleRequestDao.findByStatus(RequestApproveStatus.REQUESTED).stream().toList();
+	private List<RoleRequest> getRoleRequests(boolean includeAlreadyEmailed) {
+		// the positions fetch join repeats root rows; RoleRequest has no equals, so this dedupes by identity
+		return roleRequestDao.findPendingForApprovalEmails(includeAlreadyEmailed).stream().distinct().toList();
 	}
 }

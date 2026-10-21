@@ -44,7 +44,7 @@ public class ItSystemChange {
 	@Enumerated(EnumType.STRING)
 	private ItSystemChangeEventType eventType;
 
-	@Column(length = 64)
+	@Column(length = 255)
 	private String SystemRoleName;
 
 	@Column(length = 128)

@@ -5,6 +5,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.FrontPageLinkService;
 import dk.digitalidentity.rc.service.SettingsService;
 
@@ -21,16 +22,19 @@ public class CacheEvictTask {
 	private FrontPageLinkService  frontPageLinkService;
 
 	@Scheduled(fixedDelay = 5 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 1000)
 	public void runEvery5Minutes() {
 		frontPageLinkService.evictCache();
 	}
 
 	@Scheduled(fixedDelay = 15 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 1000)
 	public void runEvery15Minutes() {
 		settingsService.evictCache();
 	}
 
 	@Scheduled(fixedDelay = 30 * 60 * 1000)
+	@WarnIfSlowerThan(millis = 1 * 1000)
 	public void runEvery30Minutes() {
 
 	}

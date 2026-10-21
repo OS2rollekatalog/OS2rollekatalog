@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.util.ArrayList;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -563,29 +564,13 @@ public class ItSystemRestController {
 	@PostMapping(value = "/rest/itsystem/requester")
 	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> requesterChange(@RequestParam("id") long id,
-												  @RequestParam(value = "requesterPermissions", required = false) String[] requesterPermissionsArray) {
+												  @RequestParam(value = "requesterPermissions", required = false) List<RequestableBy> requesterPermissions) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		List<String> requesterPermissions = requesterPermissionsArray != null ?
-			Arrays.asList(requesterPermissionsArray) : Collections.emptyList();
-
-		if (requesterPermissions.isEmpty()) {
-			itSystem.setRequesterPermission(List.of(RequestableBy.NONE));
-		} else {
-			List<RequestableBy> requestableBy = new ArrayList<>();
-			for (String requesterPermission : requesterPermissions) {
-				try {
-					requestableBy.add(RequestableBy.valueOf(requesterPermission));
-				} catch (IllegalArgumentException e) {
-					log.warn("Invalid permission: " + requesterPermission, e);
-					return new ResponseEntity<>("Invalid permission: " + requesterPermission, HttpStatus.BAD_REQUEST);
-				}
-			}
-			itSystem.setRequesterPermission(requestableBy);
-		}
+		itSystem.setRequesterPermission(RequesterPermission.of(requesterPermissions));
 
 		itSystemService.save(itSystem);
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -594,29 +579,13 @@ public class ItSystemRestController {
 	@PostMapping(value = "/rest/itsystem/approver")
 	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> approverChange(@RequestParam("id") long id,
-												 @RequestParam(value = "approverPermissions", required = false) String[] approverPermissionsArray) {
+												 @RequestParam(value = "approverPermissions", required = false) List<ApprovableBy> approverPermissions) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		List<String> approverPermissions = approverPermissionsArray != null ?
-			Arrays.asList(approverPermissionsArray) : Collections.emptyList();
-
-		if (approverPermissions.isEmpty()) {
-			// null round-trips through the converter as INHERIT after a reload; save the empty list directly
-			itSystem.setApproverPermission(List.of());
-		} else {
-			List<ApprovableBy> approvableBy = new ArrayList<>();
-			for (String approverPermission : approverPermissions) {
-				try {
-					approvableBy.add(ApprovableBy.valueOf(approverPermission));
-				} catch (IllegalArgumentException e) {
-					return new ResponseEntity<>("Invalid permission: " + approverPermission, HttpStatus.BAD_REQUEST);
-				}
-			}
-			itSystem.setApproverPermission(approvableBy);
-		}
+		itSystem.setApproverPermission(ApproverPermission.of(approverPermissions));
 
 		itSystemService.save(itSystem);
 		return new ResponseEntity<>(HttpStatus.OK);

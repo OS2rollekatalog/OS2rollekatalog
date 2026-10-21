@@ -48,7 +48,7 @@ public class OuRoleAssignmentReportMapper {
 		for (final HistoryOU orgUnit : orgUnitsByUuid.values()) {
 			final String parentUuid = orgUnit.getOuParentUuid();
 			if (parentUuid != null && !parentUuid.equals(orgUnit.getOuUuid())) {
-				childrenByParent.computeIfAbsent(parentUuid, key -> new ArrayList<>()).add(orgUnit.getOuUuid());
+				childrenByParent.computeIfAbsent(parentUuid, _ -> new ArrayList<>()).add(orgUnit.getOuUuid());
 			}
 		}
 		return childrenByParent;
@@ -124,10 +124,12 @@ public class OuRoleAssignmentReportMapper {
 			.ouUuid(ouUuid)
 			.roleId(assignment.getRoleId() != null ? assignment.getRoleId() : 0L)
 			.roleName(assignment.getRoleName())
+			.roleDescription(assignment.getRoleDescription())
 			.itSystemId(assignment.getItSystemId())
 			.itSystemName(assignment.getItSystemName())
 			.roleRoleGroup(assignment.getRoleRoleGroupName())
 			.roleRoleGroupId(assignment.getRoleRoleGroupId())
+			.roleGroupDescription(assignment.getRoleGroupDescription())
 			.assignedByUserId(assignment.getAssignedByUserId())
 			.assignedByName(assignment.getAssignedByName())
 			.assignedWhen(assignment.getAssignedWhen())
@@ -140,16 +142,12 @@ public class OuRoleAssignmentReportMapper {
 			.substitutes(assignment.isAppliesAlsoToSubstitutes())
 			.inherit(inherit)
 			.exceptedUserUuids(uuidsOfType(assignment, ExclusionType.EXCEPTED_USERS))
-			.titleUuids(titleUuids(assignment))
+			.selectedTitleUuids(uuidsOfType(assignment, ExclusionType.POSITIVE_TITLES))
+			.excludedTitleUuids(uuidsOfType(assignment, ExclusionType.NEGATIVE_TITLES))
 			.functionUuids(uuidsOfType(assignment, ExclusionType.FUNCTIONS))
+			.positionTitleUuids(uuidsOfType(assignment, ExclusionType.POSITIVE_TITLES))
+			.excludedPositionTitleUuids(uuidsOfType(assignment, ExclusionType.NEGATIVE_TITLES))
 			.build();
-	}
-
-	/** Positive and negative titles share the report's single "titles" column. */
-	private static List<String> titleUuids(final HistoricOuAssignment assignment) {
-		final List<String> uuids = new ArrayList<>(uuidsOfType(assignment, ExclusionType.POSITIVE_TITLES));
-		uuids.addAll(uuidsOfType(assignment, ExclusionType.NEGATIVE_TITLES));
-		return uuids;
 	}
 
 	private static List<String> uuidsOfType(final HistoricOuAssignment assignment, final ExclusionType type) {

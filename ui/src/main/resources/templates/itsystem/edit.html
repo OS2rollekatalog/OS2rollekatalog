@@ -450,12 +450,11 @@
                                     <label class="col-sm-2 control-label"
                                            th:text="#{html.entity.itsystem.requestersetting}"></label>
                                     <div class="col-sm-8">
-										<select id="requesterSettingsSelect" class="form-control" multiple
-												th:field="*{requesterPermission}">
+										<select id="requesterSettingsSelect" name="requesterPermission" class="form-control" multiple>
 											<option th:each="requesterOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy).values()}"
 													th:value="${requesterOpt}"
 													th:text="#{__${requesterOpt.getMessage()}__}"
-													th:selected="${requesterPermission != null and #lists.contains(requesterPermission, requesterOpt)}"></option>
+													th:selected="${#lists.contains(itsystem.requesterPermission.requestableBy, requesterOpt)}"></option>
 										</select>
                                     </div>
                                 </div>
@@ -466,12 +465,12 @@
                                     <label class="col-sm-2 control-label"
                                            th:text="#{html.entity.itsystem.approversetting}"></label>
                                     <div class="col-sm-8">
-										<select id="approverSettingsSelect" class="form-control" multiple
-												th:field="*{approverPermission}">
+										<select id="approverSettingsSelect" name="approverPermission" class="form-control" multiple>
+											<option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(itsystem.approverPermission.approvableBy)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
 											<option th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
 													th:value="${approverOpt}"
 													th:text="#{__${approverOpt.getMessage()}__}"
-													th:selected="${approverPermission != null and #lists.contains(approverPermission, approverOpt)}"></option>
+													th:selected="${#lists.contains(itsystem.approverPermission.approvableBy, approverOpt)}"></option>
 										</select>
                                     </div>
                                 </div>
@@ -675,6 +674,7 @@
 												<select class="form-control approver-role-select" multiple
 														th:data-roleid="${role.id}"
 														th:disabled="${role.readOnly}">
+													<option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(role.approverPermission)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
 													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
 															th:value="${opt}"
 															th:text="#{__${opt.getMessage()}__}"
@@ -871,6 +871,7 @@
 												<select class="form-control approver-role-select" multiple
 														th:data-roleid="${role.id}"
 														th:disabled="${role.readOnly}">
+													<option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(role.approverPermission)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
 													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
 															th:value="${opt}"
 															th:text="#{__${opt.getMessage()}__}"
@@ -1058,6 +1059,7 @@
 												<select class="form-control approver-role-select" multiple
 														th:data-roleid="${role.id}"
 														th:disabled="${role.readOnly}">
+													<option value="NOBODY" data-empty-option disabled th:selected="${#lists.isEmpty(role.approverPermission)}" th:text="#{html.enum.sttings.approvableby.none}"></option>
 													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
 															th:value="${opt}"
 															th:text="#{__${opt.getMessage()}__}"

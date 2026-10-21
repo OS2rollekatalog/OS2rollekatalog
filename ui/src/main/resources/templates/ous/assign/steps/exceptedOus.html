@@ -1,0 +1,21 @@
+<th:block th:fragment="exceptedOus" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div id="exceptedOusStepContent">
+		<label class="control-label" th:text="#{html.page.ou.assign.exceptedOus.select.label}"></label>
+
+		<p class="text-muted" th:if="${#lists.isEmpty(exceptedOuCandidates)}"
+		   th:text="#{html.page.ou.assign.exceptedOus.none}"></p>
+
+		<th:block th:unless="${#lists.isEmpty(exceptedOuCandidates)}">
+			<script id="excepted-ous-config" type="application/json" th:inline="javascript">
+				{
+					"nodes": [[${exceptedOuCandidates}]],
+					"selectedIds": [[${selectedExceptedOuUuids}]]
+				}
+			</script>
+
+			<input class="form-control mb-1" id="excepted-ous-search"
+			       th:placeholder="#{html.word.search}" />
+			<div id="exceptedOusStepTree"></div>
+		</th:block>
+	</div>
+</th:block>

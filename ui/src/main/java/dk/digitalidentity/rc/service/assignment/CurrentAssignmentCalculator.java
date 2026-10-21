@@ -177,7 +177,7 @@ public class CurrentAssignmentCalculator {
 		// If the user is the manager of the responsible OU, redirect to parent with a different manager
 		final OrgUnit positionResponsibleOu = resolveResponsibleOuForManager(position.getUser(), position.getOrgUnit());
 		return assignedOrgUnitGroups.stream()
-			.flatMap(a -> toCurrentAssignment(a, position.getUser(), responsibleOuFor(a, position.getUser(), orgUnit, positionResponsibleOu)).stream())
+			.flatMap(a -> toCurrentAssignment(a, position.getUser(), title, responsibleOuFor(a, position.getUser(), orgUnit, positionResponsibleOu)).stream())
 			.collect(Collectors.toSet());
 	}
 
@@ -254,7 +254,7 @@ public class CurrentAssignmentCalculator {
 		// Managers cannot attest themselves.
 		final OrgUnit responsibleOu = resolveResponsibleOuForManager(user, managerOfOU);
 		return assignedOrgUnitGroups.stream()
-			.flatMap(a -> toCurrentAssignment(a, user, responsibleOu).stream())
+			.flatMap(a -> toCurrentAssignment(a, user, null, responsibleOu).stream())
 			.collect(Collectors.toSet());
 	}
 

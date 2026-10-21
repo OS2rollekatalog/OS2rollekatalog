@@ -184,17 +184,4 @@ public class HistoricAssignmentAttestationService {
 			.map(HistoricAssignmentAttestationMapper::toAttestationAssignment)
 			.toList();
 	}
-
-	/**
-	 * Returns one representative assignment per (responsibleOUUuid, sensitiveRole) group,
-	 * for OU-responsible assignments valid on {@code validAt}.
-	 * Mirrors {@code AttestationOuAssignmentsDao.findValidGroupByResponsibleOuUuidAndSensitiveRole}.
-	 */
-	public List<AttestationUserRoleAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(final LocalDate validAt) {
-		return historicAssignmentDao
-			.findValidGroupByResponsibleOuUuidAndSensitiveRole(toValidAt(validAt))
-			.stream()
-			.map(HistoricAssignmentAttestationMapper::toAttestationAssignment)
-			.toList();
-	}
 }

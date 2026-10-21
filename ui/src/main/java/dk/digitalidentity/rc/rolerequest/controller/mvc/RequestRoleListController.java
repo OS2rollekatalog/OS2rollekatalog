@@ -11,7 +11,9 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentReasonService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.model.AssignmentReasons;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
@@ -48,6 +50,9 @@ public class RequestRoleListController {
 	private AssignmentService assignmentService;
 
 	@Autowired
+	private AssignmentReasonService assignmentReasonService;
+
+	@Autowired
 	private RequestService requestService;
 
 	record RoleGroupUserRole(String itSystemName, String name, String description) {}
@@ -69,7 +74,7 @@ public class RequestRoleListController {
 		return "requestmodule/fragments/rolegroup_userrole_list :: itSystemUserRoleTable";
 	}
 
-	record RoleForUser(long id, long assignmentId, RoleType type, String itSystemName, String name, String description, String assignedThrough) {}
+	record RoleForUser(long id, long assignmentId, RoleType type, String itSystemName, String name, String description, String assignedThrough, String reason) {}
 	@GetMapping(value = "/ui/request/users/{uuid}/roles")
 	public String userRoles(final Model model, final @PathVariable("uuid") String uuid) {
 		final Locale locale = LocaleContextHolder.getLocale();
@@ -89,6 +94,7 @@ public class RequestRoleListController {
 
 		Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(user);
 		Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignments(currentAssignments);
+		AssignmentReasons reasons = assignmentReasonService.findFor(currentAssignments);
 
 		for (CurrentAssignment assignment : uniqueRoleGroupAssignments) {
 			AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
@@ -99,7 +105,8 @@ public class RequestRoleListController {
 				"",
 				assignment.getRoleGroup().getName(),
 				assignment.getRoleGroup().getDescription(),
-				messageSource.getMessage(assignedThrough.getMessage(), null, locale)
+				messageSource.getMessage(assignedThrough.getMessage(), null, locale),
+				reasons.reasonFor(assignment).orElse(null)
 			));
 		}
 
@@ -112,7 +119,8 @@ public class RequestRoleListController {
 				assignment.getUserRole().getItSystem().getName(),
 				assignment.getUserRole().getName(),
 				assignment.getUserRole().getDescription(),
-				messageSource.getMessage(assignedThrough.getMessage(), null, locale)
+				messageSource.getMessage(assignedThrough.getMessage(), null, locale),
+				reasons.reasonFor(assignment).orElse(null)
 			));
 		}
 
@@ -123,6 +131,7 @@ public class RequestRoleListController {
 		model.addAttribute("userRoles", userRoles);
 		model.addAttribute("roleGroups", roleGroups);
 		model.addAttribute("userUuid", uuid);
+		model.addAttribute("user", user);
 		return "requestmodule/wizard/fragments/roles_for_user_list :: roles";
 	}
 }

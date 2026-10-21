@@ -1,5 +1,33 @@
 package dk.digitalidentity.rc.service.kombit;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
@@ -17,8 +45,6 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KOMBITEventType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -36,35 +62,12 @@ import dk.digitalidentity.rc.service.kombit.dto.KOMBITUserRoleDTO;
 import dk.digitalidentity.rc.service.kombit.dto.KOMBITVaerdiListeDTO;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@EnableAsync
 public class KOMBITService {
-	
+
 	@Lazy(true)
 	@Autowired
 	@Qualifier("kombitRestClient")
@@ -230,6 +233,8 @@ public class KOMBITService {
 		}
 	}
 
+	// bit of a dirty hack, but this runs to often, and takes to long, for this to be allowed to be blocking
+	@Async
     public void synchronizeTest() {
 		try {
 			log.info("Reading user roles from KOMBIT Test");
@@ -825,8 +830,8 @@ public class KOMBITService {
 					userRole.setIdentifier(identifier);
 					userRole.setDescription(userRoleDTO.getBeskrivelse());
 					userRole.setName(userRoleDTO.getNavn());
-					userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
-					userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
+					userRole.setApproverPermission(ApproverPermission.inherit());
+					userRole.setRequesterPermission(RequesterPermission.inherit());
 				}
 
 				// for the first it-system we will inherit the UUID (match the existing role in FK Adm), but for any
@@ -916,7 +921,7 @@ public class KOMBITService {
 		// as it is no longer deleted, and needs to be removed from the UI
 		if (existingDelegatedRoles.size() > 0) {
 			log.warn("Deleting " + existingDelegatedRoles.size() + " delegated roles");
-			userRoleDao.deleteAll(existingDelegatedRoles);
+			userRoleService.deleteAll(existingDelegatedRoles);
 		}
 
 		setting.setValue("true");

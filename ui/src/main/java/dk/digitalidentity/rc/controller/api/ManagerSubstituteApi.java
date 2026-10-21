@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.interceptor.RoleChangeInterceptor;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
@@ -38,6 +39,9 @@ public class ManagerSubstituteApi {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
+	
+	@Autowired
+	private RoleChangeInterceptor roleChangeInterceptor;
 
     record ManagerRecord (
         /*@Schema(description = "The name of the manager")*/ String name,
@@ -116,6 +120,8 @@ public class ManagerSubstituteApi {
 				return new ResponseEntity<>("Allerede stedfortræder", HttpStatus.NOT_MODIFIED);
 			}
 		}
+		
+		roleChangeInterceptor.substituteRoleChange(substitute);
 
 		manager.getManagerSubstitutes().add(newSubstitute);
 		userService.save(manager);
@@ -145,9 +151,16 @@ public class ManagerSubstituteApi {
 		String substituteUserId = input.substitutes().get(0).userId();
 		String orgUnitUuid = input.substitutes().get(0).orgUnitUuid();
 
-		manager.getManagerSubstitutes().removeIf(mapping ->
+		boolean changes = manager.getManagerSubstitutes().removeIf(mapping ->
 			Objects.equals(mapping.getSubstitute().getUserId(), substituteUserId) &&
 			Objects.equals(mapping.getOrgUnit().getUuid(), orgUnitUuid));
+
+		if (changes) {
+			User oldSubstitute = userService.getByUserId(substituteUserId);
+			if (oldSubstitute != null) {
+				roleChangeInterceptor.substituteRoleChange(oldSubstitute);
+			}
+		}
 
 		userService.save(manager);
 

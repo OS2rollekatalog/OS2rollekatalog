@@ -2,15 +2,19 @@ package dk.digitalidentity.rc.dao.model.assignment;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.hibernate.FlushMode;
+import org.hibernate.Session;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -116,39 +120,35 @@ public class PublishAssignmentService {
 		settingsService.setAssignmentHookTimestamp(nextTimestamp);
 	}
 	
-	// scheduled, runs every day after midnight to handle those queued for the future
-	public void publishFutureAssignmentEvents() {
-		log.info("Publishing future assignments that are valid today");
+	// scheduled, runs every day after midnight to handle those queued for the future	
+	@Transactional
+    public List<HookEvent> publishNextBatch() {
+		List<HookEvent> result = new ArrayList<>();
 
-		// do max 10 iterations, if we do 10, then something could be wrong
-		int iterations = 0;
-		boolean done = false;
+        Session session = entityManager.unwrap(Session.class);
 
-		do {
-			List<FutureAssignment> futureAssignments = futureAssignmentService.getPending();
-			for (FutureAssignment futureAssignment : futureAssignments) {
-	
-				// if validTo is non-null, then the assignment was cancelled before it became valid
-				if (futureAssignment.getHistoricAssignment().getValidTo() == null) {
-					publish(new HookEvent(futureAssignment.getHistoricAssignment()));
-				}
-			}
-			
-			if (futureAssignments.size() == 0) {
-				done = true;
-			}
-			else if (++iterations >= 10) {
-				done = true;
-				log.error("We had 10 iterations on future assignments - that is way to many - look into this");
-			}
-				
-			futureAssignmentService.deleteAll(futureAssignments);
-		} while (!done);
-		
-		log.info("Done publishing future assignments");
-	}
+        // no auto-flush before queries...
+        session.setHibernateFlushMode(FlushMode.COMMIT);
+        // ...and entities loaded from here on are never dirty-checked at all
+        session.setDefaultReadOnly(true);
 
-	private void publish(HookEvent hookEvent) {
+        List<FutureAssignment> futureAssignments = futureAssignmentService.getPending();
+        for (FutureAssignment futureAssignment : futureAssignments) {
+            if (futureAssignment.getHistoricAssignment().getValidTo() == null) {
+                result.add(new HookEvent(futureAssignment.getHistoricAssignment()));
+            }
+        }
+
+        if (futureAssignments.size() > 0) {
+	        futureAssignmentService.deleteAll(futureAssignments);
+	        session.flush();
+	        session.clear();
+        }
+
+        return result;
+    }
+
+	public void publish(HookEvent hookEvent) {
 		for (AssignmentHookHandler hookHandler : hookHandlers) {
 			try {
 				hookHandler.handleEvent(hookEvent);

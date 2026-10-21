@@ -25,4 +25,15 @@ public class OrgUnitUserRoleAssignmentAM extends BaseOrgUnitAssignmentAM {
 		this.userRole = userRole;
 		setAssignmentType("USER_ROLE");
 	}
+
+	@Schema(
+		description = "Type af tildeling",
+		requiredMode = Schema.RequiredMode.REQUIRED,
+		allowableValues = {"USER_ROLE"},
+		example = "USER_ROLE"
+	)
+	@Override
+	public String getAssignmentType() {
+		return super.getAssignmentType();
+	}
 }

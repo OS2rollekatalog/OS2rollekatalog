@@ -1,0 +1,48 @@
+input.btn-group-radio[type=radio] {
+	appearance: none;
+	margin: 0;
+}
+
+.assignment-wizard-nav {
+	min-width: 180px;
+	border-right: 1px solid #e7e7e7;
+}
+
+.wizard-step {
+	color: #909FA7;
+	border-left: 3px solid transparent;
+}
+
+.wizard-step--completed {
+	color: #909FA7;
+}
+
+.wizard-step[data-back-url] {
+	cursor: pointer;
+}
+
+.wizard-step[data-back-url]:hover {
+	color: #4765a0;
+	border-left-color: #4765a0;
+}
+
+.wizard-step--upcoming {
+	color: #909FA7;
+}
+
+.wizard-step--current {
+	color: white;
+	border-left-color: #4765a0;
+	font-weight: bold;
+	background: #4765a0;
+}
+
+.assignment-wizard-content {
+	flex: 1;
+	min-width: 0;
+}
+
+#exceptedOusStepTree {
+	max-height: 300px;
+	overflow-y: auto;
+}

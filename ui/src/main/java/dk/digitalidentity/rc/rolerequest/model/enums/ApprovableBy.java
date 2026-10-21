@@ -12,7 +12,8 @@ public enum ApprovableBy {
     AUTHRESPONSIBLE("html.enum.sttings.approvableby.authresponsible"),
     MANAGERORSUBSTITUTE("html.enum.sttings.approvableby.manager"),
     AUTHORIZED("html.enum.sttings.approvableby.authorized"),
-    SYSTEMRESPONSIBLE("html.enum.sttings.approvableby.systemresponsible");
+    SYSTEMRESPONSIBLE("html.enum.sttings.approvableby.systemresponsible"),
+    APPROVEAUTHORIZED("html.enum.sttings.approvableby.approveauthorized");
 
 	private String message;
 	private ApprovableBy(String message) {

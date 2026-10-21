@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.mapper.RoleGroupMapper;
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
@@ -34,11 +37,15 @@ import dk.digitalidentity.rc.controller.api.model.UserRoleGroupAssignmentAM;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -58,6 +65,7 @@ public class UserRoleGroupApiV2 {
     private final RoleGroupService roleGroupService;
     private final UserRoleService userRoleService;
     private final AssignmentService assignmentService;
+    private final ResolvedPermissionService resolvedPermissionService;
 
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Returns all existing rolegroups. Can be empty list."),
@@ -67,8 +75,10 @@ public class UserRoleGroupApiV2 {
     @Operation(summary = "Get all rolegroups.", description = "Returns all existing rolegroups.")
     @GetMapping("/api/v2/rolegroup")
     public ResponseEntity<List<RoleGroupAM>> getAllRoleGroups() {
-        final List<RoleGroupAM> roleGroups = roleGroupService.getAll().stream()
-                .map(RoleGroupMapper::toApi)
+        final List<RoleGroup> allRoleGroups = roleGroupService.getAll();
+        final Map<Long, RequesterPermission> requesterPermissions = resolvedPermissionService.roleGroupRequesterPermissions(allRoleGroups.stream().map(RoleGroup::getId).toList());
+        final List<RoleGroupAM> roleGroups = allRoleGroups.stream()
+                .map(roleGroup -> RoleGroupMapper.toApi(roleGroup, requesterPermissions.get(roleGroup.getId())))
                 .collect(Collectors.toList());
         return new ResponseEntity<>(roleGroups,HttpStatus.OK);
     }
@@ -85,7 +95,7 @@ public class UserRoleGroupApiV2 {
     public ResponseEntity<RoleGroupAM> getRoleGroup(@PathVariable final long id) {
         final RoleGroup roleGroup = roleGroupService.getOptionalById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return new ResponseEntity<>(RoleGroupMapper.toApi(roleGroup), HttpStatus.OK);
+        return new ResponseEntity<>(RoleGroupMapper.toApi(roleGroup, resolvedPermissionService.roleGroupRequesterPermission(roleGroup.getId())), HttpStatus.OK);
     }
 
     @ApiResponses(value = {
@@ -146,7 +156,7 @@ public class UserRoleGroupApiV2 {
                 ifPresent(_ -> { throw new ResponseStatusException(HttpStatus.CONFLICT, "A rolegroup with name already exists"); });
         final RoleGroup roleGroup = setRoleGroupProperties(userRoleGroupRecord, new RoleGroup());
         final RoleGroup result = roleGroupService.save(roleGroup);
-        return new ResponseEntity<>(RoleGroupMapper.toApi(result), HttpStatus.CREATED);
+        return new ResponseEntity<>(RoleGroupMapper.toApi(result, resolvedPermissionService.roleGroupRequesterPermission(result.getId())), HttpStatus.CREATED);
     }
 
 
@@ -188,11 +198,9 @@ public class UserRoleGroupApiV2 {
     })
     @Operation(summary = "Get all assignments of a given rolegroup",
             description = "Returns one entry per assignment of the rolegroup, including which org unit it was assigned on "
-                    + "and whether it was assigned directly or via an org unit. Use this to find out where a rolegroup is "
-                    + "assigned - unlike /users it does not collapse the result to one entry per user. "
-                    + "Note that assignedThrough is never TITLE here: a rolegroup restricted to titles on an org unit is "
-                    + "reported as ORG_UNIT, because the title restriction is not carried onto the calculated rows for "
-                    + "rolegroups. Deleted and disabled users are included, as on /users.")
+                    + "and whether it was assigned directly, via an org unit, or via a title restriction on an org unit. "
+                    + "Use this to find out where a rolegroup is assigned - unlike /users it does not collapse the result "
+                    + "to one entry per user. Deleted and disabled users are included, as on /users.")
     @Transactional(readOnly = true)
     @GetMapping("/api/v2/rolegroup/{id}/assignments")
     public ResponseEntity<List<AssignmentDetailAM>> getAssignmentsByRoleGroupId(@PathVariable long id) {
@@ -207,7 +215,7 @@ public class UserRoleGroupApiV2 {
         final List<AssignmentDetailAM> result = uniqueAssignments.stream()
             .map(assignment -> RoleMapper.currentAssignmentToDetailApi(assignment,
                 assignmentService.getAssignedThroughForRoleGroup(assignment),
-                assignmentService.getAssignmentType(assignment)))
+                AssignmentType.from(assignment)))
             .collect(Collectors.toList());
 
         return new ResponseEntity<>(RoleMapper.sortAssignmentDetails(result), HttpStatus.OK);
@@ -243,13 +251,29 @@ public class UserRoleGroupApiV2 {
         target.setName(userRoleGroupRecord.getName());
         target.setDescription(userRoleGroupRecord.getDescription());
         target.setUserOnly(userRoleGroupRecord.getUserOnly());
-		if (userRoleGroupRecord.getRequesterPermission() != null) {
-			target.setRequesterPermission(userRoleGroupRecord.getRequesterPermission());
-		}
-		if (userRoleGroupRecord.getApproverPermission() != null) {
-			target.setApproverPermission(userRoleGroupRecord.getApproverPermission());
-		}
+        if (userRoleGroupRecord.getRequesterPermission() != null && !userRoleGroupRecord.getRequesterPermission().isEmpty()) {
+            target.setRequesterPermission(toRequesterPermission(userRoleGroupRecord.getRequesterPermission()));
+        }
+        if (userRoleGroupRecord.getApproverPermission() != null && !userRoleGroupRecord.getApproverPermission().isEmpty()) {
+            target.setApproverPermission(toApproverPermission(userRoleGroupRecord.getApproverPermission()));
+        }
         return target;
     }
 
+
+    private static ApproverPermission toApproverPermission(List<ApprovableBy> values) {
+        try {
+            return ApproverPermission.of(values);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(e.getMessage());
+        }
+    }
+
+    private static RequesterPermission toRequesterPermission(List<RequestableBy> values) {
+        try {
+            return RequesterPermission.of(values);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(e.getMessage());
+        }
+    }
 }

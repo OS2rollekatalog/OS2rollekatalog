@@ -41,7 +41,7 @@ class OrgUnitServiceManagerRequestScopeTest {
 
 	@BeforeEach
 	void setUp() {
-		lenient().when(settingsService.getExcludedOUs()).thenReturn(Collections.emptySet());
+		lenient().when(settingsService.getExcludedOUsCached()).thenReturn(Collections.emptySet());
 	}
 
 	@Test

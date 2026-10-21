@@ -1,15 +1,32 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDatatableDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleGridView;
 import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
 import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
 import dk.digitalidentity.rc.dao.UserRoleDao;
-import dk.digitalidentity.rc.dao.UserUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -24,16 +41,19 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedCons
 import dk.digitalidentity.rc.dao.model.assignment.UserRoleModifiedEvent;
 import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.projections.UserRoleNameAndItSystemName;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
 import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
+import dk.digitalidentity.rc.service.assignment.RoleWeightService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
@@ -41,27 +61,6 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -73,43 +72,14 @@ public class UserRoleService {
 	private final UserRoleViewDao userRoleViewDao;
 	private final UserPermissionContext userPermissionContext;
 	private final AssignmentService assignmentService;
+	private final RoleWeightService roleWeightService;
 	private final PostponedConstraintService postponedConstraintService;
-	private final UserUserRoleAssignmentDao userUserRoleAssignmentDao;
 	private final HistoricItSystemAssignmentService historicItSystemAssignmentService;
+	private final HistoricAssignmentService historicAssignmentService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	public Set<UserRole> findAllByIdIn(Collection<Long> ids) {
 		return userRoleDao.findAllByIdIn(ids);
-	}
-
-	/**
-	 * Determines if a role assignment is ineffective due to being overridden by a role with higher weight.
-	 * This method evaluates whether an assignment becomes ineffective when there are other assignments
-	 * with higher system role weights that would take precedence.
-	 *
-	 * @param assignment the role assignment to evaluate for effectiveness
-	 * @param assignments list of all assignments to compare against
-	 * @return true if the assignment is ineffective due to higher weight roles, false otherwise
-	 */
-	public boolean isIneffectiveDueToWeight(final RoleAssignedToUserDTO assignment, final List<RoleAssignedToUserDTO> assignments) {
-		if (assignment == null) {
-			return false;
-		}
-		return userRoleDao.findById(assignment.getRoleId())
-			.map(ur -> {
-				int thisRoleWeight = highestSystemRolesWeight(ur);
-				return assignments.stream()
-					.filter(a -> a.getAssignmentId() != assignment.getAssignmentId()) // Don't compare assignment to itself
-					.filter(a -> a.getType() != RoleAssignmentType.NEGATIVE && a.getType() != RoleAssignmentType.NEGATIVE_ROLEGROUP)
-					.filter(a -> a.getType() == RoleAssignmentType.USERROLE)
-					.filter(a -> (a.getStartDate() == null || !a.getStartDate().isAfter(LocalDate.now()))
-									&& (a.getStopDate() == null || !a.getStopDate().isBefore(LocalDate.now())))
-					.filter(a -> a.getItSystem() != null
-						&& ur.getItSystem() != null && a.getItSystem().getId() == ur.getItSystem().getId())
-					.mapToInt(a -> highestSystemRolesWeight(getById(a.getRoleId())))
-					.anyMatch(w -> w > thisRoleWeight);
-			})
-			.orElse(false);
 	}
 
 	/**
@@ -261,12 +231,14 @@ public class UserRoleService {
 	@Transactional
 	@AuditLogIntercepted
 	public void delete(UserRole userRole) {
+		historicAssignmentService.closeOpenForDeletedUserRoles(List.of(userRole));
 		userRoleDao.delete(userRole);
 	}
 
 	// not exposed in UI or API, so not auditlogged
 	@Transactional
 	public void deleteAll(List<UserRole> userRoles) {
+		historicAssignmentService.closeOpenForDeletedUserRoles(userRoles);
 		userRoleDao.deleteAll(userRoles);
 	}
 
@@ -278,30 +250,6 @@ public class UserRoleService {
 
 	public List<UserRole> getAll() {
 		return userRoleDao.findAll();
-	}
-
-	public List<UserRole> findRequestableRoles(
-			boolean hasEmployee, boolean hasManager, boolean hasAuthorized,
-			boolean hasAuthResp, boolean hasAdmin, boolean includeNullItSystem) {
-		return userRoleDao.findRequestableRoles(hasEmployee, hasManager, hasAuthorized, hasAuthResp, hasAdmin, includeNullItSystem);
-	}
-
-	@org.springframework.transaction.annotation.Transactional(readOnly = true)
-	public List<UserRole> getUserRolesWithApproverPermissions(List<ApprovableBy> permissions) {
-		return unionByPermission(permissions, userRoleDao::findByApproverPermissionContaining);
-	}
-
-	private static List<UserRole> unionByPermission(Collection<? extends Enum<?>> permissions, Function<String, List<UserRole>> query) {
-		if (permissions.isEmpty()) {
-			return List.of();
-		}
-		Map<Long, UserRole> byId = new LinkedHashMap<>();
-		for (Enum<?> p : permissions) {
-			for (UserRole ur : query.apply(p.name())) {
-				byId.putIfAbsent(ur.getId(), ur);
-			}
-		}
-		return List.copyOf(byId.values());
 	}
 
 	public UserRole getById(long roleId) {
@@ -334,8 +282,8 @@ public class UserRoleService {
 			}
 
 			String newName = prefix + linkedSystemRole.getName();
-			if (newName.length() > 64) {
-				newName = newName.substring(0, 64);
+			if (newName.length() > 128) {
+				newName = newName.substring(0, 128);
 			}
 
 			switch (userRole.getSystemRoleLinkType()) {
@@ -416,7 +364,7 @@ public class UserRoleService {
 		}
 	}
 
-	public DataTablesOutput<UserRoleDTO> getAvailableAsDatatable(DataTablesInput input, User user) {
+	public DataTablesOutput<UserRoleGridView> getAvailableAsDatatable(DataTablesInput input, User user) {
 		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.USER_ROLE, Permission.READ);
 		PermissionConstraint assigningConstraint = userPermissionContext.getConstraint(Section.USER, Permission.ASSIGN);
 
@@ -442,19 +390,20 @@ public class UserRoleService {
 		List<UserRoleView> userRoles = userroleOutput.getData();
 		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(user); // TODO - Should probably not call upwards to AssignmentService. May cause circular dependencies.
 
-		DataTablesOutput<UserRoleDTO> output = new DataTablesOutput<>();
+		DataTablesOutput<UserRoleGridView> output = new DataTablesOutput<>();
 		output.setDraw(userroleOutput.getDraw());
 		output.setError(userroleOutput.getError());
 		output.setRecordsTotal(userroleOutput.getRecordsTotal());
 		output.setRecordsFiltered(userroleOutput.getRecordsFiltered());
-		output.setData(userRoles.stream().map(ur -> new UserRoleDTO(
+		output.setData(userRoles.stream().map(ur -> new UserRoleGridView(
 				ur.getId(),
 				ur.getName(),
 				ur.getDescription(),
 				new AvailableITSystemDTO(ur.getItSystemName(), ur.getItSystemType().getMessage()),
 				ur.getItSystemName(),
 				assignments.stream().filter(a -> a.getUserRole() != null).anyMatch(a -> a.getUserRole().getId() == ur.getId()),
-				assigningConstraint.allowsITSystem(ur.getItSystemId()))
+				assigningConstraint.allowsITSystem(ur.getItSystemId()),
+				ur.isAllowPostponing())
 		).toList());
 		return output;
 	}
@@ -465,8 +414,8 @@ public class UserRoleService {
 		userRole.setDescription(description);
 		userRole.setIdentifier(identifier);
 		userRole.setItSystem(itSystem);
-		userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
-		userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
+		userRole.setApproverPermission(ApproverPermission.inherit());
+		userRole.setRequesterPermission(RequesterPermission.inherit());
 		userRoleDao.save(userRole);
 
 		List<SystemRoleAssignment> systemRoleAssignments = new ArrayList<>();
@@ -596,17 +545,15 @@ public class UserRoleService {
 		Map<Long, CurrentAssignment> currentAssignmentMap = currentAssignments.stream()
 			.collect(Collectors.toMap(CurrentAssignment::getId, ca -> ca));
 
+		Set<Long> outweighedIds = roleWeightService.findOutweighedAssignmentIds(currentAssignments);
+
 		for (RoleAssignedToUserDTO assignmentDTO : assignmentDTOs) {
 			if (RoleAssignmentType.USERROLE.equals(assignmentDTO.getType()) || RoleAssignmentType.NEGATIVE.equals(assignmentDTO.getType())) {
-				enrichUserRoleAssignment(assignmentDTO, user, assignmentDTOs, userRoleMap, currentAssignmentMap, assignConstraint.allowsITSystem(assignmentDTO.getItSystem().getId()));
+				enrichUserRoleAssignment(assignmentDTO, user, outweighedIds, userRoleMap, currentAssignmentMap, assignConstraint.allowsITSystem(assignmentDTO.getItSystem().getId()));
 			} else if (RoleAssignmentType.ROLEGROUP.equals(assignmentDTO.getType()) || RoleAssignmentType.NEGATIVE_ROLEGROUP.equals(assignmentDTO.getType())) {
 				assignmentDTO.setCanEdit(isRoleGroupAssignable(assignmentDTO, itSystemPerRolegroup, assignConstraint));
 			}
 		}
-	}
-
-	public boolean hasSystemRoleWithIdentifier(User user, String identifier) {
-		return userUserRoleAssignmentDao.existsByUserHavingSystemRoleIdentifier(user, identifier);
 	}
 
 	/**
@@ -614,7 +561,7 @@ public class UserRoleService {
 	 * and role constraints, checks for ineffectiveness (NEMLOGIN, weight, KSPCICS), and resolves
 	 * postponed constraint display values.
 	 */
-	private void enrichUserRoleAssignment(RoleAssignedToUserDTO assignment, User user, List<RoleAssignedToUserDTO> assignments, Map<Long, UserRole> userRoleMap, Map<Long, CurrentAssignment> currentAssignmentMap, boolean hasAssigningPermission) {
+	private void enrichUserRoleAssignment(RoleAssignedToUserDTO assignment, User user, Set<Long> outweighedIds, Map<Long, UserRole> userRoleMap, Map<Long, CurrentAssignment> currentAssignmentMap, boolean hasAssigningPermission) {
 		UserRole userRole = userRoleMap.get(assignment.getRoleId());
 		if (userRole == null) {
 			log.warn("UserRole not found for assignment {}. Skipping enrichment.", assignment);
@@ -638,7 +585,7 @@ public class UserRoleService {
 			assignment.setIneffective(true);
 		}
 
-		if (isIneffectiveDueToWeight(assignment, assignments)) {
+		if (outweighedIds.contains(assignment.getCurrentAssignmentId())) {
 			assignment.setIneffectiveReason("WEIGHT");
 			assignment.setIneffective(true);
 		}
@@ -746,5 +693,13 @@ public class UserRoleService {
 		return isReadable // non-readable roles cannot be edited at all
 			&& isAssignedDirectly // only directly assigned roles can be edited
 			&& (hasDirectAdminRole || (isNotInternalRole && hasPermission)); // only direct admins can edit internal roles.
+	}
+
+	public <T> Optional<T> findProjectionById(Long id, Class<T> projectionType) {
+		return userRoleDao.findById(id, projectionType);
+	}
+
+	public Optional<UserRoleNameAndItSystemName> findNameAndItSystemNameById(Long id) {
+		return userRoleDao.findNameAndItSystemNameById(id);
 	}
 }

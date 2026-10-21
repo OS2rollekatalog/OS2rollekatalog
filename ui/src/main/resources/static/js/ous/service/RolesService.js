@@ -116,45 +116,4 @@ class RolesService {
             }
         );
     }
-
-    editRoleAssignment(elem) {
-        const parent = elem.parentElement;
-        const roleid = parent.dataset.roleid;
-        const type = parent.dataset.objtype;
-        const startDate = parent.dataset.startdate;
-        const stopDate = parent.dataset.stopdate;
-        const roleName = parent.dataset.name;
-        const assignmentType = parent.dataset.assignmenttype;
-        const assignmentId = parent.dataset.assignmentid;
-
-        if (type === 'USERROLE') {
-            ouRolesEditModalService.roleType = 'role';
-            ouRolesEditModalService.roleId = roleid;
-            ouRolesEditModalService.assignmentId = assignmentId;
-            ouRolesEditModalService.inherit = assignmentType == -2;
-
-            ouRolesEditModalService.showAssignModal(this.config.titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName);
-        } else if (type === 'ROLEGROUP') {
-            ouRolesEditModalService.roleType = 'rolegroup';
-            ouRolesEditModalService.roleId = roleid;
-            ouRolesEditModalService.assignmentId = assignmentId;
-            ouRolesEditModalService.inherit = assignmentType == -2;
-
-            ouRolesEditModalService.showAssignModal(this.config.titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName);
-        }
-    }
-
-    addRoleAssignment(elem) {
-        ouRolesModalService.roleType = String(elem.dataset.objtype);
-        ouRolesModalService.roleId = elem.dataset.roleid;
-        const roleName = elem.dataset.name;
-
-        if (this.config.titlesEnabled && this.config.titles != null) {
-            for (const title of this.config.titles) {
-                title.state.checked = false;
-            }
-        }
-
-        ouRolesModalService.showAssignModal(this.config.titlesEnabled, null, null, roleName);
-    }
 }

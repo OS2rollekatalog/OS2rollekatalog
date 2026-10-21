@@ -36,9 +36,12 @@ public interface AttestationOuAssignmentsDao extends CrudRepository<AttestationO
             "GROUP BY s.attestation_responsible_collection_id, s.sensitive_role) as sub on sub.sid = s2.id")
     List<AttestationOuRoleAssignment> findValidGroupByResponsibleCollectionIdAndSensitiveRole(@Param("validAt") final LocalDate validAt);
 
+    /** Exempt IT systems are excluded before the grouping: one exempt representative row would otherwise drop the whole org unit. */
     @Query(nativeQuery = true, value = "SELECT * FROM attestation_ou_role_assignments s2 " +
             "INNER JOIN (SELECT max(s.id) as sid FROM attestation_ou_role_assignments s " +
             "WHERE s.valid_from <= :validAt AND (s.valid_to > :validAt or s.valid_to is null) AND s.responsible_ou_uuid is not null " +
+            "AND s.attestation_responsible_collection_id is null " +
+            "AND NOT EXISTS (SELECT 1 FROM it_systems its WHERE its.id = s.it_system_id AND its.attestation_exempt = 1) " +
             "GROUP BY s.responsible_ou_uuid, s.sensitive_role) as sub on sub.sid = s2.id")
     List<AttestationOuRoleAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(@Param("validAt") final LocalDate validAt);
 

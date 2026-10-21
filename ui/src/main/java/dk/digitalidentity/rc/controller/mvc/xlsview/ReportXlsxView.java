@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -15,6 +16,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import dk.digitalidentity.rc.service.report.ReportColumnDefinitions;
+import dk.digitalidentity.rc.service.report.ReportColumnDefinitions.ReportColumn;
 
 import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
 import org.apache.poi.ss.usermodel.Cell;
@@ -48,6 +52,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
+    private static final Set<String> OU_ROLE_WRAP_KEYS = Set.of("exceptedUsers", "titles", "negativeTitles", "functions");
+
     private LocalDate filterDate;
     private LocalDate queryDate;
     private ReportForm reportForm;
@@ -138,25 +144,27 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         // Create Sheets
         createMasterDataSheet(workbook, reportForm);
 
-        if (reportForm.isShowUsers()) {
+        Map<String, List<String>> selectedColumns = reportForm.getSelectedColumns();
+
+        if (reportForm.isShowUsers() && !ReportColumnDefinitions.isExplicitlyEmpty(ReportColumnDefinitions.USERS, selectedColumns)) {
 			createUsersSheet(workbook);
         }
 
-		if (reportForm.isShowItSystems()) {
+		if (reportForm.isShowItSystems() && !ReportColumnDefinitions.isExplicitlyEmpty(ReportColumnDefinitions.ITSYSTEMS, selectedColumns)) {
 			createRoleSheet(workbook);
 		}
 
 		if (reportForm.isShowOUs()) {
-			if (reportForm.isShowUserRoles()) {
+			if (reportForm.isShowUserRoles() && !ReportColumnDefinitions.isExplicitlyEmpty(ReportColumnDefinitions.OU_ROLES, selectedColumns)) {
 				createOURoleSheet(workbook);
 			}
 
-			if (reportForm.isShowKLE()) {
+			if (!ReportColumnDefinitions.isExplicitlyEmpty(ReportColumnDefinitions.OU_KLE, selectedColumns)) {
 				createOUKLESheet(workbook);
 			}
 		}
 
-        if (reportForm.isShowUserRoles()) {
+        if (reportForm.isShowUserRoles() && !ReportColumnDefinitions.isExplicitlyEmpty(ReportColumnDefinitions.USER_ROLES, selectedColumns)) {
             createUserRoleSheet(workbook, reportForm.isShowInactiveUsers());
         }
 
@@ -164,13 +172,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
             createNegativeUserRoleSheet(workbook, reportForm.isShowInactiveUsers());
         }
 
-		if (reportForm.isShowUsers()) {
-			if (reportForm.isShowKLE()) {
-				createUserKLESheet(workbook, reportForm.isShowInactiveUsers());
-			}
+		if (reportForm.isShowUsers() && !ReportColumnDefinitions.isExplicitlyEmpty(ReportColumnDefinitions.USER_KLE, selectedColumns)) {
+			createUserKLESheet(workbook, reportForm.isShowInactiveUsers());
 		}
 
-		if (reportForm.isShowSystemRoles()) {
+		if (reportForm.isShowSystemRoles() && !ReportColumnDefinitions.isExplicitlyEmpty(ReportColumnDefinitions.SYSTEM_ROLES, selectedColumns)) {
 			createSystemRolesSheet(workbook);
 		}
 
@@ -181,48 +187,40 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
 	private void createSystemRolesSheet(Workbook workbook) {
 		Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.systemRoles.sheet.title", null, locale));
-		ArrayList<String> headers = new ArrayList<>();
-		headers.add("xls.report.systemRoles.id");
-		headers.add("xls.report.systemRoles.itSystem");
-		headers.add("xls.report.systemRoles.name");
-		headers.add("xls.report.systemRoles.description");
 
-		createHeaderRow(sheet, headers);
+		List<ReportColumn> columns = ReportColumnDefinitions.resolveColumns(ReportColumnDefinitions.SYSTEM_ROLES, reportForm.getSelectedColumns());
+		createHeaderRow(sheet, columns.stream().map(ReportColumn::messageKey).toList());
 
 		int row = 1;
 		for (HistorySystemRole entry : systemRoles) {
 			Row dataRow = sheet.createRow(row++);
-			int column = 0;
 
-			createCell(dataRow, column++, String.valueOf(entry.getSystemRoleId()), null);
-			createCell(dataRow, column++, entry.getHistoryItSystem().getItSystemName(), null);
-			createCell(dataRow, column++, entry.getSystemRoleName(), null);
-			createCell(dataRow, column++, entry.getSystemRoleDescription(), null);
+			Map<String, String> values = new LinkedHashMap<>();
+			values.put("id", String.valueOf(entry.getSystemRoleId()));
+			values.put("itSystem", entry.getHistoryItSystem().getItSystemName());
+			values.put("name", entry.getSystemRoleName());
+			values.put("description", entry.getSystemRoleDescription());
+
+			int column = 0;
+			for (ReportColumn col : columns) {
+				createCell(dataRow, column++, values.get(col.key()), null);
+			}
 		}
 	}
 
 	private void createUsersSheet(Workbook workbook) {
 		Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.users.sheet.title", null, locale));
-		ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.report.users.uuid");
-        headers.add("xls.report.users.name");
-        headers.add("xls.report.users.userId");
-        headers.add("xls.report.users.positions");
 
-        createHeaderRow(sheet, headers);
+		List<ReportColumn> columns = ReportColumnDefinitions.resolveColumns(ReportColumnDefinitions.USERS, reportForm.getSelectedColumns());
+		createHeaderRow(sheet, columns.stream().map(ReportColumn::messageKey).toList());
+
+		CellStyle wrapCellStyle = workbook.createCellStyle();
+		wrapCellStyle.setWrapText(true);
+		String in = messageSource.getMessage("html.word.in", null, locale);
 
         int row = 1;
         for (HistoryUser entry : users.values()) {
             Row dataRow = sheet.createRow(row++);
-            int column = 0;
-
-            createCell(dataRow, column++, entry.getUserUuid(), null);
-            createCell(dataRow, column++, entry.getUserName(), null);
-            createCell(dataRow, column++, entry.getUserUserId(), null);
-
-            CellStyle cs = workbook.createCellStyle();
-    		cs.setWrapText(true);
-    		String in = messageSource.getMessage("html.word.in", null, locale);
 
     		List<HistoryOUUser> entryOUUsers = ouUsers.stream().filter(h -> h.getUserUuid().equals(entry.getUserUuid())).toList();
     		List<String> titleStrings = new ArrayList<>();
@@ -245,7 +243,18 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     				}
     			}
     		}
-            createCell(dataRow, column++, titleStrings.stream().collect(Collectors.joining("\n")), cs);
+
+			Map<String, String> values = new LinkedHashMap<>();
+			values.put("uuid", entry.getUserUuid());
+			values.put("name", entry.getUserName());
+			values.put("userId", entry.getUserUserId());
+			values.put("positions", titleStrings.stream().collect(Collectors.joining("\n")));
+
+			int column = 0;
+			for (ReportColumn col : columns) {
+				CellStyle style = "positions".equals(col.key()) ? wrapCellStyle : null;
+				createCell(dataRow, column++, values.get(col.key()), style);
+			}
         }
 	}
 
@@ -270,31 +279,16 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private void createRoleSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.roles.sheet.title", null, locale));
 
-        ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.report.roles.it.system.name");
-        headers.add("xls.report.roles.user.role.name");
-        headers.add("xls.report.roles.user.role.description");
-        headers.add("xls.report.roles.system.role.name");
-        headers.add("xls.report.roles.system.role.weight");
-        headers.add("xls.report.roles.constraint");
-
-        createHeaderRow(sheet, headers);
+        List<ReportColumn> columns = ReportColumnDefinitions.resolveColumns(ReportColumnDefinitions.ITSYSTEMS, reportForm.getSelectedColumns());
+        createHeaderRow(sheet, columns.stream().map(ReportColumn::messageKey).toList());
+        boolean includeConstraint = columns.stream().anyMatch(col -> "constraint".equals(col.key()));
 
         int row = 1;
         for (HistoryItSystem itSystem : itSystems) {
             for (HistoryUserRole userRole : itSystem.getHistoryUserRoles()) {
                 for (HistorySystemRoleAssignment systemRoleAssignment : userRole.getHistorySystemRoleAssignments()) {
                     Row dataRow = sheet.createRow(row++);
-                    int column = 0;
-                    createCell(dataRow, column++, itSystem.getItSystemName(), null);
-                    createCell(dataRow, column++, userRole.getUserRoleName(), null);
-                    createCell(dataRow, column++, userRole.getUserRoleDescription(), null);
-                    createCell(dataRow, column++, systemRoleAssignment.getSystemRoleName(), null);
-                    createCell(dataRow, column++, String.valueOf(itSystem.getHistorySystemRoles().stream()
-                            .filter(historySystemRole -> historySystemRole.getSystemRoleId() == systemRoleAssignment.getSystemRoleId())
-                            .map(HistorySystemRole::getWeight)
-                            .filter(Objects::nonNull)
-                            .findFirst().orElse(1L)), null);
+
                     StringBuilder constraintCell = new StringBuilder();
                     for (HistorySystemRoleAssignmentConstraint constraint : systemRoleAssignment.getHistoryConstraints()) {
                     	switch (constraint.getConstraintValueType()) {
@@ -417,9 +411,25 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
                             constraintCell.append(messageSource.getMessage("xls.constraint.error", null, locale) + "\n");
                         }
                     }
-                    createCell(dataRow, column++, constraintCell.toString(), null);
 
-                    if (systemRoleAssignment.getHistoryConstraints() != null) {
+                    Map<String, String> values = new LinkedHashMap<>();
+                    values.put("itSystemName", itSystem.getItSystemName());
+                    values.put("userRoleName", userRole.getUserRoleName());
+                    values.put("userRoleDescription", userRole.getUserRoleDescription());
+                    values.put("systemRoleName", systemRoleAssignment.getSystemRoleName());
+                    values.put("systemRoleWeight", String.valueOf(itSystem.getHistorySystemRoles().stream()
+                            .filter(historySystemRole -> historySystemRole.getSystemRoleId() == systemRoleAssignment.getSystemRoleId())
+                            .map(HistorySystemRole::getWeight)
+                            .filter(Objects::nonNull)
+                            .findFirst().orElse(1L)));
+                    values.put("constraint", constraintCell.toString());
+
+                    int column = 0;
+                    for (ReportColumn col : columns) {
+                        createCell(dataRow, column++, values.get(col.key()), null);
+                    }
+
+                    if (includeConstraint && systemRoleAssignment.getHistoryConstraints() != null) {
                         dataRow.setHeight((short) (dataRow.getHeight() * (1 + systemRoleAssignment.getHistoryConstraints().size())));
                     }
                 }
@@ -431,21 +441,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private void createOURoleSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.ou.roles.sheet.title", null, locale));
 
-        ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.report.ou.roles.ou.name");
-        headers.add("xls.report.ou.roles.ou.uuid");
-        headers.add("xls.role.name");
-        headers.add("xls.role.it.system");
-        headers.add("xls.role.assigned.by");
-        headers.add("xls.role.start_date");
-        headers.add("xls.role.stop_date");
-        headers.add("xls.role.assigned.through");
-		headers.add("xls.report.ou.roles.manager.type");
-        headers.add("xls.report.ou.roles.exceptedusers");
-        headers.add("xls.report.ou.roles.titles");
-        headers.add("xls.report.ou.roles.functions");
-
-        createHeaderRow(sheet, headers);
+        List<ReportColumn> columns = ReportColumnDefinitions.resolveColumns(ReportColumnDefinitions.OU_ROLES, reportForm.getSelectedColumns());
+        createHeaderRow(sheet, columns.stream().map(ReportColumn::messageKey).toList());
 
         int row = 1;
         for (Map.Entry<String, List<OuRoleAssignmentReportRow>> entry : ouRoleAssignments.entrySet()) {
@@ -489,7 +486,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
                 // Collect exclusions
                 String exceptedUsersStr = joinExcludedUsers(ouRoleAssignment.getExceptedUserUuids());
-                String titlesStr = ouRoleAssignment.getTitleUuids().stream()
+                String titlesStr = ouRoleAssignment.getSelectedTitleUuids().stream()
+                    .map(titleUuid -> titleMap.containsKey(titleUuid) ? titleMap.get(titleUuid).getTitleName() : titleUuid)
+                    .collect(Collectors.joining("\n"));
+                String excludedTitlesStr = ouRoleAssignment.getExcludedTitleUuids().stream()
                     .map(titleUuid -> titleMap.containsKey(titleUuid) ? titleMap.get(titleUuid).getTitleName() : titleUuid)
                     .collect(Collectors.joining("\n"));
                 String functionsStr = ouRoleAssignment.getFunctionUuids().stream()
@@ -506,19 +506,26 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 				}
 
                 Row dataRow = sheet.createRow(row++);
+
+                Map<String, String> values = new LinkedHashMap<>();
+                values.put("ouName", ouName);
+                values.put("ouUuid", entry.getKey());
+                values.put("roleName", itSystemNameMapping.get(ouRoleAssignment.getRoleId()));
+                values.put("itSystem", itSystem);
+                values.put("assignedBy", assignedBy);
+                values.put("startDate", bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate(), localDateFormatter));
+                values.put("stopDate", formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())));
+                values.put("assignedThrough", assignedThroughStr);
+                values.put("managerType", managerAndSubstitutesText == null ? "" : messageSource.getMessage(managerAndSubstitutesText, null, locale));
+                values.put("exceptedUsers", exceptedUsersStr);
+                values.put("titles", titlesStr);
+                values.put("negativeTitles", excludedTitlesStr);
+                values.put("functions", functionsStr);
+
                 int column = 0;
-                createCell(dataRow, column++, ouName, null);
-                createCell(dataRow, column++, entry.getKey(), null);
-                createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
-                createCell(dataRow, column++, itSystem, null);
-                createCell(dataRow, column++, assignedBy, null);
-                createCell(dataRow, column++, bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate(), localDateFormatter), null);
-                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
-                createCell(dataRow, column++, assignedThroughStr, null);
-                createCell(dataRow, column++, managerAndSubstitutesText == null ? "" : messageSource.getMessage(managerAndSubstitutesText, null, locale), null);
-                createCell(dataRow, column++, exceptedUsersStr, wrapStyle);
-                createCell(dataRow, column++, titlesStr, wrapStyle);
-                createCell(dataRow, column++, functionsStr, wrapStyle);
+                for (ReportColumn col : columns) {
+                    createCell(dataRow, column++, values.get(col.key()), OU_ROLE_WRAP_KEYS.contains(col.key()) ? wrapStyle : null);
+                }
             }
         }
     }
@@ -527,12 +534,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private void createOUKLESheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.ou.kle.sheet.title", null, locale));
 
-        ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.report.ou.kle.ou.name");
-        headers.add("xls.report.ou.kle.assignment.type");
-        headers.add("xls.report.ou.kle.kle.values");
-
-        createHeaderRow(sheet, headers);
+        List<ReportColumn> columns = ReportColumnDefinitions.resolveColumns(ReportColumnDefinitions.OU_KLE, reportForm.getSelectedColumns());
+        createHeaderRow(sheet, columns.stream().map(ReportColumn::messageKey).toList());
 
         int row = 1;
         for (HistoryOU ou : orgUnits.values()) {
@@ -553,10 +556,15 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
                     assignmentType = "Opgaveansvar";
                 }
 
+                Map<String, String> values = new LinkedHashMap<>();
+                values.put("ouName", ouName);
+                values.put("assignmentType", assignmentType);
+                values.put("kleValues", ouKleAssignment.getKleValues());
+
                 int column = 0;
-                createCell(dataRow, column++, ouName, null);
-                createCell(dataRow, column++, assignmentType, null);
-                createCell(dataRow, column++, ouKleAssignment.getKleValues(), null);
+                for (ReportColumn col : columns) {
+                    createCell(dataRow, column++, values.get(col.key()), null);
+                }
             }
         }
     }
@@ -564,24 +572,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private void createUserRoleSheet(Workbook workbook, boolean showInactiveUsers) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.user.roles.sheet.title", null, locale));
 
-        ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.user.name");
-        headers.add("xls.user.id");
-        headers.add("xls.role.employee.id");
-        headers.add("xls.role.ou.name");
-        headers.add("xls.role.ou.uuid");
-        headers.add("xls.user.active");
-        headers.add("xls.role.name");
-        headers.add("xls.role.it.system");
-        headers.add("xls.role.it.system_role_weight");
-        headers.add("xls.role.it.weight_result");
-        headers.add("xls.role.assigned.by");
-        headers.add("xls.role.start_date");
-        headers.add("xls.role.stop_date");
-        headers.add("xls.role.assigned.through");
-        headers.add("xls.role.postponedconstraints");
-
-        createHeaderRow(sheet, headers);
+        List<ReportColumn> columns = ReportColumnDefinitions.resolveColumns(ReportColumnDefinitions.USER_ROLES, reportForm.getSelectedColumns());
+        createHeaderRow(sheet, columns.stream().map(ReportColumn::messageKey).toList());
 
         Set<String> allowedDisplayOuUuids = buildAllowedDisplayOuUuids();
         Set<String> allowedResponsibleOuUuids = buildAllowedResponsibleOuUuids();
@@ -594,23 +586,28 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
             queryDate, filterDate, allowedUserUuids, allowedDisplayOuUuids, allowedResponsibleOuUuids, itSystemIds,
             users, allOrgUnits, itSystems, locale, showInactiveUsers, true, entry -> {
                 Row dataRow = sheet.createRow(row.getAndIncrement());
-                int column = 0;
 
-                createCell(dataRow, column++, entry.getUserName(), null);
-                createCell(dataRow, column++, entry.getUserId(), null);
-                createCell(dataRow, column++, entry.getEmployeeId(), null);
-                createCell(dataRow, column++, entry.getOrgUnitName(), null);
-                createCell(dataRow, column++, entry.getOrgUnitUUID(), null);
-                createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
-                createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
-                createCell(dataRow, column++, entry.getItSystem(), null);
-                createCell(dataRow, column++, "" + entry.getSystemRoleWeight(), null);
-                createCell(dataRow, column++, "" + entry.getItSystemResultWeight(), null);
-                createCell(dataRow, column++, entry.getAssignedBy(), null);
-                createCell(dataRow, column++, bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter), null);
-                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
-                createCell(dataRow, column++, entry.getAssignedThrough(), null);
-                createCell(dataRow, column++, entry.getPostponedConstraints(), null);
+                Map<String, String> values = new LinkedHashMap<>();
+                values.put("userName", entry.getUserName());
+                values.put("userId", entry.getUserId());
+                values.put("employeeId", entry.getEmployeeId());
+                values.put("ouName", entry.getOrgUnitName());
+                values.put("ouUuid", entry.getOrgUnitUUID());
+                values.put("userActive", entry.isUserActive() ? "aktiv" : "inaktiv");
+                values.put("roleName", itSystemNameMapping.get(entry.getRoleId()));
+                values.put("itSystem", entry.getItSystem());
+                values.put("systemRoleWeight", "" + entry.getSystemRoleWeight());
+                values.put("weightResult", "" + entry.getItSystemResultWeight());
+                values.put("assignedBy", entry.getAssignedBy());
+                values.put("startDate", bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter));
+                values.put("stopDate", formatLocalDateTime(atEndOfDay(entry.getStopDate())));
+                values.put("assignedThrough", entry.getAssignedThrough());
+                values.put("postponedConstraints", entry.getPostponedConstraints());
+
+                int column = 0;
+                for (ReportColumn col : columns) {
+                    createCell(dataRow, column++, values.get(col.key()), null);
+                }
             });
     }
 
@@ -690,15 +687,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private void createUserKLESheet(Workbook workbook, boolean showInactiveUsers) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.user.kle.sheet.title", null, locale));
 
-        ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.user.name");
-        headers.add("xls.user.id");
-        headers.add("xls.user.active");
-        headers.add("xls.report.user.kle.assignment.type");
-        headers.add("xls.report.user.kle.kle.values");
-        headers.add("xls.report.user.kle.source");
-
-        createHeaderRow(sheet, headers);
+        List<ReportColumn> columns = ReportColumnDefinitions.resolveColumns(ReportColumnDefinitions.USER_KLE, reportForm.getSelectedColumns());
+        createHeaderRow(sheet, columns.stream().map(ReportColumn::messageKey).toList());
 
         // enhance existing KLE assignments from OU assignments
         for (HistoryOU ou : allOrgUnits.values()) {
@@ -756,21 +746,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
             Set<String> codeSum = new HashSet<>();
             for (HistoryKleAssignment kleAssignment : interestAssignments) {
-                Row dataRow = sheet.createRow(row++);
-                int column = 0;
-
-                createCell(dataRow, column++, userName, null);
-                createCell(dataRow, column++, userId, null);
-                createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
-                createCell(dataRow, column++, "Indsigtsbehov", null);
-                createCell(dataRow, column++, kleAssignment.getKleValues(), null);
-
-                if (StringUtils.hasLength(kleAssignment.getInheritedFrom())) {
-                	createCell(dataRow, column++, "Ansat: " + kleAssignment.getInheritedFrom(), null);
-                }
-                else {
-                	createCell(dataRow, column++, "Personlige", null);
-                }
+                String source = StringUtils.hasLength(kleAssignment.getInheritedFrom()) ? "Ansat: " + kleAssignment.getInheritedFrom() : "Personlige";
+                writeUserKleRow(sheet, row++, columns, userName, userId, userActive, "Indsigtsbehov", kleAssignment.getKleValues(), source);
 
                 String[] kleCodes = kleAssignment.getKleValues().split(",");
                 for (String kleCode : kleCodes) {
@@ -780,34 +757,13 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
             // output sum of above rows
             if (codeSum.size() > 0) {
-                Row dataRow = sheet.createRow(row++);
-                int column = 0;
-
-                createCell(dataRow, column++, userName, null);
-                createCell(dataRow, column++, userId, null);
-                createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
-                createCell(dataRow, column++, "Indsigtsbehov", null);
-                createCell(dataRow, column++, String.join(",", codeSum), null);
-               	createCell(dataRow, column++, "Summen", null);
+                writeUserKleRow(sheet, row++, columns, userName, userId, userActive, "Indsigtsbehov", String.join(",", codeSum), "Summen");
             }
 
             codeSum = new HashSet<>();
             for (HistoryKleAssignment kleAssignment : performingAssignments) {
-                Row dataRow = sheet.createRow(row++);
-                int column = 0;
-
-                createCell(dataRow, column++, userName, null);
-                createCell(dataRow, column++, userId, null);
-                createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
-                createCell(dataRow, column++, "Opgaveansvar", null);
-                createCell(dataRow, column++, kleAssignment.getKleValues(), null);
-
-                if (StringUtils.hasLength(kleAssignment.getInheritedFrom())) {
-                	createCell(dataRow, column++, "Ansat: " + kleAssignment.getInheritedFrom(), null);
-                }
-                else {
-                	createCell(dataRow, column++, "Personlige", null);
-                }
+                String source = StringUtils.hasLength(kleAssignment.getInheritedFrom()) ? "Ansat: " + kleAssignment.getInheritedFrom() : "Personlige";
+                writeUserKleRow(sheet, row++, columns, userName, userId, userActive, "Opgaveansvar", kleAssignment.getKleValues(), source);
 
                 String[] kleCodes = kleAssignment.getKleValues().split(",");
                 for (String kleCode : kleCodes) {
@@ -817,62 +773,32 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
             // output sum of above rows
             if (codeSum.size() > 0) {
-                Row dataRow = sheet.createRow(row++);
-                int column = 0;
-
-                createCell(dataRow, column++, userName, null);
-                createCell(dataRow, column++, userId, null);
-                createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
-                createCell(dataRow, column++, "Opgaveansvar", null);
-                createCell(dataRow, column++, String.join(",", codeSum), null);
-               	createCell(dataRow, column++, "Summen", null);
+                writeUserKleRow(sheet, row++, columns, userName, userId, userActive, "Opgaveansvar", String.join(",", codeSum), "Summen");
             }
         }
     }
 
-	// TODO: Replace history objects with historic version
+    private void writeUserKleRow(Sheet sheet, int rowIndex, List<ReportColumn> columns, String userName, String userId,
+            boolean userActive, String assignmentType, String kleValues, String source) {
+        Row dataRow = sheet.createRow(rowIndex);
+
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("userName", userName);
+        values.put("userId", userId);
+        values.put("userActive", userActive ? "aktiv" : "inaktiv");
+        values.put("assignmentType", assignmentType);
+        values.put("kleValues", kleValues);
+        values.put("source", source);
+
+        int column = 0;
+        for (ReportColumn col : columns) {
+            createCell(dataRow, column++, values.get(col.key()), null);
+        }
+    }
+
 	private void createOrgUnitAllocationSheet(final Workbook workbook) {
-		final Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.orgUnitAllocations.sheet.title", null, locale));
-		final ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.report.orgUnitAllocations.rolegroup");
-        headers.add("xls.report.orgUnitAllocations.rolegroup.description");
-        headers.add("xls.report.orgUnitAllocations.role.name");
-        headers.add("xls.report.orgUnitAllocations.role.description");
-        headers.add("xls.report.orgUnitAllocations.orgunit");
-        headers.add("xls.report.orgUnitAllocations.users.excluded");
-        headers.add("xls.report.orgUnitAllocations.orgunit.inheritance");
-        headers.add("xls.report.orgUnitAllocations.positions");
-        headers.add("xls.report.orgUnitAllocations.positions.exempt");
-
-		createHeaderRow(sheet, headers);
-
-		int y = 1;
-		for(final Map.Entry<String, List<OuRoleAssignmentReportRow>> entry : ouRoleAssignments.entrySet()) {
-			final HistoryOU ou = orgUnits.get(entry.getKey());
-			if(ou == null) {
-				continue;
-			}
-
-			for(final OuRoleAssignmentReportRow oura : entry.getValue()) {
-				final String excludedUsers = joinExcludedUsers(oura.getExceptedUserUuids());
-
-				final Row row = sheet.createRow(y++);
-				int x = 0;
-				createCell(row, x++, oura.getRoleRoleGroup(), null);
-				// TODO: Add role group description
-				createCell(row, x++, "", null);
-				createCell(row, x++, oura.getRoleName(), null);
-				// TODO: Add role description
-				createCell(row, x++, "", null);
-				createCell(row, x++, ou.getOuName(), null);
-				createCell(row, x++, excludedUsers, wrapStyle);
-				createCell(row, x++, oura.isInherit() ? "Ja" : "Nej", null);
-				// TODO: Add positions
-				createCell(row, x++, "", wrapStyle);
-				// TODO: Add excluded positions
-				createCell(row, x++, "", wrapStyle);
-			}
-		}
+		new OrgUnitAllocationSheetWriter(messageSource, locale, headerStyle, wrapStyle, users, titleMap, orgUnits, ouRoleAssignments)
+			.write(workbook);
 	}
 
 	private String joinExcludedUsers(final List<String> userUuids) {
@@ -886,7 +812,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 			.collect(Collectors.joining("\n"));
 	}
 
-    private static void createCell(Row header, int column, String value, CellStyle style) {
+    static void createCell(Row header, int column, String value, CellStyle style) {
         if (value != null && value.length() > 32767) {
 			value = value.substring(0, 32767 - 3) + "...";
 		}

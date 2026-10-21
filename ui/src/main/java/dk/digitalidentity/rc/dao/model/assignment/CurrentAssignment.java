@@ -15,11 +15,14 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.util.HashUtil;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -67,6 +70,14 @@ public class CurrentAssignment {
 
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
+
+	/**
+	 * When the role was assigned, as opposed to createdAt which is when the assignment was calculated.
+	 * Kept out of {@link #generateRecordHash()}: the sources re-stamp it on every edit, and in the hash
+	 * that would version the row for every holder of the role.
+	 */
+	private LocalDateTime assignedWhen;
+
 	private LocalDate startDate;
 	private LocalDate stopDate;
 
@@ -114,6 +125,11 @@ public class CurrentAssignment {
 	@ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.REFRESH})
 	@JoinColumn(name = "assignment_title_uuid")
 	private Title title;
+
+	/** Whether {@link #title} is the reason for the role or just the one the holder has. Never hash it: that would close and reopen every title filtered assignment on upgrade. */
+	@Column(name = "contains_titles", nullable = false)
+	@Enumerated(EnumType.STRING)
+	private ContainsTitles containsTitles = ContainsTitles.NO;
 
 	@ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.REFRESH})
 	@JoinColumn(name = "responsible_ou_uuid")

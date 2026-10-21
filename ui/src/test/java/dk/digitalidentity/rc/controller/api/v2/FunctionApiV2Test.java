@@ -626,12 +626,30 @@ public class FunctionApiV2Test extends AbstractApiTest {
 	}
 
 	@Test
-	@DisplayName("Should return 400 when syncing with empty list")
+	@DisplayName("Should deactivate all functions when syncing with empty list")
 	void testSync_EmptyList() throws Exception {
+		String uuid = UUID.randomUUID().toString();
+		Function existing = new Function();
+		existing.setUuid(uuid);
+		existing.setName("Last Function");
+		existing.setActive(true);
+		functionService.save(existing);
+
+		entityManager.flush();
+		entityManager.clear();
+
 		this.mockMvc.perform(post("/api/v2/function/sync")
 				.header("ApiKey", API_KEY)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[]"))
-			.andExpect(status().isBadRequest());
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$").isArray())
+			.andExpect(jsonPath("$").isEmpty());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertFalse(functionService.findByUuid(uuid).orElseThrow().isActive());
+		assertTrue(functionService.getAllActive().isEmpty());
 	}
 }

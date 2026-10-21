@@ -5,19 +5,23 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
 import dk.digitalidentity.rc.dao.model.assignment.UserRoleMemberCountProjection;
+import dk.digitalidentity.rc.dao.projections.SystemRoleConstraint;
+import jakarta.persistence.QueryHint;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.time.LocalDateTime;
+import org.springframework.data.jpa.repository.Modifying;
 
 public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, Long> {
 
@@ -29,6 +33,19 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
 	""")
 	long countByUserRole(User user, UserRole userRole, LocalDate now);
+
+	@Query("""
+	  SELECT COUNT(ca) > 0 FROM CurrentAssignment ca
+	  JOIN ca.userRole ur
+	  JOIN ur.systemRoleAssignments sra
+	  WHERE ca.user = :user
+	    AND ca.itSystem.identifier = :itSystemIdentifier
+	    AND ca.itSystem.deleted = false
+	    AND sra.systemRole.identifier = :systemRoleIdentifier
+	    AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	boolean existsBySystemRoleIdentifierAndActive(User user, String itSystemIdentifier, String systemRoleIdentifier, LocalDate now);
 
 	@Query("""
 	  SELECT ca FROM CurrentAssignment ca
@@ -77,6 +94,15 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
 	""")
 	Set<String> findUserUuidsByUserRole(UserRole userRole, LocalDate now);
+
+	@Query("""
+	  SELECT DISTINCT ca.user.uuid FROM CurrentAssignment ca
+	  WHERE ca.userRole.id IN :userRoleIds
+	    AND ca.user IS NOT NULL
+	    AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	Set<String> findActiveUserUuidsByUserRoleIds(Collection<Long> userRoleIds, LocalDate now);
 
 	@Query("""
 	  SELECT ca FROM CurrentAssignment ca
@@ -151,7 +177,11 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	// these also returns inactive assignments, which is okay, as they are used by the UI only
 	Set<CurrentAssignment> findByRoleGroupAndUser(RoleGroup roleGroup, User user);
 	Set<CurrentAssignment> findByUserUuidAndRoleGroupNotNull(String uuid);
-	Set<CurrentAssignment> findByRoleGroupAndOrgUnitNullAndTitleNull(RoleGroup roleGroup);
+
+	// avoid loading the CurrentAssignment rows (as we need to delete those as a side-effect), so just pull
+	// the users directly
+	@Query("SELECT DISTINCT ca.user FROM CurrentAssignment ca WHERE ca.roleGroup = :roleGroup AND ca.orgUnit IS NULL AND ca.title IS NULL")
+	Set<User> findByRoleGroupAndOrgUnitNullAndTitleNullUsersOnly(@Param("roleGroup") RoleGroup roleGroup);
 
 	/**
 	 * Finder direkte tildelte assignments (ikke via enhed/titel) for en userrole, hvor tildelingen er trådt i kraft.
@@ -227,14 +257,16 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	""")
 	Set<CurrentAssignment> findActiveAssigned(Collection<UserRole> userRoles, LocalDate now);
 
+	// kaldes pr. AD-gruppe, så kun én gruppes medlemsliste er i heap'en ad gangen
 	@Query("""
-	    SELECT ca.id AS id, ca.user.userId AS userId, ca.userRole.id AS userRoleId, ca.user.domain.id AS userDomainId
+	    SELECT ca.user.userId
 	    FROM CurrentAssignment ca
-		WHERE ca.userRole IN :userRoles
+	    WHERE ca.userRole IN :userRoles
+	      AND ca.user.domain.id = :domainId
 	      AND (ca.startDate IS NULL OR ca.startDate <= :now)
 	      AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
 	""")
-	Set<CurrentAssignmentSmallProjection> findActiveAssignedAsProjection(Collection<UserRole> userRoles, LocalDate now);
+	Set<String> findActiveAssignedUserIds(Collection<UserRole> userRoles, long domainId, LocalDate now);
 
 	/**
 	 * Finder assignments for en rollegruppe, hvor tildelingen er trådt i kraft.
@@ -434,4 +466,62 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	""")
 	List<UserRoleMemberCountProjection> countDirectUserRoleHoldersAmong(@Param("userUuids") Collection<String> userUuids, @Param("now") LocalDate now);
 
+	@Query("SELECT c.id FROM CurrentAssignment c WHERE c.assignedWhen IS NULL AND c.id > :afterId ORDER BY c.id")
+	List<Long> findIdsWithoutAssignedWhenAfter(@Param("afterId") long afterId, Pageable limit);
+
+	@Modifying
+	@Query("UPDATE CurrentAssignment c SET c.assignedWhen = :assignedWhen WHERE c.id = :id AND c.assignedWhen IS NULL")
+	int setAssignedWhen(@Param("id") long id, @Param("assignedWhen") LocalDateTime assignedWhen);
+
+    @Query(value = """
+        SELECT GROUP_CONCAT(id ORDER BY id) AS all_ids
+        FROM current_assignment AS ca FORCE INDEX (idx_current_assignment_user_itsystem)
+        WHERE assignment_user_uuid IN (
+                SELECT DISTINCT assignment_user_uuid
+                FROM current_assignment
+                WHERE assignment_ou_uuid IS NULL
+                  AND assignment_user_uuid    IS NOT NULL
+                  AND assignment_user_role_id IS NOT NULL)
+          AND assignment_user_role_id IS NOT NULL
+        GROUP BY assignment_user_uuid, assignment_user_role_id
+        HAVING COUNT(*) > 1
+           AND COUNT(CASE WHEN assignment_ou_uuid IS NULL THEN 1 END) > 0
+        """, nativeQuery = true)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.query.timeout", value = "10000"))
+    List<String> findDuplicateUserRoleAssignments();
+    
+    
+    @Query(value = """
+	    SELECT GROUP_CONCAT(id ORDER BY id) AS all_ids
+	    FROM current_assignment
+	    WHERE assignment_role_group_id IS NOT NULL
+	    GROUP BY assignment_user_uuid, assignment_role_group_id
+	    HAVING COUNT(DISTINCT assignment_id) > 1
+	       AND COUNT(CASE WHEN assignment_ou_uuid IS NULL THEN 1 END) > 0
+	    """, nativeQuery = true)
+	@QueryHints(@QueryHint(name = "jakarta.persistence.query.timeout", value = "10000"))
+	List<String> findDuplicateRoleGroupAssignments();
+    
+	@EntityGraph(attributePaths = { "user", "userRole", "userRole.itSystem" })
+	List<CurrentAssignment> findByIdIn(List<Long> ids);
+
+	@Query("""
+	  SELECT DISTINCT new dk.digitalidentity.rc.dao.projections.SystemRoleConstraint(ur.id, cv.constraintValueType, ct.entityId, cv.constraintValue)
+	  FROM CurrentAssignment ca
+	  JOIN ca.userRole ur
+	  JOIN ur.systemRoleAssignments sra
+	  LEFT JOIN sra.constraintValues cv
+	  LEFT JOIN cv.constraintType ct
+	  WHERE ca.user.uuid = :userUuid
+	    AND ca.itSystem.identifier = :itSystemIdentifier
+	    AND ca.itSystem.deleted = false
+	    AND sra.systemRole.identifier = :systemRoleIdentifier
+	    AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	List<SystemRoleConstraint> findActiveSystemRoleConstraints(
+		@Param("userUuid") String userUuid,
+		@Param("itSystemIdentifier") String itSystemIdentifier,
+		@Param("systemRoleIdentifier") String systemRoleIdentifier,
+		@Param("now") LocalDate now);
 }

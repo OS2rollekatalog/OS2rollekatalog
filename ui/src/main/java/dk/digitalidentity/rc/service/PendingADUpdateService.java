@@ -1,5 +1,16 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+
 import dk.digitalidentity.rc.dao.DirtyADGroupDao;
 import dk.digitalidentity.rc.dao.PendingADGroupOperationDao;
 import dk.digitalidentity.rc.dao.SystemRoleDao;
@@ -21,15 +32,6 @@ import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.util.FilterMatcher;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -195,8 +197,13 @@ public class PendingADUpdateService {
 		return new ArrayList<>(managedGroups);
 	}
 
-	public List<DirtyADGroup> find100(Domain domain) {
-		return dirtyADGroupDao.findFirst100ByDomainOrderByIdAsc(domain);
+	public List<DirtyADGroup> find30(Domain domain) {
+		return dirtyADGroupDao.findFirst30ByDomainOrderByIdAsc(domain);
+	}
+
+	@org.springframework.transaction.annotation.Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void cleanupDuplicates() {
+		dirtyADGroupDao.cleanupDuplicates();
 	}
 
 	public List<PendingADGroupOperation> find100Operations(Domain domain) {

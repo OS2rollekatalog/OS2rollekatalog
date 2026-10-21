@@ -162,6 +162,7 @@ namespace ADSyncService
 
     public class RemoteConfigurationJobListener : JobListenerSupport
     {
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private readonly ManualResetEventSlim jobCompletedEvent;
 
         public RemoteConfigurationJobListener(ManualResetEventSlim jobCompletedEvent)
@@ -175,7 +176,7 @@ namespace ADSyncService
         {
             if (jobException != null)
             {
-                Log.Error("Exception in job", jobException.InnerException);
+                log.Error("Exception in job " + context.JobDetail.Key, jobException.InnerException ?? jobException);
             }
             if (context.JobDetail.Key.Name == "remoteConfigurationJob")
             {

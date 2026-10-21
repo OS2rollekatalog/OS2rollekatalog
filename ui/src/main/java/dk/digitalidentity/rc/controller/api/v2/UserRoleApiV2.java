@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
+import dk.digitalidentity.rc.rolerequest.model.permission.ApproverPermission;
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
@@ -23,7 +25,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
+import dk.digitalidentity.rc.rolerequest.model.permission.RequesterPermission;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
@@ -34,6 +36,7 @@ import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -86,7 +89,7 @@ public class UserRoleApiV2 {
 	private final AssignmentService assignmentService;
 	private final OrgUnitService orgUnitService;
 	private final UserRoleCleanupService userRoleCleanupService;
-	private final ApproverOptionService approverOptionService;
+	private final ResolvedPermissionService resolvedPermissionService;
 
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
@@ -99,8 +102,10 @@ public class UserRoleApiV2 {
 	public ResponseEntity<List<UserRoleAM>> getAllUserRoles() {
 		List<UserRoleAM> result = new ArrayList<>();
 		List<UserRole> userRoles = userRoleService.getAll().stream().filter(role -> !role.getItSystem().isDeleted()).toList();
+		Map<Long, RequesterPermission> requesterPermissions = resolvedPermissionService.userRoleRequesterPermissions(userRoles.stream().map(UserRole::getId).toList());
+		Map<Long, ApproverPermission> approverPermissions = resolvedPermissionService.userRoleApproverPermissions(userRoles.stream().map(UserRole::getId).toList());
 		for (UserRole userRole : userRoles) {
-			result.add(RoleMapper.userRoleToApi(userRole, approverOptionService));
+			result.add(RoleMapper.userRoleToApi(userRole, requesterPermissions.get(userRole.getId()), approverPermissions.get(userRole.getId())));
 		}
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
@@ -117,7 +122,7 @@ public class UserRoleApiV2 {
 	public ResponseEntity<UserRoleAM> getUserRole(@Parameter(description = "The unique ID for userrole.", example="1", required = true) @PathVariable("id") long id) {
 		final UserRole userRole = userRoleService.getOptionalById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		return new ResponseEntity<>(RoleMapper.userRoleToApi(userRole, approverOptionService), HttpStatus.OK);
+		return new ResponseEntity<>(RoleMapper.userRoleToApi(userRole, resolvedPermissionService.userRoleRequesterPermission(userRole.getId()), resolvedPermissionService.userRoleApproverPermission(userRole.getId())), HttpStatus.OK);
 	}
 
 	@ApiResponses(value = {
@@ -172,7 +177,7 @@ public class UserRoleApiV2 {
 		final List<AssignmentDetailAM> result = assignments.stream()
 				.map(assignment -> RoleMapper.currentAssignmentToDetailApi(assignment,
 						assignmentService.getAssignedThrough(assignment),
-						assignmentService.getAssignmentType(assignment)))
+						AssignmentType.from(assignment)))
 				.collect(Collectors.toList());
 
 		return new ResponseEntity<>(RoleMapper.sortAssignmentDetails(result), HttpStatus.OK);
@@ -248,7 +253,7 @@ public class UserRoleApiV2 {
 		UserRole target = new UserRole();
 		target.setItSystem(itSystem);
 		final UserRole result = setUserRoleProperties(userRoleDTO, itSystem, target);
-		return new ResponseEntity<>(RoleMapper.userRoleToApi(result), HttpStatus.CREATED);
+		return new ResponseEntity<>(RoleMapper.userRoleToApi(result, resolvedPermissionService.userRoleRequesterPermission(result.getId())), HttpStatus.CREATED);
 	}
 
 	private void validateUserRoleRequest(final ItSystem itSystem, final UserRoleAM userRoleDTO) {
@@ -298,6 +303,9 @@ public class UserRoleApiV2 {
 		if (userRoleAM.getAdvisEmail() != null) {
 			target.setAdvisEmail(userRoleAM.getAdvisEmail());
 		}
+		if (target.getOrgUnitFilterOrgUnits() == null) {
+			target.setOrgUnitFilterOrgUnits(new ArrayList<>());
+		}
 		if (userRoleAM.getOuFilterEnabled() != null) {
 			target.setOuFilterEnabled(Boolean.TRUE.equals(userRoleAM.getOuFilterEnabled()));
 
@@ -328,15 +336,11 @@ public class UserRoleApiV2 {
 			target.setAllowPostponing(Boolean.TRUE.equals(userRoleAM.getAllowPostponing()));
 		}
 
-		if (userRoleAM.getRequesterPermission() != null) {
-			target.setRequesterPermission(userRoleAM.getRequesterPermission());
-		} else if (target.getRequesterPermission() == null) {
-			target.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
+		if (userRoleAM.getRequesterPermission() != null && !userRoleAM.getRequesterPermission().isEmpty()) {
+			target.setRequesterPermission(toRequesterPermission(userRoleAM.getRequesterPermission()));
 		}
-		if (userRoleAM.getApproverPermission() != null) {
-			target.setApproverPermission(userRoleAM.getApproverPermission());
-		} else if (target.getApproverPermission() == null) {
-			target.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
+		if (userRoleAM.getApproverPermission() != null && !userRoleAM.getApproverPermission().isEmpty()) {
+			target.setApproverPermission(toApproverPermission(userRoleAM.getApproverPermission()));
 		}
 
 		toRemove.stream()
@@ -424,4 +428,20 @@ public class UserRoleApiV2 {
 
 
 
+
+	private static ApproverPermission toApproverPermission(List<ApprovableBy> values) {
+		try {
+			return ApproverPermission.of(values);
+		} catch (IllegalArgumentException e) {
+			throw new BadRequestException(e.getMessage());
+		}
+	}
+
+	private static RequesterPermission toRequesterPermission(List<RequestableBy> values) {
+		try {
+			return RequesterPermission.of(values);
+		} catch (IllegalArgumentException e) {
+			throw new BadRequestException(e.getMessage());
+		}
+	}
 }

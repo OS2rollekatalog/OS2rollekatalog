@@ -59,7 +59,7 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldFireForNewTitleWithNoPriorAssignments")
 		void shouldFireForNewTitleWithNoPriorAssignments() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
 
 			OrgUnitWithTitlesDTO dto = TestData.dtoWithTitleScopedAssignmentForDifferentTitle("ou-1", "Sagsbehandler");
 			NewTitlesInOrgUnitsEvent event = new NewTitlesInOrgUnitsEvent(this, Set.of(dto));
@@ -75,7 +75,7 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldFireForNewTitleThatAlreadyHasPriorAssignments")
 		void shouldFireForNewTitleThatAlreadyHasPriorAssignments() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
 
 			Title title = TestData.title("title-uuid", "Sagsbehandler");
 			OrgUnitWithTitlesDTO dto = TestData.dtoWithExistingUserRoleAssignmentForTitle("ou-1", title);
@@ -113,7 +113,7 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldNotFireWhenNotificationTypeDisabled")
 		void shouldNotFireWhenNotificationTypeDisabled() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(false);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(false);
 
 			NewTitlesInOrgUnitsEvent event = new NewTitlesInOrgUnitsEvent(this,
 				Set.of(TestData.dtoWithTitleScopedAssignmentForDifferentTitle("ou-1", "Sagsbehandler")));
@@ -131,8 +131,8 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldFireForTitleWithNoPriorUserRoleAssignments")
 		void shouldFireForTitleWithNoPriorUserRoleAssignments() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(false);
-			when(settingsService.isNotificationTypeEnabled(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)).thenReturn(true);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(false);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)).thenReturn(true);
 
 			OrgUnitWithTitlesDTO dto = TestData.dtoWithTitleScopedAssignmentForDifferentTitle("ou-1", "Sagsbehandler");
 			NewTitlesInOrgUnitsEvent event = new NewTitlesInOrgUnitsEvent(this, Set.of(dto));
@@ -148,7 +148,7 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldNotFireWhenTitleAlreadyHasPriorUserRoleAssignment")
 		void shouldNotFireWhenTitleAlreadyHasPriorUserRoleAssignment() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
 
 			Title title = TestData.title("title-uuid", "Sagsbehandler");
 			OrgUnitWithTitlesDTO dto = TestData.dtoWithExistingUserRoleAssignmentForTitle("ou-1", title);
@@ -164,7 +164,7 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldNotFireWhenTitleAlreadyHasPriorRoleGroupAssignment")
 		void shouldNotFireWhenTitleAlreadyHasPriorRoleGroupAssignment() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
 
 			Title title = TestData.title("title-uuid", "Konsulent");
 			OrgUnitWithTitlesDTO dto = TestData.dtoWithExistingRoleGroupAssignmentForTitle("ou-1", title);
@@ -180,8 +180,8 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldNotFireWhenNotificationTypeDisabled")
 		void shouldNotFireWhenNotificationTypeDisabled() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(false);
-			when(settingsService.isNotificationTypeEnabled(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)).thenReturn(false);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(false);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)).thenReturn(false);
 
 			OrgUnitWithTitlesDTO dto = TestData.dtoWithTitleScopedAssignmentForDifferentTitle("ou-1", "Sagsbehandler");
 			NewTitlesInOrgUnitsEvent event = new NewTitlesInOrgUnitsEvent(this, Set.of(dto));
@@ -220,8 +220,8 @@ class NewTitlesInOrgUnitsEventHandlerTest {
 		@Test
 		@DisplayName("shouldFireBothNotificationTypesWhenOuHasTitlesWithAndWithoutPriorAssignments")
 		void shouldFireBothNotificationTypesWhenOuHasTitlesWithAndWithoutPriorAssignments() {
-			when(settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
-			when(settingsService.isNotificationTypeEnabled(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)).thenReturn(true);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_TITLE_IN_ORG_UNIT)).thenReturn(true);
+			when(settingsService.isNotificationTypeEnabledCached(NotificationType.RETURNING_TITLE_IN_ORG_UNIT)).thenReturn(true);
 
 			// titleWithPriorAssignment: OU already has an assignment scoped to this title
 			Title titleWithPriorAssignment = TestData.title("existing-uuid", "Konsulent");

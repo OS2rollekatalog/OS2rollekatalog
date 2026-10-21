@@ -6,21 +6,19 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.function.Function;
 
 @Service
+@RequiredArgsConstructor
 public class RoleGroupService {
-
-	@Autowired
-	private RoleGroupDao roleGroupDao;
+	private final RoleGroupDao roleGroupDao;
+	private final HistoricAssignmentService historicAssignmentService;
 
 	@AuditLogIntercepted
 	public boolean addUserRole(RoleGroup roleGroup, UserRole userRole) {
@@ -62,8 +60,10 @@ public class RoleGroupService {
 		return roleGroupDao.save(roleGroup);
 	}
 
+	@Transactional
 	@AuditLogIntercepted
 	public void delete(RoleGroup roleGroup) {
+		historicAssignmentService.closeOpenForDeletedRoleGroup(roleGroup);
 		roleGroupDao.delete(roleGroup);
 	}
 
@@ -88,27 +88,12 @@ public class RoleGroupService {
 		return roleGroupDao.findByName(name);
 	}
 
-	@Transactional(readOnly = true)
-	public List<RoleGroup> getRoleGroupsWithRequesterPermissions(List<RequestableBy> permissions) {
-		return unionByPermission(permissions, roleGroupDao::findByRequesterPermissionContaining);
+	public List<RoleGroup> findAllByIdIn(Collection<Long> ids) {
+		return ids.isEmpty() ? List.of() : roleGroupDao.findAllByIdIn(ids);
 	}
 
-	@Transactional(readOnly = true)
-	public List<RoleGroup> getRoleGroupsWithApproverPermissions(List<ApprovableBy> permissions) {
-		return unionByPermission(permissions, roleGroupDao::findByApproverPermissionContaining);
-	}
-
-	private static List<RoleGroup> unionByPermission(Collection<? extends Enum<?>> permissions, Function<String, List<RoleGroup>> query) {
-		if (permissions.isEmpty()) {
-			return List.of();
-		}
-		Map<Long, RoleGroup> byId = new LinkedHashMap<>();
-		for (Enum<?> p : permissions) {
-			for (RoleGroup rg : query.apply(p.name())) {
-				byId.putIfAbsent(rg.getId(), rg);
-			}
-		}
-		return List.copyOf(byId.values());
+	public Set<Long> getUserRoleIds(Collection<Long> roleGroupIds) {
+		return roleGroupIds.isEmpty() ? Set.of() : roleGroupDao.findUserRoleIdsByRoleGroupIdIn(roleGroupIds);
 	}
 
 	@Transactional
@@ -141,5 +126,9 @@ public class RoleGroupService {
 
 		roleGroup = roleGroupDao.save(roleGroup);
 		return roleGroup;
+	}
+
+	public <T> Optional<T> findProjectionById(Long id, Class<T> projectionType) {
+		return roleGroupDao.findById(id, projectionType);
 	}
 }

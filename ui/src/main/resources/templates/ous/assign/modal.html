@@ -1,0 +1,20 @@
+<th:block th:fragment="assignModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal fade" id="assign-modal" tabindex="-1" role="dialog">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content" id="assign-modal-content">
+				<!-- replaced by fetched fragment content on each open -->
+			</div>
+		</div>
+	</div>
+</th:block>
+
+<th:block th:fragment="ouAssignmentModalContent" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal-header">
+		<button type="button" class="close" data-dismiss="modal">&times;</button>
+		<h4 id="ouRolesModalHeader" th:text="#{html.page.ou.assign.modal.title.prefix} + ' ' + ${roleName} + ' ' + #{html.page.ou.assign.modal.title.postfix} +  ' ' + ${ouName}">Tildel til enhed</h4>
+	</div>
+
+	<div class="modal-body" id="assignmentWizardBody">
+		<div th:replace="~{ous/assign/fragments/wizardBody :: wizardBody}"></div>
+	</div>
+</th:block>

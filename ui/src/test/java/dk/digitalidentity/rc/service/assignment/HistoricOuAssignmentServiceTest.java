@@ -32,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +47,7 @@ import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUse
 import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUserRole;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -93,6 +95,91 @@ class HistoricOuAssignmentServiceTest {
 	}
 
 	// ---- ------------- ---- //
+
+	@Nested
+	@DisplayName("repairRecordHash")
+	class RepairRecordHash {
+
+		private HistoricOuAssignment openRow(String storedHash) {
+			HistoricOuAssignment row = HistoricOuAssignment.builder()
+				.ouUuid("ou-uuid")
+				.roleId(20L)
+				.itSystemId(10L)
+				.recordHash(storedHash)
+				.exclusions(new ArrayList<>())
+				.build();
+			when(historicOuAssignmentDao.findWithExclusionsById(1L)).thenReturn(Optional.of(row));
+			return row;
+		}
+
+		@Test
+		@DisplayName("a row whose hash still matches is left alone")
+		void matchingHashIsLeftAlone() {
+			// ---- Given ---- //
+			HistoricOuAssignment row = openRow("placeholder");
+			row.setRecordHash(HistoricOuAssignmentHashCalculator.compute(row));
+
+			// ---- When / Then ---- //
+			assertThat(service.repairRecordHash(1L)).isFalse();
+			verify(historicOuAssignmentDao, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("a drifted hash is rewritten and the row stays open")
+		void driftedHashIsRewritten() {
+			// ---- Given ---- //
+			HistoricOuAssignment row = openRow("hash-from-an-older-formula");
+
+			// ---- When ---- //
+			boolean repaired = service.repairRecordHash(1L);
+
+			// ---- Then ---- //
+			assertThat(repaired).isTrue();
+			assertThat(row.getRecordHash()).isEqualTo(HistoricOuAssignmentHashCalculator.compute(row));
+			assertThat(row.getValidTo()).isNull();
+			verify(historicOuAssignmentDao).save(row);
+		}
+
+		@Test
+		@DisplayName("when another open row already holds the repaired hash, this one is closed as the duplicate")
+		void duplicateIsClosedInsteadOfStamped() {
+			// ---- Given ---- //
+			HistoricOuAssignment row = openRow("hash-from-an-older-formula");
+			when(historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(anyString())).thenReturn(true);
+
+			// ---- When ---- //
+			boolean repaired = service.repairRecordHash(1L);
+
+			// ---- Then ---- //
+			assertThat(repaired).isTrue();
+			assertThat(row.getValidTo()).isNotNull();
+			// the old hash is kept, so a later close event hits the surviving row rather than this one
+			assertThat(row.getRecordHash()).isEqualTo("hash-from-an-older-formula");
+		}
+
+		@Test
+		@DisplayName("a closed row is a past interval and is not touched")
+		void closedRowIsNotTouched() {
+			// ---- Given ---- //
+			HistoricOuAssignment row = openRow("hash-from-an-older-formula");
+			row.setValidTo(LocalDateTime.now());
+
+			// ---- When / Then ---- //
+			assertThat(service.repairRecordHash(1L)).isFalse();
+			verify(historicOuAssignmentDao, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("a row that no longer exists is not an error")
+		void missingRowIsNotAnError() {
+			// ---- Given ---- //
+			when(historicOuAssignmentDao.findWithExclusionsById(1L)).thenReturn(Optional.empty());
+
+			// ---- When / Then ---- //
+			assertThat(service.repairRecordHash(1L)).isFalse();
+			verify(historicOuAssignmentDao, never()).save(any());
+		}
+	}
 
 	@Nested
 	@DisplayName("recordUserRoleAdded creates a correct record")
@@ -331,6 +418,29 @@ class HistoricOuAssignmentServiceTest {
 		}
 
 		@Test
+		@DisplayName("exclusion EXCEPTED_OUS is created with correct UUIDs")
+		void exceptedOusExclusionIsCreated() {
+			// ---- Given ---- //
+			OrgUnit excepted1 = createNamedOrgUnit("excepted-ou-1", "Excepted OU 1");
+			OrgUnit excepted2 = createNamedOrgUnit("excepted-ou-2", "Excepted OU 2");
+
+			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			assignment.setContainsExceptedOus(true);
+			assignment.setExceptedOus(List.of(excepted1, excepted2));
+
+			// ---- When ---- //
+			service.recordUserRoleAdded(ou, assignment);
+
+			// ---- Then ---- //
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
+
+			List<HistoricOuAssignmentExclusion> exclusions = snapshot.getExclusions();
+			assertThat(exclusions).hasSize(1);
+			assertThat(exclusions.getFirst().getExclusionType()).isEqualTo(ExclusionType.EXCEPTED_OUS);
+			assertThat(exclusions.getFirst().getUuids()).containsExactlyInAnyOrder("excepted-ou-1", "excepted-ou-2");
+		}
+
+		@Test
 		@DisplayName("no exclusions are created when no flags are set")
 		void noExclusionsWhenNoFlagsSet() {
 			// ---- Given ---- //
@@ -450,7 +560,7 @@ class HistoricOuAssignmentServiceTest {
 	class RecordUserRoleUpdatedClose {
 
 		@Test
-		@DisplayName("passes the pre-update hash to closeOpenByRecordHash and does not save")
+		@DisplayName("passes the pre-update hash to closeOpenByRecordHashIn and does not save")
 		void closesOldRecordByPreUpdateHashAndDoesNotSave() {
 			// ---- Given ---- //
 			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
@@ -478,11 +588,8 @@ class HistoricOuAssignmentServiceTest {
 					.build()
 			);
 
-			ArgumentCaptor<String> hashCaptor = ArgumentCaptor.forClass(String.class);
-			verify(historicOuAssignmentDao).closeOpenByRecordHash(hashCaptor.capture(), any());
+			verify(historicOuAssignmentDao).closeOpenByRecordHashIn(eq(List.of(expectedHash)), any());
 			verify(historicOuAssignmentDao, Mockito.never()).save(any());
-
-			assertThat(hashCaptor.getValue()).isEqualTo(expectedHash);
 		}
 	}
 
@@ -524,8 +631,97 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleRemoved(ou, assignment);
 
 			// ---- Then ---- //
-			verify(historicOuAssignmentDao).closeOpenByRecordHash(any(String.class), any());
+			verify(historicOuAssignmentDao).closeOpenByRecordHashIn(anyCollection(), any());
 			verifyNoInteractions(userRoleDao);
+		}
+	}
+
+	@Nested
+	@DisplayName("recordUserRoleAssignmentRemoved")
+	class RecordUserRoleAssignmentRemoved {
+
+		private OrgUnitUserRoleAssignment assignment(long id, boolean inherit) {
+			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, inherit);
+			assignment.setId(id);
+			return assignment;
+		}
+
+		@Test
+		@DisplayName("closes only the removed assignment's row when another assignment of the role stays")
+		void closesOnlyTheRemovedAssignment() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment removed = assignment(1L, false);
+			OrgUnitUserRoleAssignment kept = assignment(2L, true);
+			ou.setUserRoleAssignments(new ArrayList<>(List.of(removed, kept)));
+			String removedHash = service.toHistoricRecord(removed).getRecordHash();
+
+			// ---- When ---- //
+			service.recordUserRoleAssignmentRemoved(ou, removed);
+
+			// ---- Then ---- //
+			verify(historicOuAssignmentDao).closeOpenByRecordHashIn(eq(List.of(removedHash)), any());
+			verify(historicOuAssignmentDao, Mockito.times(1)).closeOpenByRecordHashIn(anyCollection(), any());
+		}
+
+		@Test
+		@DisplayName("leaves the shared row open when an identical assignment stays on the unit")
+		void leavesSharedRowOpen() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment removed = assignment(1L, false);
+			OrgUnitUserRoleAssignment identical = assignment(2L, false);
+			ou.setUserRoleAssignments(new ArrayList<>(List.of(removed, identical)));
+
+			// ---- When ---- //
+			service.recordUserRoleAssignmentRemoved(ou, removed);
+
+			// ---- Then ---- //
+			verify(historicOuAssignmentDao, never()).closeOpenByRecordHashIn(anyCollection(), any());
+		}
+	}
+
+	@Nested
+	@DisplayName("recordRoleGroupAssignmentRemoved")
+	class RecordRoleGroupAssignmentRemoved {
+
+		private RoleGroup roleGroup;
+
+		@BeforeEach
+		void setupRoleGroup() {
+			roleGroup = createRoleGroup(30L, "Test Role Group", "Role group description", List.of(userRole, createUserRole(21L, "Role 2", itSystem)));
+		}
+
+		private OrgUnitRoleGroupAssignment assignment(long id, boolean inherit) {
+			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, ou, false, false, inherit);
+			assignment.setId(id);
+			return assignment;
+		}
+
+		@Test
+		@DisplayName("closes one row per role of the removed assignment when the remaining one differs")
+		void closesRowsOfRemovedAssignment() {
+			// ---- Given ---- //
+			OrgUnitRoleGroupAssignment removed = assignment(1L, false);
+			ou.setRoleGroupAssignments(new ArrayList<>(List.of(removed, assignment(2L, true))));
+
+			// ---- When ---- //
+			service.recordRoleGroupAssignmentRemoved(ou, removed);
+
+			// ---- Then ---- //
+			verify(historicOuAssignmentDao, Mockito.times(2)).closeOpenByRecordHashIn(anyCollection(), any());
+		}
+
+		@Test
+		@DisplayName("leaves the shared rows open when an identical assignment stays on the unit")
+		void leavesSharedRowsOpen() {
+			// ---- Given ---- //
+			OrgUnitRoleGroupAssignment removed = assignment(1L, false);
+			ou.setRoleGroupAssignments(new ArrayList<>(List.of(removed, assignment(2L, false))));
+
+			// ---- When ---- //
+			service.recordRoleGroupAssignmentRemoved(ou, removed);
+
+			// ---- Then ---- //
+			verify(historicOuAssignmentDao, never()).closeOpenByRecordHashIn(anyCollection(), any());
 		}
 	}
 
@@ -683,7 +879,7 @@ class HistoricOuAssignmentServiceTest {
 	class RecordRoleGroupUpdatedClose {
 
 		@Test
-		@DisplayName("calls closeOpenByRecordHash once per role and does not save")
+		@DisplayName("calls closeOpenByRecordHashIn once per role and does not save")
 		void closesAllOldRecordsAndDoesNotSave() {
 			// ---- Given ---- //
 			UserRole role2 = createUserRole(21L, "Role 2", itSystem);
@@ -695,7 +891,7 @@ class HistoricOuAssignmentServiceTest {
 
 			// ---- Then ---- //
 			verify(historicOuAssignmentDao, Mockito.times(2))
-				.closeOpenByRecordHash(any(String.class), any());
+				.closeOpenByRecordHashIn(anyCollection(), any());
 			verify(historicOuAssignmentDao, Mockito.never()).saveAll(any());
 		}
 	}
@@ -747,7 +943,7 @@ class HistoricOuAssignmentServiceTest {
 
 			// ---- Then ---- //
 			verify(historicOuAssignmentDao, Mockito.times(2))
-				.closeOpenByRecordHash(any(String.class), any());
+				.closeOpenByRecordHashIn(anyCollection(), any());
 			verifyNoInteractions(userRoleDao);
 		}
 	}
@@ -1015,6 +1211,64 @@ class HistoricOuAssignmentServiceTest {
 			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
 			verify(historicOuAssignmentDao, Mockito.times(1)).save(captor.capture());
 			assertThat(captor.getValue().getRoleId()).isEqualTo(21L);
+		}
+	}
+
+	@Nested
+	@DisplayName("rows stored before excepted org units were part of the identity")
+	class OlderIdentityVersion {
+
+		private OrgUnitUserRoleAssignment exceptingAssignment(String exceptedOuUuid) {
+			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			assignment.setContainsExceptedOus(true);
+			assignment.setExceptedOus(List.of(createNamedOrgUnit(exceptedOuUuid, "Undtaget enhed")));
+			return assignment;
+		}
+
+		/** The hash an open row of this test's role on this test's org unit carries for the given exclusions. */
+		private String hashWith(List<HistoricOuAssignmentExclusion> exclusions) {
+			return HistoricOuAssignmentHashCalculator.compute(HistoricOuAssignment.builder()
+				.ouUuid(ou.getUuid())
+				.itSystemId(itSystem.getId())
+				.roleId(userRole.getId())
+				.assignedThroughType(AssignedThrough.ORGUNIT)
+				.assignedThroughUuid(ou.getUuid())
+				.exclusions(new ArrayList<>(exclusions))
+				.build());
+		}
+
+		private HistoricOuAssignmentExclusion exceptedOus(String uuid) {
+			return HistoricOuAssignmentExclusion.builder()
+				.exclusionType(ExclusionType.EXCEPTED_OUS)
+				.uuids(List.of(uuid))
+				.build();
+		}
+
+		@Test
+		@DisplayName("removal falls back to the older hash when the current one closes nothing")
+		void removalFallsBackToOlderHash() {
+			// ---- Given ---- //
+			// the current hash closes nothing: the mock returns 0 rows for every close
+
+			// ---- When ---- //
+			service.recordUserRoleRemoved(ou, exceptingAssignment("excepted-ou-uuid"));
+
+			// ---- Then ---- //
+			verify(historicOuAssignmentDao).closeOpenByRecordHashIn(eq(List.of(hashWith(List.of()))), any());
+		}
+
+		@Test
+		@DisplayName("removal does not try the older hash when the current one closed a row")
+		void removalSkipsOlderHashWhenCurrentClosedARow() {
+			// ---- Given ---- //
+			given(historicOuAssignmentDao.closeOpenByRecordHashIn(eq(List.of(hashWith(List.of(exceptedOus("excepted-ou-uuid"))))), any()))
+				.willReturn(1);
+
+			// ---- When ---- //
+			service.recordUserRoleRemoved(ou, exceptingAssignment("excepted-ou-uuid"));
+
+			// ---- Then ---- //
+			verify(historicOuAssignmentDao, never()).closeOpenByRecordHashIn(eq(List.of(hashWith(List.of()))), any());
 		}
 	}
 }

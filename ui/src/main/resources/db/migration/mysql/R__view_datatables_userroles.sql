@@ -9,100 +9,23 @@ CREATE OR REPLACE VIEW view_datatables_userroles AS (
         its.identifier AS it_system_identifier,
         ur.requester_permission AS requester_permission,
         ur.approver_permission AS approver_permission,
-
-        TRIM(BOTH ',' FROM
-             CONCAT(
-                     CASE
-                         WHEN ur.requester_permission NOT LIKE '%INHERIT%'
-                             THEN CONCAT(ur.requester_permission, ',')
-                         WHEN ur.requester_permission IS NOT NULL
-                             THEN CONCAT(
-                                 TRIM(BOTH ',' FROM
-                                      REGEXP_REPLACE(ur.requester_permission, '(^|,)INHERIT(,|$)', ',')
-                                 ),
-                                 ','
-                                  )
-                         ELSE ''
-                         END,
-                     CASE
-                         WHEN ur.requester_permission LIKE '%INHERIT%'
-                             AND its.requester_permission IS NOT NULL
-                             AND its.requester_permission NOT LIKE '%INHERIT%'
-                             THEN CONCAT(its.requester_permission, ',')
-                         ELSE ''
-                         END,
-                     CASE
-                         WHEN ur.requester_permission LIKE '%INHERIT%'
-                             AND (its.requester_permission IS NULL OR its.requester_permission LIKE '%INHERIT%')
-                             THEN COALESCE(
-                                 (SELECT setting_value FROM setting WHERE setting_key = 'allowedrequesters'),
-                                 ''
-                                  )
-                         ELSE ''
-                         END
-             )
-        ) AS effective_requester_permission,
-        -- Effektiv approver_permission
-        TRIM(BOTH ',' FROM
-             CONCAT(
-                 -- UserRole permissions (fjern INHERIT)
-                     CASE
-                         WHEN ur.approver_permission NOT LIKE '%INHERIT%'
-                             THEN CONCAT(ur.approver_permission, ',')
-                         WHEN ur.approver_permission IS NOT NULL
-                             THEN CONCAT(
-                                 TRIM(BOTH ',' FROM
-                                      REGEXP_REPLACE(ur.approver_permission, '(^|,)INHERIT(,|$)', ',')
-                                 ),
-                                 ','
-                                  )
-                         ELSE ''
-                         END,
-                 -- ITSystem permissions hvis UserRole har INHERIT
-                     CASE
-                         WHEN ur.approver_permission LIKE '%INHERIT%'
-                             AND its.approver_permission IS NOT NULL
-                             AND its.approver_permission NOT LIKE '%INHERIT%'
-                             THEN CONCAT(its.approver_permission, ',')
-                         WHEN ur.approver_permission LIKE '%INHERIT%'
-                             AND its.approver_permission IS NOT NULL
-                             AND its.approver_permission LIKE '%INHERIT%'
-                             THEN CONCAT(
-                                 TRIM(BOTH ',' FROM
-                                      REGEXP_REPLACE(its.approver_permission, '(^|,)INHERIT(,|$)', ',')
-                                 ),
-                                 ','
-                                  )
-                         ELSE ''
-                         END,
-                 -- Global permissions hvis både UserRole OG ITSystem har INHERIT
-                     CASE
-                         WHEN ur.approver_permission LIKE '%INHERIT%'
-                             AND (its.approver_permission IS NULL OR its.approver_permission LIKE '%INHERIT%')
-                             THEN COALESCE(
-                                 (SELECT setting_value FROM setting WHERE setting_key = 'allowedrapprovers'),
-                                 ''
-                                  )
-                         ELSE ''
-                         END
-             )
-        ) AS effective_approver_permission,
+        urp.effective_requester_permission AS effective_requester_permission,
+        urp.effective_approver_permission AS effective_approver_permission,
         IF(pku.id IS NULL, FALSE, TRUE) AS pending_sync,
         IF(pku.failed IS NULL, FALSE, pku.failed) AS sync_failed,
         ur.delegated_from_cvr AS delegated_from_cvr,
+        ur.allow_postponing AS allow_postponing,
         ur.read_only AS read_only,
         -- exposed so the assignment lists can filter out roles in read-only AD it systems, which
         -- are never provisioned and therefore cannot be assigned - see UserRoleService.assignmentBlockedReason
         its.readonly AS it_system_readonly,
-        -- Only expose the OU filter when it is actually enabled. The join tables can retain
-        -- stale OUs after the filter is disabled (e.g. via the API), and the requestability
-        -- checks in Java (RequestService.orgUnitFilterAllows) ignore the filter unless
-        -- ou_filter_enabled is TRUE. The "all roles" list must apply the exact same rule,
-        -- otherwise a role shows under "Recommended" (Java) but disappears from "All" (this view).
-        CASE WHEN ur.ou_filter_enabled = TRUE THEN GROUP_CONCAT(DISTINCT our.ou_uuid) END as org_unit_filter_uuids,
-        CASE WHEN its.ou_filter_enabled = TRUE THEN GROUP_CONCAT(DISTINCT itsou.ou_uuid) END as it_system_org_unit_filter_uuids
+        -- NULL = no OU filter, '' = filter enabled without OUs (allows nothing). The join tables
+        -- can retain stale OUs after the filter is disabled, so they are only exposed when enabled.
+        CASE WHEN ur.ou_filter_enabled = TRUE THEN COALESCE(GROUP_CONCAT(DISTINCT our.ou_uuid), '') END as org_unit_filter_uuids,
+        CASE WHEN its.ou_filter_enabled = TRUE THEN COALESCE(GROUP_CONCAT(DISTINCT itsou.ou_uuid), '') END as it_system_org_unit_filter_uuids
     FROM user_roles ur
              JOIN it_systems its ON its.id = ur.it_system_id
+             JOIN view_user_role_permissions urp ON urp.user_role_id = ur.id
              LEFT JOIN pending_kombit_updates pku ON pku.user_role_id = ur.id
              LEFT JOIN ous_user_roles our ON ur.id = our.user_roles_id
              LEFT JOIN ous_itsystems itsou ON its.id = itsou.itsystem_id

@@ -27,4 +27,15 @@ public class OrgUnitRoleGroupAssignmentAM extends BaseOrgUnitAssignmentAM {
 		this.roleGroup = roleGroup;
 		setAssignmentType("ROLE_GROUP");
 	}
+
+	@Schema(
+		description = "Type af tildeling",
+		requiredMode = Schema.RequiredMode.REQUIRED,
+		allowableValues = {"ROLE_GROUP"},
+		example = "ROLE_GROUP"
+	)
+	@Override
+	public String getAssignmentType() {
+		return super.getAssignmentType();
+	}
 }

@@ -109,14 +109,6 @@ function initFragmentDelegation() {
         orgUnitService.loadRolesFragment();
     });
 
-    $("#ous_menu").on("click", ".js-add-ou-role-assignment", function () {
-        orgUnitService.addRoleAssignment(this);
-    });
-
-    $("#ous_menu").on("click", ".js-edit-ou-assignment", function () {
-        orgUnitService.editRoleAssignment(this);
-    });
-
     $("#ous_menu").on("click", ".js-delete-ou-assignment", function () {
         orgUnitService.deleteRoleAssignment(this);
     });
@@ -132,9 +124,10 @@ class UserService {
 
     loadRolesFragment() {
         new QueueDrainService("#users_menu", { message: this.config.txtQueueSpinner }).watch(() => {
-            $("#users_menu").load(`${this.config.uiUrl}${this.config.roleId}/assignedUsersFragment?showEdit=true`, () => {
-                fragShowDataTableFun("#listTableUsers", 0);
-            });
+            window.loadAssignedUsersTab(
+                document.getElementById("users_menu"),
+                `${this.config.uiUrl}${this.config.roleId}/assignedUsersFragment`
+            );
         });
     }
 
@@ -334,42 +327,4 @@ class OrgUnitService {
         );
     }
 
-    editRoleAssignment(elem) {
-        const parent = elem.parentElement;
-        const startDate = parent.dataset.startdate;
-        const stopDate = parent.dataset.stopdate;
-        const assignmentType = parent.dataset.assignmenttype;
-        const assignmentId = parent.dataset.assignmentid;
-        const ou = parent.dataset.orgunit;
-
-        $("#ouUserRoleEditModal").load(`${this.config.uiUrl}fragments/ou/${ou}?edit=true`, () => {
-            window.initOuEditModalDatePickers();
-            window.ouRoleAssignmentService.init();
-            window.ouRoleAssignmentService.parentService = this;
-
-            window.ouRolesEditModalService.assignmentId = assignmentId;
-            window.ouRolesEditModalService.ouUuid = ou;
-            window.ouRolesEditModalService.inherit = Number(assignmentType) === -2;
-            window.ouRolesEditModalService.roleType = "role";
-            window.ouRolesEditModalService.roleId = this.config.roleId;
-
-            window.ouRolesEditModalService.showAssignModal(
-                this.config.titlesEnabled, startDate, stopDate, assignmentType, assignmentId, this.config.roleName
-            );
-        });
-    }
-
-    addRoleAssignment(elem) {
-        window.ouRolesModalService.roleType = "role";
-        window.ouRolesModalService.roleId = this.config.roleId;
-        window.ouRolesModalService.ouUuid = elem.dataset.orgunit;
-
-        $("#ouUserRoleModal").load(`${this.config.uiUrl}fragments/ou/${window.ouRolesModalService.ouUuid}`, () => {
-            window.initOuModalDatePickers();
-            window.ouRoleAssignmentService.init();
-            window.ouRoleAssignmentService.parentService = this;
-
-            window.ouRolesModalService.showAssignModal(this.config.titlesEnabled, null, null, this.config.roleName);
-        });
-    }
 }

@@ -4,6 +4,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignmentConstraint;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 
 import java.util.stream.Collectors;
@@ -27,7 +28,7 @@ public abstract class HistoricAssignmentMapper {
 		String assignedThroughRoleGroupName = null;
 
 		if (currentAssignment.getTitle() != null && currentAssignment.getOrgUnit() != null) {
-			assignedThroughtype = AssignedThrough.TITLE;
+			assignedThroughtype = assignedThroughForOrgUnitAssignment(currentAssignment);
 			assignedThroughTitleId = currentAssignment.getTitle().getUuid();
 			assignedThroughTitleName = currentAssignment.getTitle().getName();
 			assignedThroughOUId = currentAssignment.getOrgUnit().getUuid();
@@ -65,6 +66,7 @@ public abstract class HistoricAssignmentMapper {
 			.startDate(currentAssignment.getStartDate())
 			.stopDate(currentAssignment.getStopDate())
 			.validFrom(currentAssignment.getCreatedAt())
+			.assignedWhen(currentAssignment.getAssignedWhen())
 			.validTo(null)
 
 			.userUuid(currentAssignment.getUser().getUuid())
@@ -149,5 +151,12 @@ public abstract class HistoricAssignmentMapper {
 			.constraintTypeEntityId(postponedConstraint.getConstraintTypeEntityId())
 			.value(postponedConstraint.getValue())
 			.build();
+	}
+
+	/** ORGUNIT unless the title the row carries is the reason for the role - an excluding assignment carries the holder's own. */
+	public static AssignedThrough assignedThroughForOrgUnitAssignment(CurrentAssignment currentAssignment) {
+		return currentAssignment.getTitle() != null && currentAssignment.getContainsTitles() != ContainsTitles.NEGATIVE
+			? AssignedThrough.TITLE
+			: AssignedThrough.ORGUNIT;
 	}
 }

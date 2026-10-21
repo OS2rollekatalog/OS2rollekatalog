@@ -32,6 +32,7 @@ public class Constants {
 	public static final String ROLE_ATTESTATION_ADMINISTRATOR_ID = "http://rollekatalog.dk/attestationadmin";
 	public static final String ROLE_REPORT_ACCESS_ID = "http://rollekatalog.dk/reportaccess";
 	public static final String ROLE_REQUESTAUTHORIZED = "http://rollekatalog.dk/requestauthorized";
+	public static final String ROLE_APPROVEAUTHORIZED = "http://rollekatalog.dk/requestapprover";
 
 	public static final String ROLE_USERROLE_READ_ID = "http://rollekatalog.dk/userrole/read";
 	public static final String ROLE_USERROLE_UPDATE_ID = "http://rollekatalog.dk/userrole/update";

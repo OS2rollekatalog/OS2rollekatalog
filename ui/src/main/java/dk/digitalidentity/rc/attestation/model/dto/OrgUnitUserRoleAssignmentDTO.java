@@ -25,4 +25,5 @@ public class OrgUnitUserRoleAssignmentDTO {
 	private boolean manager;
 	private boolean substitutes;
 	private List<String> functions;
+	private List<String> exceptedOus;
 }

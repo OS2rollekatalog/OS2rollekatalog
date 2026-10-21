@@ -249,4 +249,27 @@ class AttestationLockServiceTest {
 			assertThrows(NoSuchElementException.class, () -> attestationLockService.releaseLock(TEST_LOCK_NAME));
 		}
 	}
+
+	@Nested
+	@DisplayName("refreshLock() Tests")
+	class RefreshLockTests {
+
+		@Test
+		@DisplayName("Should move the acquired time of a held lock to now, so it does not expire")
+		void refreshLock_WhenHeld_ShouldMoveAcquiredAtToNow() {
+			// Arrange
+			AttestationLock heldLock = AttestationLock.builder()
+					.lockId(TEST_LOCK_NAME)
+					.acquiredAt(LocalDateTime.now().minusSeconds(LOCK_TIMEOUT_SECONDS - 10))
+					.build();
+			when(lockDao.findById(TEST_LOCK_NAME)).thenReturn(Optional.of(heldLock));
+
+			// Act
+			attestationLockService.refreshLock(TEST_LOCK_NAME);
+
+			// Assert
+			verify(lockDao).saveAndFlush(heldLock);
+			assertTrue(heldLock.getAcquiredAt().isAfter(LocalDateTime.now().minusSeconds(5)));
+		}
+	}
 }

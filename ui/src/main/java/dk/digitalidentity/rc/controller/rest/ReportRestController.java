@@ -14,6 +14,7 @@ import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.report.ReportColumnMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
@@ -53,10 +54,11 @@ public class ReportRestController {
 		reportTemplate.setShowOUs(reportForm.isShowOUs());
 		reportTemplate.setShowUserRoles(reportForm.isShowUserRoles());
 		reportTemplate.setShowNegativeRoles(reportForm.isShowNegativeRoles());
-		reportTemplate.setShowKLE(reportForm.isShowKLE());
 		reportTemplate.setShowItSystems(reportForm.isShowItSystems());
 		reportTemplate.setShowInactiveUsers(reportForm.isShowInactiveUsers());
 		reportTemplate.setShowSystemRoles(reportForm.isShowSystemRoles());
+		reportTemplate.setShowOrgUnitAllocations(reportForm.isShowOrgUnitAllocations());
+		reportTemplate.setSelectedColumns(ReportColumnMapper.toEntitySelections(reportForm.getSelectedColumns()));
 
 		if (reportForm.getItsystemFilter() != null && reportForm.getItsystemFilter().length > 0) {
 			StringBuilder builder = new StringBuilder();

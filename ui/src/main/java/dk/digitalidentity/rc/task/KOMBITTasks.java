@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.kombit.KOMBITService;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class KOMBITTasks {
 	}
 
 	@Scheduled(cron = "${cron.kombit.itsystems:0 #{new java.util.Random().nextInt(55)} 6,12,18 * * ?}")
+	@WarnIfSlowerThan(millis = 5 * 60 * 1000)
 	public void importItSystems() {
 		if (initialized) {
 			kombitService.readAndUpdateItSystems();
@@ -52,6 +54,7 @@ public class KOMBITTasks {
 	}
 	
 	@Scheduled(cron = "${cron.kombit.userroles:#{new java.util.Random().nextInt(59)} 0/2 6-21 * * ?}")
+	@WarnIfSlowerThan(millis = 30 * 1000)
 	public void processUserRolesFromUpdateQueue() {
 		log.debug("Processing user roles from update queue, initialized={}", initialized);
 		if (initialized) {
@@ -60,6 +63,7 @@ public class KOMBITTasks {
 	}
 
 	@Scheduled(cron = "#{new java.util.Random().nextInt(59)} 0/15 6-17 * * ?")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void synchronizeTest() {
 		if (!configuration.getScheduled().isEnabled() || !configuration.getIntegrations().getKombit().isTestEnabled()) {
 			return;

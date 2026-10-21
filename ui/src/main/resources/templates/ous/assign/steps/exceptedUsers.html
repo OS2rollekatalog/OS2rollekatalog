@@ -1,0 +1,33 @@
+<th:block th:fragment="exceptedUsers" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div id="exceptedUsersStepContent">
+		<label class="control-label" th:text="#{html.page.ou.assign.exceptedUsers.select.label}"></label>
+
+		<p class="text-muted" th:if="${#lists.isEmpty(exceptedUserCandidates)}"
+		   th:text="#{html.page.ou.assign.exceptedUsers.none}"></p>
+
+		<table id="exceptedUsersStepTable" class="table table-striped">
+			<thead>
+				<tr>
+					<th class="col-md-2" th:text="#{html.page.ous.excepted.users.checkbox.title}"></th>
+					<th class="col-md-5" th:text="#{html.entity.user.name}"></th>
+					<th class="col-md-5" th:text="#{html.entity.user.userId}"></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr th:each="user : ${exceptedUserCandidates}">
+					<td>
+						<div class="checkbox c-checkbox">
+							<label>
+								<input class="excepted-users-step-checkbox" type="checkbox" th:attr="data-id=${user.uuid}"
+							       th:checked="${selectedUserUuids != null and selectedUserUuids.contains(user.uuid)}" />
+								<span class="fa fa-check"></span>
+							</label>
+						</div>
+					</td>
+					<td th:text="${user.name}"></td>
+					<td th:text="${user.userId}"></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</th:block>

@@ -454,5 +454,14 @@ namespace ADSyncService.Properties {
                 return ((bool)(this["ItSystemGroupFeature_DoNotRegisterDisabledUsers"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("300")]
+        public int ApiTimeoutSeconds {
+            get {
+                return ((int)(this["ApiTimeoutSeconds"]));
+            }
+        }
     }
 }

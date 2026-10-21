@@ -4,6 +4,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
+import dk.kitos.api.model.TrackedEntityTypeChoice;
+
 public interface KitosConstants {
 
     String IT_SYSTEM_OFFSET_SETTING_KEY = "kitos_itsystems_offset";
@@ -14,8 +16,8 @@ public interface KitosConstants {
     ZonedDateTime KITOS_DELTA_START_FROM = OffsetDateTime.of(1970, 1, 1, 0, 0, 0 ,0, ZoneOffset.UTC).toZonedDateTime();
     OffsetDateTime KITOS_DELTA_START_FROM_OFFSET = KITOS_DELTA_START_FROM.toOffsetDateTime().withOffsetSameInstant(ZoneOffset.UTC);
 
-    String IT_SYSTEM_ENTITY_TYPE = "ItSystem";
-    String IT_SYSTEM_USAGE_ENTITY_TYPE = "ItSystemUsage";
+    TrackedEntityTypeChoice IT_SYSTEM_ENTITY_TYPE = TrackedEntityTypeChoice.IT_SYSTEM;
+    TrackedEntityTypeChoice IT_SYSTEM_USAGE_ENTITY_TYPE = TrackedEntityTypeChoice.IT_SYSTEM_USAGE;
 
     Integer PAGE_SIZE = 100;
 

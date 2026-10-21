@@ -60,9 +60,6 @@ function initDatePickers() {
     // Edit dialog for userRoles and RoleGroup assignments in USERS
     datePickerService.initDatePicker("startDatePickerEdit", defaultStartDatePickerOptions);
     datePickerService.initDatePicker("stopDatePickerEdit", defaultStopDatePickerOptions);
-    // Edit dialog for userRoles and RoleGroup assignments in ORGUNITS
-    datePickerService.initDatePicker("startDatePickerEditOU", defaultStartDatePickerOptions);
-    datePickerService.initDatePicker("stopDatePickerEditOU", defaultStopDatePickerOptions);
     // Settings -> attestation -> first attestation date
     datePickerService.initDatePicker("attestationStartDate", attestationDatePickerOptions);
 }
@@ -72,7 +69,6 @@ function initDatePickerPairs() {
     linkStartStopDatePickers("groupStartDatePicker", "groupStopDatePicker");
     linkStartStopDatePickers("startDatePickerOU", "stopDatePickerOU");
     linkStartStopDatePickers("startDatePickerEdit", "stopDatePickerEdit");
-    linkStartStopDatePickers("startDatePickerEditOU", "stopDatePickerEditOU");
 }
 
 /**
@@ -115,12 +111,6 @@ window.initOuModalDatePickers = function () {
     datePickerService.initDatePicker("startDatePickerOU", defaultStartDatePickerOptions);
     datePickerService.initDatePicker("stopDatePickerOU", defaultStopDatePickerOptions);
     linkStartStopDatePickers("startDatePickerOU", "stopDatePickerOU");
-};
-
-window.initOuEditModalDatePickers = function () {
-    datePickerService.initDatePicker("startDatePickerEditOU", defaultStartDatePickerOptions);
-    datePickerService.initDatePicker("stopDatePickerEditOU", defaultStopDatePickerOptions);
-    linkStartStopDatePickers("startDatePickerEditOU", "stopDatePickerEditOU");
 };
 
 window.initUserRoleModalDatePickers = function () {

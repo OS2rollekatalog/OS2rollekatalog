@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.log.WarnIfSlowerThan;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -26,6 +27,7 @@ public class CertificateExpiryCheckerTask {
 
 	// check for certificate expiry every Tuesday
 	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} 0 14 * * TUE")
+	@WarnIfSlowerThan(millis = 1 * 60 * 1000)
 	public void checkExpiry() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

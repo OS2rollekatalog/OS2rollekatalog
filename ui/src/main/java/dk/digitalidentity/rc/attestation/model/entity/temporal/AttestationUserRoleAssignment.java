@@ -98,6 +98,16 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
     private LocalDate assignedFrom;
 
     /**
+     * True when the manager of {@code responsibleOuUuid} attests this assignment. Roles inherited through an org unit
+     * or title are attested on the unit they are assigned on and are only informational here; collection-handled
+     * assignments belong to an IT-system responsible. The tracker and the closing side must agree on this rule -
+     * {@code inherited} cannot be used for it, as the updaters hardcode it to false.
+     */
+    public boolean isAttestedByOuManager() {
+        return assignedThroughType == AssignedThroughType.DIRECT && responsibleCollectionId == null;
+    }
+
+    /**
      * Compare two objects, all fields except temporal fields and the id
      */
     public boolean contentEquals(AttestationUserRoleAssignment that) {

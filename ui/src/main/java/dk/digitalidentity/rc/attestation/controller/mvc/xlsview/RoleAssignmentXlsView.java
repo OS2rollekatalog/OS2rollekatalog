@@ -9,7 +9,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import dk.digitalidentity.rc.attestation.model.dto.ADAttestationUserDTO;
-import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
 import dk.digitalidentity.rc.controller.mvc.xlsview.DisposableSXSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -46,8 +45,9 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 	 * Will acquire a row lock on an {@link AttestationLock}
 	 */
 	public void lockedScope(Runnable r) {
+		lockService.acquireLock(REPORT_LOCK_NAME);
+
 		try {
-			lockService.acquireLock(REPORT_LOCK_NAME);
 			r.run();
 		} finally {
 			lockService.releaseLock(REPORT_LOCK_NAME);
@@ -136,8 +136,6 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				Row dataRow = sheet.createRow(row++);
 				int column = 0;
 
-				final String attestationStatusMessage = getAttestationStatusMessage(entry);
-
 				createCell(dataRow, column++, entry.getUserName(), null);
 				createCell(dataRow, column++, entry.getUserUserId(), null);
 				createCell(dataRow, column++, entry.getPosition(), null);
@@ -155,7 +153,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				createCell(dataRow, column++, entry.getAssignedThrough(), null);
 				createCell(dataRow, column++, entry.getResponsibleOu(), null);
 				createCell(dataRow, column++, String.join(", ", entry.getResponsibleUserNames()), null);
-				createCell(dataRow, column++, messageSource.getMessage(attestationStatusMessage, null, locale), null);
+				createCell(dataRow, column++, getAttestationStatus(entry), null);
 				createCell(dataRow, column++, entry.getVerifiedAt() == null ? "" : entry.getVerifiedAt().toString(), null);
 				createCell(dataRow, column++, entry.getVerifiedByName() == null ? "" : entry.getVerifiedByName() + " (" + entry.getVerifiedByUserId() + ")", null);
 				createCell(dataRow, column++, entry.getRemark(), null);
@@ -221,20 +219,19 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		sheet.setColumnWidth(19, 50 * 256);
 	}
 
-	private static String getAttestationStatusMessage(RoleAssignmentReportRowDTO entry) {
-		String attestationStatusMessage = entry.getAttestationStatus().getMessage();
-		final LocalDate attestationCreatedAt = entry.getAttestationCreatedAt();
-		if (entry.getAttestationStatus().equals(AttestationStatus.NOT_VERIFIED)) {
-			if ((attestationCreatedAt == null) // No attestation found must be outside attestation
-				// validFrom is after attestation was created so must be outside attestation
-				|| (entry.getValidFrom() != null && entry.getValidFrom().isAfter(attestationCreatedAt))
-				// validTo is before attestation was created so must be outside attestation
-				|| (entry.getValidTo() != null && entry.getValidTo().isBefore(attestationCreatedAt)))
-			{
-				attestationStatusMessage = "attestationmodule.enums.attestationStatus.notVerified.outsideAttestation";
-			}
-		}
-		return attestationStatusMessage;
+	/**
+	 * "Outside attestation" is reserved for assignments no attestation covered - one that is part of an attestation
+	 * nobody has answered yet is not verified. A status from an unfinished attestation is marked, so it cannot be read
+	 * as a completed one.
+	 */
+	private String getAttestationStatus(RoleAssignmentReportRowDTO entry) {
+		final String messageKey = entry.getAttestationCreatedAt() == null
+				? "attestationmodule.enums.attestationStatus.notVerified.outsideAttestation"
+				: entry.getAttestationStatus().getMessage();
+		final String status = messageSource.getMessage(messageKey, null, locale);
+		return entry.isAttestationInProgress()
+				? status + " " + messageSource.getMessage("attestationmodule.enums.attestationStatus.inProgressSuffix", null, locale)
+				: status;
 	}
 
 	private void createHeaderRow(Sheet sheet, List<String> headers) {

@@ -175,7 +175,7 @@ class UserRoleControllerTest {
 			when(userRoleService.isAssignableRole(role)).thenReturn(assignableRole);
 
 			Model model = new ExtendedModelMap();
-			userRoleController.assignedUsersFragment(model, ROLE_ID, true);
+			userRoleController.assignedUsersFragment(model, ROLE_ID);
 
 			return (boolean) model.getAttribute("assignmentAddingAllowed");
 		}

@@ -55,6 +55,7 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 	private final PostponedConstraintService postponedConstraintService;
 	private final UserService userService;
 	private final RoleCatalogueConfiguration configuration;
+	private final ExceptedOusHistoricBackfill exceptedOusHistoricBackfill;
 
 	@Override
 	public void onApplicationEvent(final @NotNull ApplicationReadyEvent event) {
@@ -66,6 +67,9 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 		currentVersion = applyVersion(5, this::seedV5, currentVersion);
 		currentVersion = applyVersion(6, this::seedV6, currentVersion);
 		currentVersion = applyVersion(7, this::seedV7, currentVersion);
+		currentVersion = applyVersion(8, this::seedV8, currentVersion);
+		currentVersion = applyVersion(9, this::seedV9, currentVersion);
+		currentVersion = applyVersion(10, this::seedV10, currentVersion);
 		setCurrentVersion(currentVersion);
 	}
 
@@ -371,6 +375,39 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 			systemRole.setDescription(systemRole.getDescription().replace("adgant", "adgang"));
 			systemRoleService.save(systemRole);
 		}
+	}
+
+	private void seedV8() {
+		// title indgår nu i beregnede rollegruppe-rækker (#111), så deres recordHash er forældet
+		userService.queueAllForRecalculation();
+	}
+
+	private void seedV9() {
+		exceptedOusHistoricBackfill.run();
+	}
+
+	private void seedV10() {
+		// creates the approve-only system role
+		ItSystem roleCatalogue = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+		if (systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_APPROVEAUTHORIZED, roleCatalogue.getId()) != null) {
+			return;
+		}
+
+		SystemRole approveAuthorized = systemRoleService.createForRoleCatalogue(
+				"Rollegodkender",
+				Constants.ROLE_APPROVEAUTHORIZED,
+				"Denne rolle giver adgang til at godkende rolleanmodninger i Rollekataloget",
+				roleCatalogue);
+		approveAuthorized.getSupportedConstraintTypes().addAll(List.of(
+				optionalConstraintTypeSupport(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID),
+				optionalConstraintTypeSupport(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)));
+	}
+
+	private ConstraintTypeSupport optionalConstraintTypeSupport(final String constraintEntityId) {
+		ConstraintTypeSupport support = new ConstraintTypeSupport();
+		support.setConstraintType(constraintTypeService.getByEntityId(constraintEntityId));
+		support.setMandatory(false);
+		return support;
 	}
 
 }

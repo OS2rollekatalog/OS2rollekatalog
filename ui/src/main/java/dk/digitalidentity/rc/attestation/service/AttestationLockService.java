@@ -37,6 +37,14 @@ public class AttestationLockService {
         return lock.getAcquiredAt() != null && lock.getAcquiredAt().isAfter(LocalDateTime.now().minusSeconds(LOCK_TIMEOUT_S));
     }
 
+    // Keeps a held lock from expiring during long work - call it more often than every LOCK_TIMEOUT_S
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void refreshLock(String lockName) {
+        final AttestationLock lock = lockDao.findById(lockName).orElseThrow();
+        lock.setAcquiredAt(LocalDateTime.now());
+        lockDao.saveAndFlush(lock);
+    }
+
     // We need a new transaction, so we are sure the lock is written at the end of this methods
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void releaseLock(String lockName) {

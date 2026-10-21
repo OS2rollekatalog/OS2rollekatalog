@@ -39,6 +39,7 @@ import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -73,6 +74,7 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughTy
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.dao.FunctionDao;
+import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.TitleDao;
 import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -84,6 +86,7 @@ import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.util.ManagerSubstituteUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
@@ -136,6 +139,9 @@ public class OrganisationAttestationService {
 	private FunctionDao functionDao;
 
 	@Autowired
+	private OrgUnitDao orgUnitDao;
+
+	@Autowired
 	private SettingsService settingsService;
 
 	@PersistenceContext
@@ -154,6 +160,9 @@ public class OrganisationAttestationService {
 
 	@Autowired
 	private UserRoleService userRoleService;
+
+	@Autowired
+	private CurrentAssignmentService currentAssignmentService;
 
 	@Autowired
 	private RoleGroupService roleGroupService;
@@ -402,8 +411,10 @@ public class OrganisationAttestationService {
 		final List<AttestationUserRoleAssignment> userAssignments = userRoleAssignmentDao.listValidAssignmentsByResponsibleOu(attestation.getCreatedAt(), orgUnitUuid);
 		final List<AttestationOuRoleAssignment> organisationAssignments = ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(attestation.getCreatedAt(), orgUnitUuid);
 		organisationAssignments.addAll(ouAssignmentsDao.listValidNotInheritedAssignmentsWithExceptedTilesForOu(attestation.getCreatedAt(), orgUnitUuid));
+		// An org unit attested only for roles assigned on the unit itself has no user rows to take the name from
 		final var ouName = userAssignments.stream().filter(r -> r.getResponsibleOuName() != null)
-				.findFirst().map(AttestationUserRoleAssignment::getResponsibleOuName).orElse("");
+				.findFirst().map(AttestationUserRoleAssignment::getResponsibleOuName)
+				.orElseGet(() -> Objects.requireNonNullElse(attestation.getResponsibleOuName(), ""));
 
 		// Extract all roles that have been valid in between last attestation and now - so the person doing the attestation know
 		// which roles have been active between attestations.
@@ -610,8 +621,8 @@ public class OrganisationAttestationService {
 	 * on or view its attestation. Throws 403 otherwise.
 	 */
 	public void ensureUserManagesOrgUnit(final User user, final String orgUnitUuid) {
-		if (userRoleService.hasSystemRoleWithIdentifier(user, Constants.ROLE_ADMINISTRATOR_ID)
-				|| userRoleService.hasSystemRoleWithIdentifier(user, Constants.ROLE_ATTESTATION_ADMINISTRATOR_ID)) {
+		if (currentAssignmentService.hasRoleCatalogueSystemRole(user, Constants.ROLE_ADMINISTRATOR_ID)
+				|| currentAssignmentService.hasRoleCatalogueSystemRole(user, Constants.ROLE_ATTESTATION_ADMINISTRATOR_ID)) {
 			return;
 		}
 
@@ -622,6 +633,7 @@ public class OrganisationAttestationService {
 		if (user.getSubstituteFor() != null) {
 			managedOrgUnitUuids
 					.addAll(user.getSubstituteFor().stream()
+					.filter(ManagerSubstituteUtil::isActive)
 					.map(s -> s.getOrgUnit().getUuid())
 					.collect(Collectors.toSet()));
 		}
@@ -911,7 +923,7 @@ public class OrganisationAttestationService {
 				.attestationUuid(attestationOrganisation.getUuid())
 				.ouUuid(attestationOrganisation.getResponsibleOuUuid())
 				.verifiedAt(attestationOrganisation.getVerifiedAt() != null ? attestationOrganisation.getVerifiedAt().toLocalDate() : null)
-				.performedBy(AttestationOverviewService.resolvePerformedBy(attestationOrganisation.getOrganisationUserAttestationEntries(), userService))
+				.performedBy(resolvePerformedBy(attestationOrganisation))
 				.ouName(attestationOrganisation.getResponsibleOuName())
 				.orgUnitRolesVerified(isOrgVerified(attestationOrganisation, orgUnitRoleGroupAssignments, orgUnitUserRoleAssignmentsPrItSystem))
 				.deadLine(attestationOrganisation.getDeadline())
@@ -919,6 +931,29 @@ public class OrganisationAttestationService {
 				.orgUnitUserRoleAssignmentsPrItSystem(orgUnitUserRoleAssignmentsPrItSystem)
 				.userAttestations(buildUserAttestations(userRoleAssignments, attestationOrganisation, false, when, null))
 				.build();
+	}
+
+	String resolvePerformedBy(final Attestation attestation) {
+		final String latestUserEntryPerformer = AttestationOverviewService.resolvePerformedBy(attestation.getOrganisationUserAttestationEntries(), userService);
+		final OrganisationRoleAttestationEntry roleEntry = attestation.getOrganisationRolesAttestationEntry();
+
+		if (roleEntry == null || roleEntry.getPerformedByUserId() == null) {
+			return latestUserEntryPerformer;
+		}
+
+		final boolean roleEntryIsLatest = attestation.getOrganisationUserAttestationEntries().stream()
+			.filter(e -> e.getPerformedByUserId() != null)
+			.map(BaseUserAttestationEntry::getCreatedAt)
+			.max(Comparator.naturalOrder())
+			.map(latestUserEntry -> roleEntry.getCreatedAt().isAfter(latestUserEntry))
+			.orElse(true);
+
+		if (!roleEntryIsLatest) {
+			return latestUserEntryPerformer;
+		}
+
+		final User performer = userService.getByUserId(roleEntry.getPerformedByUserId());
+		return performer != null ? performer.getName() : null;
 	}
 
 	static boolean isOrgVerified(Attestation attestationOrganisation, final List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroupAssignments,
@@ -1071,8 +1106,7 @@ public class OrganisationAttestationService {
 	 * Note that isInherited() cannot be used here - it is hardcoded to false in {@link dk.digitalidentity.rc.attestation.service.temporal.UserAssignmentsUpdaterJdbc}.
 	 */
 	private static boolean isManagerResponsibleFor(final AttestationUserRoleAssignment assignment, final String responsibleOuUuid) {
-		return assignment.getAssignedThroughType() == AssignedThroughType.DIRECT
-				&& assignment.getResponsibleCollectionId() == null
+		return assignment.isAttestedByOuManager()
 				&& Objects.equals(assignment.getResponsibleOuUuid(), responsibleOuUuid);
 	}
 
@@ -1143,6 +1177,9 @@ public class OrganisationAttestationService {
 							final List<String> functions = a.getFunctionUuids().stream()
 									.map(f -> functionDao.findById(f).map(Function::getName).orElse(f))
 									.toList();
+							final List<String> exceptedOus = a.getExceptedOuUuids().stream()
+									.map(ou -> orgUnitDao.findById(ou).map(OrgUnit::getName).orElse(ou))
+									.toList();
 							return OrgUnitRoleGroupAssignmentDTO.builder()
 									.groupDescription(a.getRoleGroupDescription())
 									.groupName(a.getRoleGroupName())
@@ -1160,6 +1197,7 @@ public class OrganisationAttestationService {
 									.manager(a.isManager())
 									.substitutes(a.isSubstitutes())
 									.functions(functions)
+									.exceptedOus(exceptedOus)
 									.build();
 						}
 				)
@@ -1213,6 +1251,9 @@ public class OrganisationAttestationService {
 		final List<String> functions = assignment.getFunctionUuids().stream()
 				.map(f -> functionDao.findById(f).map(Function::getName).orElse(f))
 				.toList();
+		final List<String> exceptedOus = assignment.getExceptedOuUuids().stream()
+				.map(ou -> orgUnitDao.findById(ou).map(OrgUnit::getName).orElse(ou))
+				.toList();
 		return OrgUnitUserRoleAssignmentDTO.builder()
 				.inherit(assignment.isInherit())
 				.roleId(assignment.getRoleId())
@@ -1229,6 +1270,7 @@ public class OrganisationAttestationService {
 				.manager(assignment.isManager())
 				.substitutes(assignment.isSubstitutes())
 				.functions(functions)
+				.exceptedOus(exceptedOus)
 				.build();
 	}
 

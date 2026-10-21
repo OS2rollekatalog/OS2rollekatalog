@@ -33,7 +33,7 @@
 								<td th:if="${@settingsService.isRequestApproveEnabled()}"
 									th:text="${#strings.listJoin(roleGroup.requesterPermission.![displayName], ', ')}"></td>
 								<td th:if="${@settingsService.isRequestApproveEnabled()}"
-									th:text="${#strings.listJoin(roleGroup.approverPermission.![displayName], ', ')}"></td>
+									th:text="${#lists.isEmpty(roleGroup.approverPermission)} ? #{html.enum.sttings.approvableby.none} : ${#strings.listJoin(roleGroup.approverPermission.![displayName], ', ')}"></td>
 								<td>
 											<a th:if="${roleGroup.allowedActions.isReadable()}"
 											   th:href="@{/ui/rolegroups/view/{id}(id=${roleGroup.id})}"><em class="fa fa-search"></em></a>

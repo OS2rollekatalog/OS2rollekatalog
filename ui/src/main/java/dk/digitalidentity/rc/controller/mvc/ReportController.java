@@ -5,7 +5,9 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,11 +27,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
+import dk.digitalidentity.rc.rolerequest.service.permission.ResolvedPermissionService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.attestation.exception.ReportModuleBusyException;
+import dk.digitalidentity.rc.attestation.service.AttestationLockService;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemChoice;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.DuplicateUserRoleRow;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.DuplicateOrgUnitAssignmentRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserWithDuplicateRoleAssignmentDTO;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
 import dk.digitalidentity.rc.controller.mvc.xlsview.XlsView;
@@ -44,6 +51,8 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ReportType;
+import dk.digitalidentity.rc.service.report.ReportColumnDefinitions;
+import dk.digitalidentity.rc.service.report.ReportColumnMapper;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.AccessConstraintService;
@@ -62,6 +71,7 @@ import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.OrgUnitDuplicateAssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.UserWithRole;
@@ -74,6 +84,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequireControllerPermission(section = Section.REPORT, permission = Permission.READ)
 @Controller
 public class ReportController {
+	private static final String REPORT_DUPLICATE_ROLES = "REPORT_DUPLICATE_ROLES";
+	private static final long SLOW_WARNING_MS = 2000;
 	private final ReportService reportService;
 	private final HistoryService historyService;
 	private final ReportTemplateService reportTemplateService;
@@ -86,7 +98,11 @@ public class ReportController {
 	private final SystemRoleService systemRoleService;
 	private final AccessConstraintService accessConstraintService;
 	private final RequestService rolerequestService;
+	private final ResolvedPermissionService resolvedPermissionService;
+	private final RoleGroupService roleGroupService;
 	private final AssignmentService assignmentService;
+	private final OrgUnitDuplicateAssignmentService orgUnitDuplicateAssignmentService;
+	private final AttestationLockService lockService;
 
 	@RequireTemplateAccessOrReportAccessRole
 	@GetMapping("/ui/report/templates")
@@ -132,7 +148,6 @@ public class ReportController {
 		reportForm.setShowOUs(false);
 		reportForm.setShowUserRoles(true);
 		reportForm.setShowNegativeRoles(false);
-		reportForm.setShowKLE(true);
 		reportForm.setShowItSystems(true);
 		reportForm.setShowInactiveUsers(false);
 		reportForm.setShowSystemRoles(false);
@@ -143,6 +158,7 @@ public class ReportController {
 		model.addAttribute("allOrgUnits", parseOuTree(now));
 		model.addAttribute("allManagers", historyService.getManagers(now));
 		model.addAttribute("templateId", 0);
+		model.addAttribute("columnDefinitions", ReportColumnDefinitions.all());
 
 		return "reports/configure";
 	}
@@ -158,13 +174,13 @@ public class ReportController {
 			reportForm.setShowOUs(reportTemplate.isShowOUs());
 			reportForm.setShowUserRoles(reportTemplate.isShowUserRoles());
 			reportForm.setShowNegativeRoles(reportTemplate.isShowNegativeRoles());
-			reportForm.setShowKLE(reportTemplate.isShowKLE());
 			reportForm.setShowItSystems(reportTemplate.isShowItSystems());
 			reportForm.setShowInactiveUsers(reportTemplate.isShowInactiveUsers());
 			reportForm.setManagerFilter(reportTemplate.getManagerFilter());
 			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);
 			reportForm.setShowSystemRoles(reportTemplate.isShowSystemRoles());
-
+			reportForm.setShowOrgUnitAllocations(reportTemplate.isShowOrgUnitAllocations());
+			reportForm.setSelectedColumns(ReportColumnMapper.toFormSelections(reportTemplate.getSelectedColumns()));
 
 			if (reportTemplate.getItsystemFilter() != null) {
 				String[] stringIds = reportTemplate.getItsystemFilter().split(",");
@@ -184,7 +200,6 @@ public class ReportController {
 			reportForm.setShowUsers(true);
 			reportForm.setShowOUs(false);
 			reportForm.setShowUserRoles(true);
-			reportForm.setShowKLE(true);
 			reportForm.setShowItSystems(true);
 			reportForm.setShowInactiveUsers(false);
 			reportForm.setShowSystemRoles(false);
@@ -195,6 +210,7 @@ public class ReportController {
 		model.addAttribute("allOrgUnits", parseOuTree(now));
 		model.addAttribute("allManagers", historyService.getManagers(now));
 		model.addAttribute("templateId", id);
+		model.addAttribute("columnDefinitions", ReportColumnDefinitions.all());
 
 		return "reports/configure";
 	}
@@ -221,12 +237,13 @@ public class ReportController {
 			reportForm.setShowOUs(reportTemplate.isShowOUs());
 			reportForm.setShowUserRoles(reportTemplate.isShowUserRoles());
 			reportForm.setShowNegativeRoles(reportTemplate.isShowNegativeRoles());
-			reportForm.setShowKLE(reportTemplate.isShowKLE());
 			reportForm.setShowItSystems(reportTemplate.isShowItSystems());
 			reportForm.setShowInactiveUsers(reportTemplate.isShowInactiveUsers());
 			reportForm.setManagerFilter(reportTemplate.getManagerFilter());
 			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);
 			reportForm.setShowSystemRoles(reportTemplate.isShowSystemRoles());
+			reportForm.setShowOrgUnitAllocations(reportTemplate.isShowOrgUnitAllocations());
+			reportForm.setSelectedColumns(ReportColumnMapper.toFormSelections(reportTemplate.getSelectedColumns()));
 
 			if (reportTemplate.getItsystemFilter() != null) {
 				String[] stringIds = reportTemplate.getItsystemFilter().split(",");
@@ -289,13 +306,14 @@ public class ReportController {
 		reportForm.setManager(template.getManagerFilter());
 		reportForm.setShowInactiveUsers(template.isShowInactiveUsers());
 		reportForm.setShowItSystems(template.isShowItSystems());
-		reportForm.setShowKLE(template.isShowKLE());
 		reportForm.setShowOUs(template.isShowOUs());
 		reportForm.setShowUserRoles(template.isShowUserRoles());
 		reportForm.setShowNegativeRoles(template.isShowNegativeRoles());
 		reportForm.setShowUsers(template.isShowUsers());
 		reportForm.setShowSystemRoles(template.isShowSystemRoles());
+		reportForm.setShowOrgUnitAllocations(template.isShowOrgUnitAllocations());
 		reportForm.setName(template.getName());
+		reportForm.setSelectedColumns(ReportColumnMapper.toFormSelections(template.getSelectedColumns()));
 
 		Map<String, Object> model = reportService.getReportModel(reportForm, loc);
 
@@ -330,22 +348,43 @@ public class ReportController {
 				model.addAttribute("userRoles", generateUserRolesWithSensitiveFlagReport());
 				return "reports/custom/user_roles_with_sensitive_flag";
 			case USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS:
-				// Rækkerne inlines som JSON-array og renderes klientside on-demand (deferRender),
-				// så browseren kun bygger DOM for de synlige rækker — undgår frys på store datamængder.
-				model.addAttribute("rows", generateUsersWithDuplicateRoleAssignmentsReport().stream()
-					.map(d -> new DuplicateUserRoleRow(
-						d.getName(),
-						d.getUserId(),
-						d.getUuid(),
-						d.getUserRole() != null ? d.getUserRole().getName() : "",
-						(d.getUserRole() != null && d.getUserRole().getItSystem() != null) ? d.getUserRole().getItSystem().getName() : "",
-						d.getMessage() != null ? d.getMessage() : ""))
-					.toList());
-				model.addAttribute("canEdit", SecurityUtil.hasRole(Constants.ROLE_USER_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_OU_ASSIGNER));
+				try {
+					runInLockedThread(() -> pouplateModelWithDuplicateUserRoleAssignmens(model));
+				}
+				catch (ReportModuleBusyException ex) {
+					log.warn("Attempting to pull report in parallel, not allowed, returning empty report for duplicate userrole assignments");
+				}
+
 				return "reports/custom/users_with_duplicate_userrole_assignments";
 			case USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS:
-				model.addAttribute("users", generateUsersWithDuplicateRoleGroupAssignmentsReport());
+				try {
+					runInLockedThread(() -> pouplateModelWithDuplicateRoleGroupAssignmens(model));
+				}
+				catch (ReportModuleBusyException ex) {
+					log.warn("Attempting to pull report in parallel, not allowed, returning empty report for duplicate rolegroup assignments");
+				}
+
 				return "reports/custom/users_with_duplicate_rolegroup_assignments";
+			case ORGUNITS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS:
+				try {
+					runInLockedThread(() -> model.addAttribute("rows", generateOrgUnitsWithDuplicateUserRoleAssignmentsReport(locale)));
+				}
+				catch (ReportModuleBusyException ex) {
+					log.warn("Attempting to pull report in parallel, not allowed, returning empty report for duplicate userRoleAssignments on orgUnits");
+				}
+
+				model.addAttribute("canEdit", SecurityUtil.hasRole(Constants.ROLE_OU_ASSIGNER));
+				return "reports/custom/orgunits_with_duplicate_userrole_assignments";
+			case ORGUNITS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS:
+				try {
+					runInLockedThread(() -> model.addAttribute("rows", generateOrgUnitsWithDuplicateRoleGroupAssignmentsReport(locale)));
+				}
+				catch (ReportModuleBusyException ex) {
+					log.warn("Attempting to pull report in parallel, not allowed, returning empty report for duplicate roleGroupAssignments on orgUnits");
+				}
+
+				model.addAttribute("canEdit", SecurityUtil.hasRole(Constants.ROLE_OU_ASSIGNER));
+				return "reports/custom/orgunits_with_duplicate_rolegroup_assignments";
 			case USER_ROLE_WITHOUT_ASSIGNMENTS:
 				model.addAttribute("userRoles", generateUserRolesWithoutAssignmentsReport());
 				return "reports/custom/user_roles_without_assignments";
@@ -382,6 +421,43 @@ public class ReportController {
 		}
 
 		return "redirect:/ui/report/custom";
+	}
+
+	private void runInLockedThread(Runnable r) {
+		lockService.acquireLock(REPORT_DUPLICATE_ROLES);
+
+		try {
+			r.run();
+		}
+		finally {
+			try {
+				lockService.releaseLock(REPORT_DUPLICATE_ROLES);
+			}
+			catch (Exception _) {
+				;
+			}
+		}
+	}
+
+	private void pouplateModelWithDuplicateRoleGroupAssignmens(Model model) {
+		model.addAttribute("users", generateUsersWithDuplicateRoleGroupAssignmentsReport());
+	}
+
+	private void pouplateModelWithDuplicateUserRoleAssignmens(Model model) {
+		log.info("Start");
+
+		model.addAttribute("rows", generateUsersWithDuplicateRoleAssignmentsReport().stream()
+				.map(d -> new DuplicateUserRoleRow(
+						d.getName(),
+						d.getUserId(),
+						d.getUuid(),
+						d.getUserRole() != null ? d.getUserRole().getName() : "",
+						(d.getUserRole() != null && d.getUserRole().getItSystem() != null) ? d.getUserRole().getItSystem().getName() : "",
+						d.getMessage() != null ? d.getMessage() : ""))
+				.toList());
+
+		model.addAttribute("canEdit", SecurityUtil.hasRole(Constants.ROLE_USER_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_OU_ASSIGNER));
+		log.info("Stop");
 	}
 
 	@GetMapping("/ui/report/custom/{reportType}/download")
@@ -458,6 +534,38 @@ public class ReportController {
 					row.add(user.getUserId());
 					row.add(user.getRoleGroup().getName());
 					row.add(user.getMessage());
+
+					rows.add(row);
+				}
+			}
+				break;
+			case ORGUNITS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS:
+			case ORGUNITS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS: {
+				boolean userRoles = report == ReportType.ORGUNITS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS;
+				headers.add(messageSource.getMessage("html.entity.ou.type", null, locale));
+				headers.add(messageSource.getMessage(userRoles ? "html.entity.userrole.type" : "html.entity.rolegroup.type", null, locale));
+				if (userRoles) {
+					headers.add(messageSource.getMessage("html.entity.itsystem", null, locale));
+				}
+				headers.add(messageSource.getMessage("html.page.report.ouduplicate.inherit", null, locale));
+				headers.add(messageSource.getMessage("html.page.report.ouduplicate.filters", null, locale));
+				headers.add(messageSource.getMessage("html.page.report.ouduplicate.duplicateOf", null, locale));
+
+				List<DuplicateOrgUnitAssignmentRow> result = userRoles
+					? generateOrgUnitsWithDuplicateUserRoleAssignmentsReport(locale)
+					: generateOrgUnitsWithDuplicateRoleGroupAssignmentsReport(locale);
+				String yes = messageSource.getMessage("html.control.button.yes", null, locale);
+				String no = messageSource.getMessage("html.control.button.no", null, locale);
+				for (DuplicateOrgUnitAssignmentRow r : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(r.ouName());
+					row.add(r.roleName());
+					if (userRoles) {
+						row.add(r.itSystemName());
+					}
+					row.add(r.inherit() ? yes : no);
+					row.add(r.filters());
+					row.add(r.duplicateOf());
 
 					rows.add(row);
 				}
@@ -734,11 +842,11 @@ public class ReportController {
 	record AutomaticRoleRecord(long id, String type, String itSystemName, String name, String description) {}
 	private List<AutomaticRoleRecord> generateAutomaticRolesReport() {
 		List<AutomaticRoleRecord> result = new ArrayList<>();
-		for (UserRole userRole : rolerequestService.getAllAutomaticUserRoles()) {
+		for (UserRole userRole : userRoleService.findAllByIdIn(resolvedPermissionService.automaticUserRoleIds())) {
 			result.add(new AutomaticRoleRecord(userRole.getId(), "USERROLE", userRole.getItSystem().getName(), userRole.getName(), userRole.getDescription()));
 		}
 
-		for (RoleGroup roleGroup : rolerequestService.getAllAutomaticRoleGroups()) {
+		for (RoleGroup roleGroup : roleGroupService.findAllByIdIn(resolvedPermissionService.automaticRoleGroupIds())) {
 			result.add(new AutomaticRoleRecord(roleGroup.getId(), "ROLEGROUP", "", roleGroup.getName(), roleGroup.getDescription()));
 		}
 		return result;
@@ -815,22 +923,62 @@ public class ReportController {
 		return userRoles;
 	}
 
+	private List<DuplicateOrgUnitAssignmentRow> generateOrgUnitsWithDuplicateUserRoleAssignmentsReport(Locale locale) {
+		long start = System.currentTimeMillis();
+		List<DuplicateOrgUnitAssignmentRow> rows = orgUnitDuplicateAssignmentService.findDuplicateUserRoleAssignments().stream()
+			.map(o -> new DuplicateOrgUnitAssignmentRow(
+				o.redundant().getOrgUnit().getName(),
+				o.redundant().getOrgUnit().getUuid(),
+				o.redundant().getUserRole().getName(),
+				o.redundant().getUserRole().getItSystem().getName(),
+				o.redundant().isInherit(),
+				orgUnitDuplicateAssignmentService.describeFilters(o.redundant(), locale),
+				orgUnitDuplicateAssignmentService.describeDuplicateOf(o.redundant().getOrgUnit(), o.duplicateOf().getOrgUnit(), locale)))
+			.sorted(Comparator.comparing(DuplicateOrgUnitAssignmentRow::ouName).thenComparing(DuplicateOrgUnitAssignmentRow::roleName))
+			.toList();
+
+		long duration = System.currentTimeMillis() - start;
+		if (duration > SLOW_WARNING_MS) {
+			log.warn("Generating the report of duplicate userRoleAssignments on orgUnits took {} ms ({} rows)", duration, rows.size());
+		}
+
+		return rows;
+	}
+
+	private List<DuplicateOrgUnitAssignmentRow> generateOrgUnitsWithDuplicateRoleGroupAssignmentsReport(Locale locale) {
+		long start = System.currentTimeMillis();
+		List<DuplicateOrgUnitAssignmentRow> rows = orgUnitDuplicateAssignmentService.findDuplicateRoleGroupAssignments().stream()
+			.map(o -> new DuplicateOrgUnitAssignmentRow(
+				o.redundant().getOrgUnit().getName(),
+				o.redundant().getOrgUnit().getUuid(),
+				o.redundant().getRoleGroup().getName(),
+				"",
+				o.redundant().isInherit(),
+				orgUnitDuplicateAssignmentService.describeFilters(o.redundant(), locale),
+				orgUnitDuplicateAssignmentService.describeDuplicateOf(o.redundant().getOrgUnit(), o.duplicateOf().getOrgUnit(), locale)))
+			.sorted(Comparator.comparing(DuplicateOrgUnitAssignmentRow::ouName).thenComparing(DuplicateOrgUnitAssignmentRow::roleName))
+			.toList();
+
+		long duration = System.currentTimeMillis() - start;
+		if (duration > SLOW_WARNING_MS) {
+			log.warn("Generating the report of duplicate roleGroupAssignments on orgUnits took {} ms ({} rows)", duration, rows.size());
+		}
+
+		return rows;
+	}
+
 	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleAssignmentsReport() {
 		final Locale locale = LocaleContextHolder.getLocale();
 
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
-		List<User> allUsers = userService.getAll();
 
-		for (User user : allUsers) {
-			// Alle assignments, også dem via rollebuket — en jobfunktionsrolle tildelt direkte
-			// OG gennem en rollebuket er netop et overlap denne rapport skal vise.
-			// Kun aktive rækker med en JFR tæller: udløbne/ikke-startede tildelinger er ikke
-			// reelle overlap (2026r1 filtrerede inactive fra), og gruppe-rækker for tomme
-			// rollebuketter har ingen userRole
-			List<CurrentAssignment> allAssignments = assignmentService.getByUserWithEagerRolesAndSystemsIncludingInactive(user).stream()
+		Map<String, List<CurrentAssignment>> allAssignmentsMap = assignmentService.getDuplicateUserRoleAssignments().stream()
 				.filter(CurrentAssignment::isActive)
 				.filter(a -> a.getUserRole() != null)
-				.collect(Collectors.toList());
+				.collect(Collectors.groupingBy(ca -> ca.getUser().getUuid()));
+
+		for (String userUuid : allAssignmentsMap.keySet()) {
+			List<CurrentAssignment> allAssignments = allAssignmentsMap.get(userUuid);
 
 			// Find direct assignments
 			List<CurrentAssignment> directAssignments = allAssignments.stream()
@@ -840,6 +988,8 @@ public class ReportController {
 			if (directAssignments.isEmpty()) {
 				continue;
 			}
+
+			User user = directAssignments.get(0).getUser();
 
 			// For each direct assignment, check if the same userRole exists indirectly
 			for (CurrentAssignment directAssignment : directAssignments) {
@@ -855,7 +1005,6 @@ public class ReportController {
 				for (CurrentAssignment indirectAssignment : indirectDuplicates) {
 					AssignedThrough assignedThrough = assignmentService.getAssignedThrough(indirectAssignment);
 					String message = messageSource.getMessage(assignedThrough.getMessage(), null, locale) + ": " + assignmentService.getAssignedThroughName(indirectAssignment, assignedThrough);
-
 
 					UserWithDuplicateRoleAssignmentDTO dto = new UserWithDuplicateRoleAssignmentDTO();
 					dto.setName(user.getName());
@@ -876,23 +1025,27 @@ public class ReportController {
 		final Locale locale = LocaleContextHolder.getLocale();
 
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
-		List<User> allUsers = userService.getAll();
 
-		for (User user : allUsers) {
-			// exclude empty role groups (roleGroup-only rows) - they hold no roles and are not meaningful duplicates.
-			// isActive-filteret følger rollebuket-cleanupen (deleteDuplicateRoleGroupAssignmentsOnUsers), så udløbne/
-			// fremtidige rækker ikke vises som duplikater; rapporten ekskluderer derudover roleGroup-only-rækker, som
-			// cleanupen ikke gør — bevidst, da tomme rollebukets ikke er meningsfulde duplikater at vise.
-			Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignmentsByUser(user).stream()
-				.filter(a -> !a.isRoleGroupOnly())
+		Map<String, List<CurrentAssignment>> allAssignmentsMap = assignmentService.getDuplicateRoleGroupAssignments().stream()
 				.filter(CurrentAssignment::isActive)
-				.collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+				.filter(a -> !a.isRoleGroupOnly())
+				.collect(Collectors.groupingBy(ca -> ca.getUser().getUuid()));
 
-			if (uniqueRoleGroupAssignments.isEmpty()) {
-				continue;
-			}
+		for (String userUuid : allAssignmentsMap.keySet()) {
+			List<CurrentAssignment> allAssignments = allAssignmentsMap.get(userUuid);
 
-			List<CurrentAssignment> directAssignments = uniqueRoleGroupAssignments.stream()
+			// filter duplicates on assignmentId
+			allAssignments = new ArrayList<>(
+					allAssignments.stream()
+			                   .collect(Collectors.toMap(
+			                           CurrentAssignment::getAssignmentId,
+			                           a -> a,
+			                           (first, _) -> first,
+			                           LinkedHashMap::new))
+			                   .values());
+
+			// Find direct assignments
+			List<CurrentAssignment> directAssignments = allAssignments.stream()
 				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT)
 				.collect(Collectors.toList());
 
@@ -900,12 +1053,14 @@ public class ReportController {
 				continue;
 			}
 
+			User user = directAssignments.get(0).getUser();
+
 			// For each direct assignment, check if the same roleGroup exists indirectly
 			for (CurrentAssignment directAssignment : directAssignments) {
 				long roleGroupId = directAssignment.getRoleGroup().getId();
 
 				// Find all indirect assignments with the same roleGroupId
-				List<CurrentAssignment> indirectDuplicates = uniqueRoleGroupAssignments.stream()
+				List<CurrentAssignment> indirectDuplicates = allAssignments.stream()
 					.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) != AssignedThrough.DIRECT)
 					.filter(a -> a.getRoleGroup().getId() == roleGroupId)
 					.collect(Collectors.toList());

@@ -22,4 +22,5 @@ public class ITSystemRoleBuildAttestationDTO {
 	private AttestationStatus attestationStatus = AttestationStatus.NOT_VERIFIED;
 	private LocalDate attestationDate;
 	private String performedBy;
+	private String remark;
 }

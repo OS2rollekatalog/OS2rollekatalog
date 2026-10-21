@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.springframework.transaction.TransactionDefinition.ISOLATION_READ_UNCOMMITTED;
@@ -43,11 +44,13 @@ public class SystemRoleAssignmentsUpdaterJdbc {
 
         progressCount = 0;
         long recordCount = 0;
+        final Map<Long, RoleMetadata> userRoles = temporalDao.currentUserRoleMetadata();
+        final Map<Long, RoleMetadata> systemRoles = temporalDao.currentSystemRoleMetadata();
         final List<Long> itSystemIds = temporalDao.getDistinctItSystemIdsFromHistoricItSystemAssignment(when);
 		for (final Long itSystemId : itSystemIds) {
 			final Long cnt = transactionTemplate.execute(_ -> {
 				final List<AttestationSystemRoleAssignment> assignments = temporalDao.listHistoricItSystemAssignmentsByItSystemAndDate(when, itSystemId).stream()
-						.map(SystemRoleAssignmentsUpdaterJdbc::toAttestationAssignment)
+						.map(h -> toAttestationAssignment(h, userRoles, systemRoles))
 						.toList();
 				assignments.forEach(a -> {
 					logProgress();
@@ -85,16 +88,18 @@ public class SystemRoleAssignmentsUpdaterJdbc {
         }
     }
 
-    private static AttestationSystemRoleAssignment toAttestationAssignment(final HistoricItSystemAssignment h) {
+    private static AttestationSystemRoleAssignment toAttestationAssignment(final HistoricItSystemAssignment h,
+                                                                           final Map<Long, RoleMetadata> userRoles,
+                                                                           final Map<Long, RoleMetadata> systemRoles) {
         final AttestationSystemRoleAssignment a = AttestationSystemRoleAssignment.builder()
             .itSystemId(h.getItSystemId())
             .itSystemName(h.getItSystemName())
             .userRoleId(h.getUserRoleId())
-            .userRoleName(h.getUserRoleName())
-            .userRoleDescription(h.getUserRoleDescription())
+            .userRoleName(RoleMetadata.nameOf(userRoles, h.getUserRoleId(), h.getUserRoleName()))
+            .userRoleDescription(RoleMetadata.descriptionOf(userRoles, h.getUserRoleId(), h.getUserRoleDescription()))
             .systemRoleId(h.getSystemRoleId())
-            .systemRoleName(h.getSystemRoleName())
-            .systemRoleDescription(h.getSystemRoleDescription())
+            .systemRoleName(RoleMetadata.nameOf(systemRoles, h.getSystemRoleId(), h.getSystemRoleName()))
+            .systemRoleDescription(RoleMetadata.descriptionOf(systemRoles, h.getSystemRoleId(), h.getSystemRoleDescription()))
             .responsibleCollectionId(h.getResponsibleCollectionId())
             .build();
         a.setConstraints(h.getConstraints().stream()

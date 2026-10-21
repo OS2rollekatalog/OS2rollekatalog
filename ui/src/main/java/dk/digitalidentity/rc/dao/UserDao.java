@@ -87,28 +87,24 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 
 	List<String> findUuidByNemloginUuidNotNullAndDeletedFalseAndDisabledFalse();
 
+	@Query("SELECT u.uuid FROM users u WHERE u.deleted = false")
+	List<String> findAllUuids();
+	
 	List<User> findByUuidIn(Set<String> uuids);
+
+	<T> List<T> findByUuidIn(Set<String> uuids, Class<T> projectionType);
 
 	List<User> findByNameContainsOrUserIdContainsAndDeletedFalse(String name, String userId);
 
 	List<User> findTop10ByDeletedFalse();
 
-	// For disabled-brugere bruges disabledAt (den dag de blev deaktiveret).
-	// For deleted-brugere bruges lastUpdated (den dag importen sidst rørte dem — dvs. dagen de blev soft-deleted, da
-	// importen filtrerer allerede-deleted brugere fra på linje 1047 i OrganisationImporter og dermed ikke rører dem igen).
-	@Query("SELECT DISTINCT u FROM users u " +
-		"WHERE (u.disabled = true AND u.disabledAt IS NOT NULL AND u.disabledAt <= :cutoffDate) " +
-		"   OR (u.deleted = true AND u.lastUpdated < :cutoffDateExclusiveUpper)")
-	List<User> findDisabledUsersOlderThan(@Param("cutoffDate") LocalDate cutoffDate,
-										  @Param("cutoffDateExclusiveUpper") Date cutoffDateExclusiveUpper);
-
-// this forces EAGER loading of both relationsships, but since they are List<> that will not work, as List<> are by default sorted,
-// so this needs to be Set<>'s or we need to add an ORDER BY to the WHERE statement. But it seems unneeded to change the LAZY loading
-// into EAGER loading, as the relationships are already batched, so for now I'll comment this out   /BSG
-//	@EntityGraph(attributePaths = {"userRoleAssignments", "roleGroupAssignments"})
-	@Query("SELECT DISTINCT u FROM users u " +
-		"WHERE (u.disabled = true AND u.disabledAt IS NOT NULL AND u.disabledAt <= :cutoffDate) " +
-		"   OR (u.deleted = true AND u.lastUpdated < :cutoffDateExclusiveUpper)")
-	List<User> findDisabledUsersOlderThanWithAssignments(@Param("cutoffDate") LocalDate cutoffDate,
-														 @Param("cutoffDateExclusiveUpper") Date cutoffDateExclusiveUpper);
+	// lastUpdated is the day a deleted user was soft-deleted, as the import skips already-deleted users. Uuids only, as
+	// the cleanup re-loads each user in its own transaction, and only users an earlier run has not already cleaned.
+	@Query("SELECT u.uuid FROM users u " +
+		"WHERE ((u.disabled = true AND u.disabledAt IS NOT NULL AND u.disabledAt <= :cutoffDate) " +
+		"    OR (u.deleted = true AND u.lastUpdated < :cutoffDateExclusiveUpper)) " +
+		"  AND (EXISTS (SELECT 1 FROM user_roles_mapping ura WHERE ura.user = u) " +
+		"    OR EXISTS (SELECT 1 FROM user_rolegroups urga WHERE urga.user = u))")
+	List<String> findUuidsOfDisabledUsersOlderThan(@Param("cutoffDate") LocalDate cutoffDate,
+												   @Param("cutoffDateExclusiveUpper") Date cutoffDateExclusiveUpper);
 }

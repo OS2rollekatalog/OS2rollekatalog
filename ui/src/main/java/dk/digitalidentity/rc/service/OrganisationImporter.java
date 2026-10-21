@@ -1,5 +1,31 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.ManagerDTO;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
@@ -21,14 +47,20 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserOUFunction;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.event.NewTitlesInOrgUnitsEvent;
+import dk.digitalidentity.rc.event.OrganisationHierarchyChangedEvent;
+import dk.digitalidentity.rc.interceptor.RoleChangeInterceptor;
+import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.MovedPostion;
 import dk.digitalidentity.rc.service.model.OrgUnitWithNewAndOldParentDTO;
@@ -41,30 +73,6 @@ import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 @Slf4j
@@ -111,6 +119,12 @@ public class OrganisationImporter {
 	@PersistenceContext
 	private EntityManager entityManager;
 
+	@Autowired
+	private RoleChangeInterceptor roleChangeInterceptor;
+	
+	@Autowired
+	private AuditLogger auditLogger;
+
 	private record OrganisationImportContext(List<String> systemOwnerAndResponsibleUuids) {}
 
 	@Transactional
@@ -143,6 +157,10 @@ public class OrganisationImporter {
 			List<User> existingUsers = userService.getAllIncludingInactive(domain);
 			List<OrgUnit> existingOrgUnits = orgUnitService.getAllIncludingInactive();
 
+			// keep track of all managers and user locations BEFORE we perform an update
+			Map<String, SlimManager> oldManagerMap = generateManagerMap(existingOrgUnits);
+			Map<String, Set<String>> oldUserOuMap = generateUserOuMap(existingUsers);
+			
 			// this modifies existingOrgUnits, so it now contains everything - only if primary domain
 			if (isPrimaryDomain) {
 				processOrgUnits(newOrgUnits, existingOrgUnits, response);
@@ -154,25 +172,22 @@ public class OrganisationImporter {
 			// both existing OrgUnits and Users have been merged with new OrgUnits and Users at this point - only if primary domain
 			if (isPrimaryDomain) {
 				setManagers(organisation.getOrgUnits(), existingOrgUnits, existingUsers);
+				eventPublisher.publishEvent(new OrganisationHierarchyChangedEvent());
 			}
+
+			// now compute managers and user locations AFTER the update, to identify changes
+			Map<String, SlimManager> updatedManagerMap = generateManagerMap(existingOrgUnits);
+			Map<String, Set<String>> updatedUserOuMap = generateUserOuMap(existingUsers);
+			identifyRelevantUserPositionChanges(existingUsers, existingOrgUnits, oldManagerMap, updatedManagerMap, oldUserOuMap, updatedUserOuMap);
 
 			// if everything went okay so far, fire of all collected events
 			processEvents();
+			
 			return response;
 		}
 		finally {
 			events.remove();
 		}
-	}
-
-	private OrganisationImportContext buildOrganizationImportContext() {
-		final List<String> ownersAndResponsible = itSystemService.getAll().stream()
-			.flatMap(its -> Stream.concat(
-				itSystemService.getAttestationResponsibleUuids(its).stream(),
-				itSystemService.getSystemOwnerUuids(its).stream()))
-			.distinct()
-			.toList();
-		return new OrganisationImportContext(ownersAndResponsible);
 	}
 
 	@Transactional
@@ -207,11 +222,19 @@ public class OrganisationImporter {
 				newUsers.add(user);
 			}
 
-			// read existing data from database (have to read them all, as extUuid might have changed... well, we could ready by UserID I guess)
+			// read existing data from database (have to read them all, as extUuid might have changed... well, we could match by UserID I guess)
 			List<User> existingUsers = userService.getAllIncludingInactive(domain);
+
+			// keep track of all managers and user locations BEFORE we perform an update
+			Map<String, SlimManager> managerMap = generateManagerMap(existingOrgUnits);
+			Map<String, Set<String>> oldUserOuMap = generateUserOuMap(existingUsers);
 
 			// this modifies existingUsers, so it now contains everything
 			processUsers(context, newUsers, existingUsers, existingOrgUnits, response, true, domain);
+
+			// now compute managers and user locations AFTER the update, to identify changes
+			Map<String, Set<String>> updatedUserOuMap = generateUserOuMap(existingUsers);
+			identifyRelevantUserPositionChanges(existingUsers, existingOrgUnits, managerMap, managerMap, oldUserOuMap, updatedUserOuMap);
 
 			// if everything went okay so far, fire of all collected events
 			processEvents();
@@ -221,6 +244,299 @@ public class OrganisationImporter {
 		finally {
 			events.remove();
 		}
+	}
+
+	// TODO: on a delta- we really should only supply those users that are relevant for this update
+	private void identifyRelevantUserPositionChanges(List<User> users, List<OrgUnit> orgUnits,
+			Map<String, SlimManager> oldManagerMap, Map<String, SlimManager> updatedManagerMap,
+			Map<String, Set<String>> oldUserOuMap, Map<String, Set<String>> updatedUserOuMap) {
+		
+		if (users == null) {
+			return;
+		}
+		
+		for (User user : users) {
+			Set<String> oldOuUuids = oldUserOuMap.get(user.getUuid());
+			if (oldOuUuids == null) {
+				continue;
+			}
+			
+			Set<String> newOuUuids = updatedUserOuMap.get(user.getUuid());
+			if (newOuUuids == null) {
+				continue;
+			}
+			
+			// no changes, just skip
+			if (oldOuUuids.equals(newOuUuids)) {
+				continue;
+			}
+
+			// the only scenarios we trigger are these:
+			// - the user has left exactly ONE positions
+			// - the user has moved from ONE position to ANOTHER
+			// more complext scenarios, we will not trigger on
+			
+			// detect if we changed exactly one
+			if (oldOuUuids.size() == newOuUuids.size()) {
+				String removedUuid = null, addedUuid = null;
+				boolean tooComplex = false;
+
+				for (String oldUuid : oldOuUuids) {
+					if (newOuUuids.contains(oldUuid)) {
+						continue;
+					}
+
+					if (removedUuid != null) {
+						tooComplex = true;
+						break;
+					}
+
+					removedUuid = oldUuid;
+				}
+				
+				for (String newUuid : newOuUuids) {
+					if (oldOuUuids.contains(newUuid)) {
+						continue;
+					}
+					
+					if (addedUuid != null) {
+						tooComplex = true;
+						break;
+					}
+					
+					addedUuid = newUuid;
+				}
+				
+				if (tooComplex) {
+					log.warn("Cannot decide position changes on " + user.getUserId() + " because there are too many changes. Old OUs=" + oldOuUuids + " / new OUs=" + newOuUuids);
+					continue;
+				}
+
+				// we have detected a change we can handle, so push event and eventual cleanup for this
+				SlimManager oldManager = oldManagerMap.get(removedUuid);
+				SlimManager newManager = updatedManagerMap.get(addedUuid);
+				if (oldManager != null && newManager != null) {
+					if (!Objects.equals(oldManager.userId(), newManager.userId())) {
+						handleUserMovedRelevantPositions(user, removedUuid, oldManager, newManager);
+					}
+				}
+				
+				continue;
+			}
+			
+			// removed exactly one
+			if (oldOuUuids.size() == (newOuUuids.size() + 1)) {
+				String removedUuid = null;
+				boolean tooComplex = false;
+
+				for (String oldUuid : oldOuUuids) {
+					if (newOuUuids.contains(oldUuid)) {
+						continue;
+					}
+
+					if (removedUuid != null) {
+						tooComplex = true;
+						break;
+					}
+
+					removedUuid = oldUuid;
+				}
+				
+				if (tooComplex) {
+					log.warn("Cannot decide position changes on " + user.getUserId() + " because there are too many changes. Old OUs=" + oldOuUuids + " / new OUs=" + newOuUuids);
+					continue;
+				}
+
+				// we have detected a change we can handle, so push event and eventual cleanup for this
+				SlimManager oldManager = oldManagerMap.get(removedUuid);
+				if (oldManager != null) {
+					handleUserMovedRelevantPositions(user, removedUuid, oldManager, null);
+				}
+				
+				continue;
+			}
+
+			// if we only added new ones, that is okay, otherwise log a warning so we can answer support questions
+			if (!newOuUuids.containsAll(oldOuUuids)) {
+				log.warn("Cannot decide position changes on " + user.getUserId() + " because there are too many changes. Old OUs=" + oldOuUuids + " / new OUs=" + newOuUuids);
+			}
+		}
+	}
+
+	// newManager can be NULL if user just lost the position, but the oldManager is always present
+	private void handleUserMovedRelevantPositions(User user, String removedUuid, SlimManager oldManager, SlimManager newManager) {
+
+		// skip substitutes
+		if (userService.isVikar(user.getUserId())) {
+			return;
+		}
+
+		Set<String> removedRoles = new HashSet<>();
+		boolean noDirectAssignments = false;
+		if ((user.getUserRoleAssignments() == null || user.getUserRoleAssignments().isEmpty()) && (user.getRoleGroupAssignments() == null || user.getRoleGroupAssignments().isEmpty())) {
+			noDirectAssignments = true;
+		}
+
+		// if enabled, remove any direct assignments associated with the removed OU
+		if (!noDirectAssignments) {
+			boolean changes = false;
+
+			if (user.getUserRoleAssignments() != null) {
+				for (Iterator<UserUserRoleAssignment> iterator = user.getUserRoleAssignments().iterator(); iterator.hasNext();) {
+					UserUserRoleAssignment ura = iterator.next();
+					
+					if (ura.getOrgUnit() != null && Objects.equals(removedUuid, ura.getOrgUnit().getUuid())) {						
+						if (settingsService.isRemoveDirectAssignmentsOnRelevantPositionChangeEnabled()) {
+							changes = true;
+							iterator.remove();
+							
+							auditLogger.log(user, EventType.REMOVE_USER_ROLE, ura.getUserRole(), "Afdelingsskifte");
+							removedRoles.add(ura.getUserRole().getName() + " (" + ura.getUserRole().getItSystem().getName() + ")");
+						}
+						else {
+							if (newManager != null) {
+								OrgUnit orgUnit = orgUnitService.getByUuid(newManager.ouUuid());
+								if (orgUnit != null) {
+									changes = true;
+									ura.setOrgUnit(orgUnit);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (user.getRoleGroupAssignments() != null) {
+				for (Iterator<UserRoleGroupAssignment> iterator = user.getRoleGroupAssignments().iterator(); iterator.hasNext();) {
+					UserRoleGroupAssignment rga = iterator.next();
+					
+					if (rga.getOrgUnit() != null && Objects.equals(removedUuid, rga.getOrgUnit().getUuid())) {
+						if (settingsService.isRemoveDirectAssignmentsOnRelevantPositionChangeEnabled()) {
+							changes = true;
+							iterator.remove();
+							
+							auditLogger.log(user, EventType.REMOVE_ROLE_GROUP, rga.getRoleGroup(), "Afdelingsskifte");
+							removedRoles.add(rga.getRoleGroup().getName() + " (rollebuket)");
+						}
+						else {
+							if (newManager != null) {
+								OrgUnit orgUnit = orgUnitService.getByUuid(newManager.ouUuid());
+								if (orgUnit != null) {
+									changes = true;
+									rga.setOrgUnit(orgUnit);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (changes) {
+				userService.queueForRecalculation(user);
+			}
+		}
+
+		// if enabled, create a notification
+		if (settingsService.isNotificationTypeEnabledCached(NotificationType.USER_MOVED_POSITIONS)) {
+			StringBuilder builder = new StringBuilder();
+			builder.append(user.getName() + " (" + user.getUserId() + ") har ændringer til sine tilhørsforhold.\n\n");
+
+			builder.append("Stoppet i " + oldManager.ouName() + " under lederen " + oldManager.name() + " (" + oldManager.userId() + ")\n");
+			if (newManager != null) {
+				builder.append("Startet i " + newManager.ouName() + " under lederen " + newManager.name() + " (" + newManager.userId() + ")\n");
+			}
+			builder.append("\n");
+
+			if (removedRoles.size() > 0) {
+				builder.append("Følgende roller blev frataget i forbindelse med skiftet\n");
+				for (String removedRole : removedRoles) {
+					builder.append(" - " + removedRole);
+				}
+			}
+
+			Notification moveNotification = new Notification();
+			moveNotification.setActive(true);
+			moveNotification.setCreated(new Date());
+			moveNotification.setMessage(builder.toString());
+			moveNotification.setNotificationType(NotificationType.USER_MOVED_POSITIONS);
+			moveNotification.setAffectedEntityName(user.getName());
+			moveNotification.setAffectedEntityType(NotificationEntityType.USERS);
+			moveNotification.setAffectedEntityUuid(user.getUuid());
+
+			notificationService.save(moveNotification);
+		}
+
+		// no more actions unless the user had direct assignments and we have an actual new manager with an email to notify
+		if (noDirectAssignments || newManager == null || !StringUtils.hasText(newManager.email())) {
+			return;
+		}
+		
+		// if enabled, send an email
+		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT);
+		if (template.isEnabled()) {			
+			String title = template.getTitle();
+			title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), newManager.name());
+			title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName());
+
+			String emailMessage = template.getMessage();
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), newManager.name());
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName());
+
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.NEW_POSITIONS_PLACEHOLDER.getPlaceholder(), "Tiltrådt relation til " + newManager.ouName());
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.OLD_POSITIONS_PLACEHOLDER.getPlaceholder(), "Fratrædt relation til " + oldManager.ouName());
+
+			emailQueueService.queueEmail(newManager.email(), title, emailMessage, template, null, null);
+		}
+	}
+
+	private Map<String, Set<String>> generateUserOuMap(List<User> users) {
+		Map<String, Set<String>> userOuMap = new HashMap<>();
+		if (users != null) {
+			for (User user : users) {
+				Set<String> ouUuids = new HashSet<String>();
+				
+				if (user.getPositions() != null) {
+					for (Position position : user.getPositions()) {
+						if (position.getOrgUnit() != null && position.getOrgUnit().isActive()) {
+							ouUuids.add(position.getOrgUnit().getUuid());
+						}
+					}
+				}
+				
+				userOuMap.put(user.getUuid(), ouUuids);
+			}
+		}
+
+		return userOuMap;
+	}
+	
+	record SlimManager(String name, String ouName, String ouUuid, String userId, String email) { };
+
+	private Map<String, SlimManager> generateManagerMap(List<OrgUnit> orgUnits) {
+		Map<String, SlimManager> managerMap = new HashMap<>();
+		if (orgUnits != null) {
+			for (OrgUnit orgUnit : orgUnits) {
+				SlimManager slimManager = null;
+				if (orgUnit.getManager() != null) {
+					slimManager = new SlimManager(orgUnit.getManager().getName(), orgUnit.getName(), orgUnit.getUuid(), orgUnit.getManager().getUserId(), orgUnit.getManager().getEmail());
+				}
+				
+				managerMap.put(orgUnit.getUuid(), slimManager);
+			}
+		}
+
+		return managerMap;
+	}
+
+	private OrganisationImportContext buildOrganizationImportContext() {
+		final List<String> ownersAndResponsible = itSystemService.getAll().stream()
+			.flatMap(its -> Stream.concat(
+				itSystemService.getAttestationResponsibleUuids(its).stream(),
+				itSystemService.getSystemOwnerUuids(its).stream()))
+			.distinct()
+			.toList();
+
+		return new OrganisationImportContext(ownersAndResponsible);
 	}
 
 	private void mapOrganisation(OrganisationDTO organisation, List<User> newUsers, List<OrgUnit> newOrgUnits) {
@@ -258,6 +574,7 @@ public class OrganisationImporter {
 	}
 
 	private void setManagers(List<OrgUnitDTO> orgUnitDTOs, List<OrgUnit> existingOrgUnits, List<User> existingUsers) {
+
 		Map<String, ManagerDTO> managerMap = new HashMap<>();
 		for (OrgUnitDTO orgUnitDTO : orgUnitDTOs) {
 			if (orgUnitDTO.getManager() != null && StringUtils.hasLength(orgUnitDTO.getManager().getUuid()) && StringUtils.hasLength(orgUnitDTO.getManager().getUserId())) {
@@ -773,10 +1090,7 @@ public class OrganisationImporter {
 							for (Position positionToRemove : positionsToRemove) {
 								userService.removePosition(existingUser, positionToRemove);
 							}
-							if (!userHasNoRoles && (!movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) && hasNewPositionInDifferentOu(movedPositionEvent.getNewPositions(), movedPositionEvent.getOldPositions())) {
-								events.get().getUsersMovedPostions().add(movedPositionEvent);
-							}
-
+							
 							if (context.systemOwnerAndResponsibleUuids.contains(existingUser.getUuid())) {
 								events.get().getSystemOwnerOrAttestationResponsibleMovedPostions().add(movedPositionEvent);
 							}
@@ -840,19 +1154,6 @@ public class OrganisationImporter {
 				userService.save(userToDelete);
 			}
 		}
-	}
-
-	private boolean hasNewPositionInDifferentOu(Set<MovedPostion> newPositions, Set<MovedPostion> oldPositions) {
-		Set<String> oldOuUuids = oldPositions.stream()
-				.map(p -> p.getOrgUnit().getUuid())
-				.collect(Collectors.toSet());
-
-		for (MovedPostion newPosition : newPositions) {
-			if (!oldOuUuids.contains(newPosition.getOrgUnit().getUuid())) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	private void handleUserDeletedEvent(List<ItSystem> simpleItSystems, User userToDelete) {
@@ -1143,7 +1444,7 @@ public class OrganisationImporter {
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (!existingOrgUnit.getName().equals(newOrgUnit.getName())) {
-						if (settingsService.isNotificationTypeEnabled(NotificationType.ORG_UNIT_NAME_CHANGED)) {
+						if (settingsService.isNotificationTypeEnabledCached(NotificationType.ORG_UNIT_NAME_CHANGED)) {
 							Notification notification = new Notification();
 							notification.setActive(true);
 							notification.setCreated(new Date());
@@ -1362,7 +1663,7 @@ public class OrganisationImporter {
 	}
 
 	private boolean shouldApplyAutomaticNiveauMapping(OrgUnit orgUnit) {
-		return settingsService.isAutomaticNiveauMappingEnabled()
+		return settingsService.isAutomaticNiveauMappingEnabledCached()
 				&& !configuration.getOrganisation().isGetLevelsFromApi()
 				&& (orgUnit.getLevel() == null || orgUnit.getLevel() == OrgUnitLevel.NONE);
 	}
@@ -1475,7 +1776,15 @@ public class OrganisationImporter {
 	}
 
 	private void setOUManager(OrgUnit ou, User manager) {
+		User oldManager = ou.getManager();
+		if (oldManager != null) {
+			roleChangeInterceptor.mangerRoleChange(oldManager);
+		}
+
 		ou.setManager(manager);
+		if (manager != null) {
+			roleChangeInterceptor.mangerRoleChange(manager);
+		}
 	}
 
 	private void addPosition(User user, Position position) {
@@ -1486,7 +1795,6 @@ public class OrganisationImporter {
 		Set<OrgUnit> newOrgUnits = events.get().getNewOrgUnits();
 		Set<OrgUnitWithNewAndOldParentDTO> parentChangedOrgUnits = events.get().getOrgUnitsWithNewParent();
 		Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles = events.get().getOrgUnitsWithNewTitles();
-		Set<UserMovedPositions> usersWhoMovedPositions = events.get().getUsersMovedPostions();
 		Set<UserDeletedEvent> deletedUsers = events.get().getDeletedUsers();
 		Set<UserMovedPositions> ownersWhoMovedPositions = events.get().getSystemOwnerOrAttestationResponsibleMovedPostions();
 
@@ -1495,8 +1803,6 @@ public class OrganisationImporter {
 		handleParentChange(parentChangedOrgUnits);
 
 		handleNewTitles(orgUnitsWithNewTitles);
-
-		handleUserPositionChange(usersWhoMovedPositions);
 
 		handleSystemOwnerOrAttestationResponsible(ownersWhoMovedPositions);
 
@@ -1537,84 +1843,8 @@ public class OrganisationImporter {
 		}
 	}
 
-	private void handleUserPositionChange(Set<UserMovedPositions> usersWhoMovedPositions) {
-		if (settingsService.isNotificationTypeEnabled(NotificationType.USER_MOVED_POSITIONS)) {
-			for (UserMovedPositions event : usersWhoMovedPositions) {
-				// skip substitutes
-				if (userService.isVikar(event.getUser().getUserId())) {
-					continue;
-				}
-
-				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
-				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
-				String message = "Brugeren " + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
-				for (MovedPostion newPosition : event.getNewPositions()) {
-					message += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
-				}
-				message += "\n" + oneOrMoreOld + "\n";
-				for (MovedPostion oldPosition : event.getOldPositions()) {
-					message += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
-				}
-
-				Notification moveNotification = new Notification();
-				moveNotification.setActive(true);
-				moveNotification.setCreated(new Date());
-				moveNotification.setMessage(message);
-				moveNotification.setNotificationType(NotificationType.USER_MOVED_POSITIONS);
-				moveNotification.setAffectedEntityName(event.getUser().getName());
-				moveNotification.setAffectedEntityType(NotificationEntityType.USERS);
-				moveNotification.setAffectedEntityUuid(event.getUser().getUuid());
-
-				notificationService.save(moveNotification);
-			}
-		}
-
-		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT);
-		if (template.isEnabled()) {
-			for (UserMovedPositions event : usersWhoMovedPositions) {
-				if (event.getUser().getUserRoleAssignments().isEmpty() && event.getUser().getRoleGroupAssignments().isEmpty()) {
-					continue;
-				}
-
-				// skip substitutes
-				if (userService.isVikar(event.getUser().getUserId())) {
-					continue;
-				}
-
-				List<User> managers = event.getNewPositions().stream().map(u -> u.getOrgUnit().getManager()).filter(Objects::nonNull).distinct().toList();
-
-				String newPositionsList = "";
-				for (MovedPostion newPosition : event.getNewPositions()) {
-					newPositionsList += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
-				}
-
-				String oldPositionsList = "";
-				for (MovedPostion oldPosition : event.getOldPositions()) {
-					oldPositionsList += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
-				}
-
-				for (User manager : managers) {
-					String title = template.getTitle();
-					title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
-					title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), event.getUser().getName());
-
-					String emailMessage = template.getMessage();
-					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
-					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), event.getUser().getName());
-
-					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.NEW_POSITIONS_PLACEHOLDER.getPlaceholder(), newPositionsList);
-					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.OLD_POSITIONS_PLACEHOLDER.getPlaceholder(), oldPositionsList);
-					emailQueueService.queueEmail(manager.getEmail(), title, emailMessage, template, null, null);
-				}
-			}
-		}
-		else {
-			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
-		}
-	}
-
 	private void handleSystemOwnerOrAttestationResponsible(Set<UserMovedPositions> usersWhoMovedPositions) {
-		if (settingsService.isNotificationTypeEnabled(NotificationType.SYSTEM_OWNER_OR_RESPONSIBLE_MOVED_POSITIONS)) {
+		if (settingsService.isNotificationTypeEnabledCached(NotificationType.SYSTEM_OWNER_OR_RESPONSIBLE_MOVED_POSITIONS)) {
 			for (UserMovedPositions event : usersWhoMovedPositions) {
 				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
 				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
@@ -1680,7 +1910,7 @@ public class OrganisationImporter {
 			userService.queueMultipleForRecalculation(affectedUserUuids);
 		}
 
-		if (settingsService.isNotificationTypeEnabled(NotificationType.ORG_UNIT_NEW_PARENT)) {
+		if (settingsService.isNotificationTypeEnabledCached(NotificationType.ORG_UNIT_NEW_PARENT)) {
 			for (OrgUnitWithNewAndOldParentDTO dto : parentChangedOrgUnits) {
 				UserRoleAndRoleGroupListWrapper newWrapper = new UserRoleAndRoleGroupListWrapper();
 				newWrapper.setRoleGroups(new ArrayList<RoleGroup>());
@@ -1771,7 +2001,7 @@ public class OrganisationImporter {
 
 	private void handleNewOrgUnits(Set<OrgUnit> newOrgUnits) {
 		for (OrgUnit orgUnit : newOrgUnits) {
-			if (settingsService.isNotificationTypeEnabled(NotificationType.NEW_ORG_UNIT)) {
+			if (settingsService.isNotificationTypeEnabledCached(NotificationType.NEW_ORG_UNIT)) {
 				Notification notification = new Notification();
 				notification.setActive(true);
 				notification.setCreated(new Date());
@@ -1784,7 +2014,7 @@ public class OrganisationImporter {
 				notificationService.save(notification);
 			}
 
-			if (settingsService.isNotificationTypeEnabled(NotificationType.ORG_UNIT_NEW_PARENT)) {
+			if (settingsService.isNotificationTypeEnabledCached(NotificationType.ORG_UNIT_NEW_PARENT)) {
 				UserRoleAndRoleGroupListWrapper wrapper = new UserRoleAndRoleGroupListWrapper();
 				wrapper.setRoleGroups(new ArrayList<RoleGroup>());
 				wrapper.setUserRoles(new ArrayList<UserRole>());
@@ -2024,7 +2254,7 @@ public class OrganisationImporter {
 	}
 
 	private void applyAutomaticNiveauMapping(OrgUnit orgUnit) {
-		if (!settingsService.isAutomaticNiveauMappingEnabled()) {
+		if (!settingsService.isAutomaticNiveauMappingEnabledCached()) {
 			log.debug("Automatic niveau mapping is disabled");
 			return;
 		}

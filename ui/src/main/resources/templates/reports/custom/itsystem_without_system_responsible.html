@@ -6,7 +6,7 @@
 	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
 	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
 
-	<section>
+	<section th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 			<div class="content-wrapper">
 				<h3 th:text="#{html.report.itsystems_without_attestation_responsible}"></h3>
 				<div class="panel panel-default">
@@ -32,7 +32,7 @@
 										<em th:if="${system.inactiveSystemResponsible}" class="fa fa-fw fa-exclamation-triangle" th:title="#{html.entity.itsystem.inactiveAttestationResponsible.title}"></em>
 									</td>
 									<td>
-										<th:block th:if="${@permissionCheck.isAllowed(permittedEntity.REPORT, permission.UPDATE)}">
+										<th:block th:if="${@permissionCheck.isAllowed(section.REPORT, permission.UPDATE)}">
 											<a th:href="@{/ui/itsystem/edit/{id}(id=${system.id})}"><em class="fa fa-pencil"></em></a>
 										</th:block>
 									</td>
