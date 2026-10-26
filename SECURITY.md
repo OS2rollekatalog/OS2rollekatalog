@@ -20,7 +20,7 @@ Security fixes are provided only for the versions listed as supported below. If 
 
 Instead, please report them privately through this channel:
 
-2. **Email.** Send your report to **[kontakt@digital-identity.dk]**
+1. **Email.** Send your report to **[kontakt@digital-identity.dk]**
 
 ### What to include in your report
 
